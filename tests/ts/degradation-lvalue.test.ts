@@ -6,7 +6,7 @@ import { ScriptEvidenceTable } from "../../reference/ts/gen-tests/boring/ScriptE
 /**
  * Runtime witnesses for the degradation-granularity audit
  * (docs/audit-degradation-granularity.md). Every lvalue/element slot the
- * emitters protect with the site-level DegradedLvalueGuard must still land
+ * emitters protect with the DegradedLvalueGuard at the site must still perform
  * its write and read back the stored value: shape assertions alone are not
  * accepted evidence for the silent lost-write class.
  */
@@ -37,7 +37,7 @@ describe("degradation granularity runtime witnesses", () => {
   });
 
   test("data table classify keeps index reads on the full table (no per-access copy)", () => {
-    // Site-level conversion (426f8876): length and index reads lower natively
+    // Conversion at the site (426f8876): length and index reads lower natively
     // on the Int32Array, so classify stays correct across the whole range.
     const probes = [0, 65, 0x7f, 19969, 0x10ffff, -1];
     const seen = new Set(probes.map((cp) => ScriptEvidenceTable.classify(cp)));

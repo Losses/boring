@@ -4,21 +4,21 @@ package gi;
 	Counterexample fixture for t-munebyud-bxbr (TCN-109): the rethrow
 	growth-variant REGISTRATION keyed the exception class's payload enum,
 	while the LOOKUP (RustExpr.throwVariant) reads the error type active at
-	the throw site — the enclosing try region's catch domain when the throw
+	the throw site: the enclosing try region's catch domain when the throw
 	is absorbed, otherwise the containing function's Result error enum. This
 	fixture exercises the "otherwise" arm:
 
 	`mixed()` carries an unabsorbed `throw new A(...)`, so the propagation
 	fixpoint settles its Result error enum to AFault; the rethrow
-	`throw new E(e.fault)` sits at function top level — NOT inside any try
-	region — so its throw site looks the growth table up under AFault.
+	`throw new E(e.fault)` sits at function top level (NOT inside any try
+	region), so its throw site looks the growth table up under AFault.
 
 	Pre-fix the variant `EFault` was registered on the enum `EFault`, an
 	identity the AFault throw site never consults; the emitter fell back to
-	`AFault::EFault(...)` — a constructor AFault never declared — and cargo
+	`AFault::EFault(...)` (a constructor AFault never declared), and cargo
 	failed with E0599 after a SILENT generation pass (gen rc=0). Post-fix the
 	registration follows the lookup's own identity predicate
-	(RustEmissionState.throwGrowthKey) and lands on AFault, which then grows
+	(RustEmissionState.throwGrowthKey) and resolves to AFault, which then grows
 	the wrapping variant (RustDecl declared-enum emission).
 
 	`sameDomain()` is the control: its rethrow sits inside a region whose
@@ -68,7 +68,7 @@ class E extends haxe.Exception {
 class GrowthIdProbe {
 	// The unabsorbed A throw fixes this function's Result error enum to
 	// AFault; the unabsorbed throw of E over a value-shaped (non
-	// payload-constructor) argument must then land a variant on AFault.
+	// payload-constructor) argument must then register a variant on AFault.
 	public static function mixed(f:EFault):Int {
 		if (arm()) {
 			throw new A(AFault.Alpha("a"));
@@ -80,7 +80,7 @@ class GrowthIdProbe {
 		return false;
 	}
 
-	// Control: rethrow inside a region catching E's own payload domain —
+	// Control: rethrow inside a region catching E's own payload domain:
 	// registration and lookup identities coincide here.
 	public static function sameDomain():Int {
 		var v = 0;

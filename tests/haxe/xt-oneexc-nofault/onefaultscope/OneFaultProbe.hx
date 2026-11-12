@@ -5,7 +5,7 @@ package onefaultscope;
 	`endsWith(errorTypeName, "Fault")` gate).
 
 	Shape: ONE payload exception class, so the module-keyed payload
-	bookkeeping has no collision at all and the class-level emit gate is
+	bookkeeping has no collision at all and the per-class emit gate is
 	reached (a `pub struct E1` is emitted). The payload enum is named `F1`
 	and therefore does not end in `Fault`, so the throw-site wrap path returns
 	the raw `E1::new(...)` and the rethrow region mismatches (E0308) even

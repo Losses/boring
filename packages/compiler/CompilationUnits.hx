@@ -161,9 +161,9 @@ class CompilationUnits {
         }
         // Single pass over the pass-1 classification: a main module whose every
         // referencer is already a test module is reclassified. This is NOT a
-        // fixpoint: iterating to a fixpoint would collapse a whole library whose
-        // only roots are test modules (every core module becomes reachable only
-        // from tests and the shipping tree empties out).
+        // fixpoint: iterating to a fixpoint would move a whole library whose
+        // only roots are test modules into the test set (every core module
+        // becomes reachable only from tests and the shipping tree empties out).
         final reclassified:Array<String> = [];
         for (module in units.keys()) {
             if (units.get(module) != Main) {

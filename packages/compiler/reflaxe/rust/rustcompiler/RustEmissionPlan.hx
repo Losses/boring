@@ -15,7 +15,7 @@ import haxe.macro.Type;
        set replaces the state.referencedImpls read in both
        compileClassImpl (whole-class drop) and scanFallibility
        (skip registration).  It is populated by walking all
-       in-scope class bodies at plan-construction time — the
+       in-scope class bodies at plan-construction time: the
        same walk scanReferencedImpls formerly performed.
 
     2. Which private static functions emit: the fieldEmit map

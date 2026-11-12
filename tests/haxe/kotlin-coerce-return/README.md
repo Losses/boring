@@ -1,8 +1,8 @@
 # Kotlin Return coercion fixture
 
-P2.7. A returned value that must satisfy a non-null return-type contract is
+P2.7. A returned value that must satisfy a non-null return type is
 hardened with !!. The destination admitsAbsence follows the current
-function/lambda return type — the P1 rebound type — so one source is measured
+function/lambda return type (the P1 rebound type), so one source is measured
 twice:
 
 * the enclosing non-null String return extracts a nullable call with !!;

@@ -6,7 +6,7 @@
 // and prints the counter. It takes no verdict; the runner compares the printed
 // observation with the authored expectation.
 //
-// The pinned devShell ships no `@types/node`, so the little of the Node surface
+// The pinned devShell ships no `@types/node`, so the little of the Node API
 // this driver uses is declared here, so the build needs no network fetch. The
 // generated modules are compiled unmodified; only this authored driver carries
 // the declaration.

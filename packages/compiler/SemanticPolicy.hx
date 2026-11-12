@@ -2,11 +2,11 @@ package;
 
 /**
     Target Semantic Policy: the executable encoding of the cross-target
-    reference/handle semantics contract.
+    reference/handle semantics specification.
 
-    This module is the single source of truth for the typed-IR vocabulary a
+    This module is the only definition of the typed-IR vocabulary a
     Haxe type and expression must resolve into before any target renderer runs.
-    It is a *policy* contract: Rc<RefCell<T>>,
+    It is a *policy*: Rc<RefCell<T>>,
     SingleThread<T>, and every other concrete type are the Rust *realization*
     declared in the mapping table (docs/specs/target-semantic-policy.md), never
     the policy itself.
@@ -48,7 +48,7 @@ enum FunctionMutability {
 /**
     The target representation category of a Haxe type (policy entry P-1).
 
-    The eight categories of the frozen ruling collapse into these variants:
+    The eight categories of the frozen ruling map onto these variants:
 
       - primitive/copy        -> Copy
       - immutable value       -> ImmutableValue
@@ -260,9 +260,9 @@ enum ParamMode {
 }
 
 /**
-    The destination position contract (policy entry P-22). Composition owns the
-    destination (Contract 1, INTERFACE-REQUIREMENTS.md): decide() is handed the
-    contract, never asked to infer it from compiler-instance state.
+    The destination position requirement (policy entry P-22). Composition owns the
+    destination (Requirement 1, INTERFACE-REQUIREMENTS.md): decide() is handed the
+    destination, never asked to infer it from compiler-instance state.
 **/
 enum DestinationContract {
     /** boolean condition of if/while/assert. */
@@ -352,7 +352,7 @@ typedef SemanticFacts = {
                             and unsizes immediately to TraitHandle. decide() never
                             returns it; an emitted occurrence with this role is a
                             validator failure (P-22).
-      - TraitHandleAdapter = the method-level role: an identity-sensitive interface
+      - TraitHandleAdapter = the method role: an identity-sensitive interface
                             receiver realized through the generated adapter. It is
                             NOT the same as AdapterHandle; it is the decision that
                             routes coerce through the AdapterHandle(C,I) transient.
@@ -430,7 +430,7 @@ typedef RepresentationPlan = {
         Per-use-site ABI (P-4/P-8), decided by decide() from the calling site's
         destinationContract/useMode. CONSTRAINT (plan-cache read rule, P-24): the
         plan cache (RustEmissionState.representationPlans) is keyed by role only,
-        first-caller-wins — on a cached plan these two fields hold whichever use
+        first-caller-wins: on a cached plan these two fields hold whichever use
         site computed the plan FIRST. Only the Receiver
         position may read receiverAbi off a plan, and no renderer site may read
         paramAbi off a plan at all; reading either at any other site is a
@@ -461,16 +461,16 @@ typedef DecideInput = {
 };
 
 /**
-    The single cross-target Target Semantic Policy contract.
+    The single cross-target Target Semantic Policy definition.
 
     Holds the governing version, governance identity, and the policy-entry ids
     (P-n) that validators cite. Every entry id names exactly one section in
     docs/specs/target-semantic-policy.md, and every IR type above maps onto one
-    or more entries, so the document and the typed contract cannot drift.
+    or more entries, so the document and the typed IR cannot drift.
 **/
 
 /**
-    The seven-domain declaration surface for place/identity proof (Astra
+    The seven-domain declaration set for place/identity proof (Astra
     ruling, spec section 9.2). SemanticPolicy declares these as authoritative
     facts; the PlacePlanner derives a path's place/identity from them and never
     invents an undeclared capability. A missing declaration is Unknown, which
@@ -550,7 +550,7 @@ enum StaticStorage {
     MutablePlace;
     /** immutable; a subscript write is rejected. */
     Immutable;
-    /** a runtime-guarded place (LazyLock/OnceLock); needs a runtime access contract. */
+    /** a runtime-guarded place (LazyLock/OnceLock); needs a runtime access rule. */
     RuntimeGuardedPlace;
     /** a read-only view; a subscript write is rejected. */
     ReadOnlyView;
@@ -558,7 +558,7 @@ enum StaticStorage {
     Unknown;
 }
 
-/** A named alias/writeback contract for a set/remove/index/write operation. */
+/** A named alias/writeback rule for a set/remove/index/write operation. */
 typedef OperationContract = {
     var id:String;
     /** the alias relationship the operation preserves. */
@@ -646,7 +646,7 @@ class SemanticPolicy {
     public static final ENTRY_FLOAT_CANONICAL:String = "P-23";            // [1.1.0]
     public static final ENTRY_PLAN_DECISION:String = "P-24";              // [1.4.0]
     public static final ENTRY_CONVERSION_EDGE:String = "P-25";            // [1.4.0]
-    /** Write-landing rulings (P-26; declared in PlaceWritePolicy as P_26). */
+    /** Write-destination rulings (P-26; declared in PlaceWritePolicy as P_26). */
     public static final ENTRY_WRITE_LANDING:String = PlaceWritePolicy.P_26;
     /** Alias-check obligations (P-27; declared in PlaceWritePolicy as P_27). */
     public static final ENTRY_ALIAS_OBLIGATION:String = PlaceWritePolicy.P_27;
@@ -655,7 +655,7 @@ class SemanticPolicy {
 
     /**
         Every policy entry id in document order. Validators and the unit suite
-        iterate this list to prove the document and the contract stay in step.
+        iterate this list to prove the document and the typed IR stay in step.
     **/
     public static function entryIds():Array<String> {
         return [
@@ -703,7 +703,7 @@ class SemanticPolicy {
           5. use mode (ownership)
 
         Conflict priority (highest first): identity/lifetime > destination ABI
-        > source repr > use mode > target spelling. A same-level conflict is an
+        > source repr > use mode > target spelling. A conflict at the same level is an
         ambiguity error, never a silent tie-break. moduleContext/cfg(test)
         never changes planKey or concreteRepr.
     **/
@@ -748,8 +748,8 @@ class SemanticPolicy {
         plan.receiverAbi = receiverAbiFor(input.destinationContract);
         plan.paramAbi = paramAbiFor(input.useMode);
 
-        // 3. role from identity/lifetime/alias/mutability, with a same-level
-        //    ambiguity check between the identity and lifetime signals.
+        // 3. role from identity/lifetime/alias/mutability, with an ambiguity
+        //    check at the same level between the identity and lifetime signals.
         if (input.facts.identitySensitive && !input.facts.lifetime && !input.facts.aliased && !input.facts.mutable) {
             plan.policyId = ENTRY_PLAN_DECISION;
             plan.failureReason = "ambiguity: identity/lifetime conflict (identity-sensitive but no aliasing, mutation, or escaping lifetime)";

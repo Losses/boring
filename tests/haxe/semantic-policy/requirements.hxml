@@ -1,0 +1,9 @@
+# Target Semantic Policy typed-IR test: plain-Haxe assertions over the
+# shared policy types. No macro Context and no target renderer run.
+#   haxe tests/haxe/semantic-policy/requirements.hxml
+-cp packages/compiler
+-cp tests/haxe/semantic-policy
+-main SemanticPolicyRequirements
+-D reflaxe_runtime
+--interp
+

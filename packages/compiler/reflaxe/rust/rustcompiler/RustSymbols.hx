@@ -201,7 +201,7 @@ class RustSymbols {
         Register a definition that has been emitted into the output.
 
         Called once per emitted symbol at its lowering site (per-symbol identity
-        satisfies PIT-281; a file-level hook would lose the distinction between
+        satisfies PIT-281; a hook on the file would lose the distinction between
         co-emitted symbols sharing one file).
     **/
     public static function emitted(ref: SymbolRef): Void {

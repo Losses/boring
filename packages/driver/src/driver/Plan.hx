@@ -118,7 +118,7 @@ class Plan {
             // Haxe semantics are single-threaded (P-15 SingleThread statics
             // hold Rc handles behind an unsafe Send+Sync); the test harness must
             // run serially or the thread-affine guard panics. (SingleThreadStatic)
-            // cargoArgs land before the harness -- separator, so cargo-level
+            // cargoArgs come before the harness -- separator, so options for cargo
             // options (for example --features f32) reach cargo itself while
             // run.args stay after the separator as harness arguments.
             final runCargoArgs:Array<String> = bundle.run.cargoArgs == null ? [] : bundle.run.cargoArgs;

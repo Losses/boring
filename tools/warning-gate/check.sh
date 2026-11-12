@@ -5,7 +5,7 @@
 #
 # Every column must be MEASURED for a PASS to mean anything. An absent compiler
 # binary returns 127 (command not found), writes an empty log, makes grep count
-# 0, and `0 <= baseline` then holds trivially - so the gate prints PASS while
+# 0, and `0 <= baseline` then holds - so the gate prints PASS while
 # nothing was checked. That PASS is textually identical to a real measurement;
 # on a bare PATH all five columns do it at once. A column that did not run
 # therefore FAILS the gate by default. Set WARNING_GATE_ALLOW_UNMEASURED=1 to
@@ -16,8 +16,8 @@
 # verdict was `n <= baseline`. So a compiler that FAILED while emitting no
 # countable `warning:` line measured n=0, `0 <= baseline` held, and a tree that
 # does not compile read as PASS. The failure capability already existed and its
-# cost was already paid; it was simply never wired, which is what check() does
-# now. See the rc-wiring block inside check() for why the loose rc is the bare
+# cost was already paid; it was never wired, which is what check() does
+# now. See the rc-wiring section inside check() for why the loose rc is the bare
 # "did it compile" verdict and the strict rc is not.
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -50,7 +50,7 @@ for required in "$ROOT/reference/dart/gen" "$ROOT/reference/kotlin/gen" "$ROOT/r
   fi
 done
 # --- frozen warning baselines -----------------------------------------------
-# tools/warning-gate/baseline.txt is the single source of truth for each
+# tools/warning-gate/baseline.txt is the only record of each
 # target's warning allowance and its residual label. A residual (rust
 # std-shadow glob, dart noise) is REGISTERED here - visible and named in the
 # histogram - never hidden from the count. Reading the allowance from this file
@@ -69,7 +69,7 @@ run() {
 rc() { cat "$1.rc"; }
 
 # A column whose compiler binary is absent returns 127 (command not found) and
-# writes an empty log, so grep counts 0 and `0 <= baseline` holds trivially.
+# writes an empty log, so grep counts 0 and `0 <= baseline` holds.
 # That PASS is textually identical to a real measurement, which is how this
 # gate passed vacuously on a bare PATH while all five tools were missing.
 # Treat 127 as "this column was NOT measured" and make that state fail, so

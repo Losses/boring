@@ -52,7 +52,7 @@
 
 #  (2) DECLARED DIVERGENCE.  roots-allowlist.json `exempt` entries authorise a
 #      specific (target, module) asymmetry.  An entry must be LIVE: that module
-#      must really be the asymmetric one for that target; an entry for a
+#      must be the asymmetric one for that target; an entry for a
 #      guarded target whose module is symmetric for it (present in both files,
 #      or absent from both) is a STALE exemption and fails.  Entries are
 #      structurally validated: target in {kotlin,rust,swift,*} (anything else
@@ -66,7 +66,7 @@
 #      more consecutive repeats of one character, so the minimal
 #      four-word 24-character bypass "aaaa bbbb cccc dddxxxxxx" fails).
 #      A well-shaped but meaningless reason (e.g. "alpha beta gamma delta
-#      oxen") still passes: a script cannot verify that prose is
+#      oxen") still passes: a script cannot verify that text is
 #      meaningful, so a reviewer has to read the reason.  A single
 #      `target: "*"` entry authorises the same
 #      (module, reason) for all three guarded targets at once (one entry =
@@ -121,7 +121,7 @@
 #     f32-only ids that this guard cannot see (declared in
 #     packages/test/assertions/consistency/extra-id-allowlist.json);
 #   * dart/ts pairs are not guarded (no -f32 variant);
-#   * bypass surfaces: ROOTS_GUARD_ALLOWLIST (see below) and --repo-root /
+#   * bypass routes: ROOTS_GUARD_ALLOWLIST (see below) and --repo-root /
 #     ROOTS_GUARD_REPO_ROOT redirect what is checked; a caller who can set
 #     them can point the guard at any allowlist or tree, so a PASS is only
 #     as strong as the provenance of the allowlist and the tree it ran on.

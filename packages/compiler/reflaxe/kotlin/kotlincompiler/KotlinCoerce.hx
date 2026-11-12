@@ -92,7 +92,7 @@ class KotlinCoerce {
                     case _:
                         // Property / Length member access: the access operator
                         // follows the access result written by the decision
-                        // site (nullableAccess) — "?." stays nullable
+                        // site (nullableAccess): "?." stays nullable
                         // (MaybeAbsent), "." and "!!." are present. The "!!"
                         // extraction for "!!." is embedded in the text by the
                         // decision site, consumed here, so the three
@@ -131,7 +131,7 @@ class KotlinCoerce {
                 }
             case Return(_):
                 // presence axis: a returned value that must satisfy a non-null
-                // return-type contract extracts with "!!". Same atomicity-shaped
+                // return type extracts with "!!". Same atomicity-shaped
                 // harden as Argument/Assignment so an embedded expression like
                 // "a + b" wraps before "!!".
                 switch (value.presence) {
@@ -156,7 +156,7 @@ class KotlinCoerce {
         return parseAblateRole(Context.definedValue("kotlin_coerce_ablate"));
     }
 
-    // Mirrors KotlinExpr.isAtomicAppendTarget until P3.3 collapses both (I2).
+    // Mirrors KotlinExpr.isAtomicAppendTarget until P3.3 merges both (I2).
     // P2.7: a lone "." is member access and stays atomic (x.field!!); only a
     // ".." range is non-atomic. Other divergences from the reference (e.g.
     // braces inside parens stay atomic) are preserved for byte-identity.

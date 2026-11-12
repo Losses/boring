@@ -434,8 +434,8 @@ class KotlinDecl {
     /** Canonical Haxe float hash bits (P-13 / Astra ruling), then Kotlin's
         Int fold via Long.hashCode(). Both signed zeroes hash to zero bits,
         every NaN to the width's quiet-NaN token, and any other value to its
-        IEEE bits. Kotlin's toBits() already collapses every NaN payload to the
-        canonical token, so only the signed-zero collapse needs the explicit
+        IEEE bits. Kotlin's toBits() already maps every NaN payload to the
+        canonical token, so only the signed zero needs the explicit
         comparison. (P-13 float canonical)
 
         A nullable float (Null<Float>) first checks null and hashes it to 0,
@@ -1016,7 +1016,7 @@ class KotlinDecl {
             // the accessors with @JvmField, so the property stays usable as
             // `obj.value` and the explicit method keeps its name. Kotlin rejects
             // @JvmField on a private property, and a private property has no
-            // accessor to collide with, so the private field simply omits it.
+            // accessor to collide with, so the private field omits it.
             // (JvmAccessorClash)
             final accessorClash = isField && !boundary && declaresAccessorNamed(cls, a.name);
             final privateField = isField && !boundary && !isPublic;

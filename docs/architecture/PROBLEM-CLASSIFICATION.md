@@ -22,11 +22,11 @@ the investigation in `docs/investigations/architecture-round-1/` (2026-10-03 cle
 | **E** | **Effect & Lifetime** | Evaluation count, laziness, aliasing, lifetime | Composition + backend | Duplicate evaluation, alias mutation |
 | **F** | **Diagnostics & Suppression** | Whether generated code is valid and warning-free | Backend | Warnings treated as acceptable |
 | **G1** | **Criterion Source Uniqueness** | Which judgement has how many independent implementations | Cross-cutting (appears inside any of A–F) | Multiple sites independently judge the same fact; divergence invisible in passing state |
-| **G2** | **Input Completeness** | Whether the input set to a derivation is exhaustive | Cross-cutting | Missing input silently changes output; full-corpus identity masks single-point defects |
+| **G2** | **Input Completeness** | Whether the input set to a derivation is exhaustive | Cross-cutting | Missing input silently changes output; identity of the full example set masks single-point defects |
 
 ## Why Category D Must Have a Clear Owner (Core Lesson of This Session)
 
-The mechanism of the lambda defect (`dc-warn/out/lambda-return-contract/`):
+The mechanism of the lambda defect (recorded in the `dc-warn` lambda-return probe output):
 `currentReturnType` is the return type of the **member**; `functionLiteral` does not rebind it,
 so every "return site" reads the type of the **outer function**.
 
@@ -48,7 +48,7 @@ then at that position the destination **must** be passed in by the composition a
 | B | Rust: `String` vs `UString` host string representation | commit `40cf0ad0` |
 | B | Swift: `[Int32] = Array(...)` vs `ReadOnlyArray<Int32> = ReadOnlyArray(...)` | commit `9c9548ef` |
 | C | Swift: read-only array boundary wrapping (SW04) | ~~`out/sw04-fix-wt`~~ worktree no longer present; **evidence needed** |
-| D | Swift: lambda return contract borrows member type | commit `d14aae11` (**with regression, see below**) |
+| D | Swift: lambda return type borrows member type | commit `d14aae11` (**with regression, see below**) |
 | D | Swift: `switchExpression` derives destination from `sw.t` | ~~`out/switchexpr-destination` (in progress)~~ worktree no longer present; **evidence needed** |
 | E | Swift: `switchStatement` strips arm `return` ⇒ control flow error (W1) | commit `d14aae11` |
 | F | All: warnings counted as acceptance (standard `:78`/`:80`) | recorded TCN-156 |
@@ -60,7 +60,7 @@ then at that position the destination **must** be passed in by the composition a
 | **Path inside worktree** `dc-warn/out/...` | `dc-warn/out/sol-architecture-consult/` | **exists** |
 | **Bare worktree name** `out/...` | three places in the table above | **none present** |
 
-They look the same, but in practice one refers to **files in a long-lived directory** and the other to **the temporary worktree itself**.
+They look the same, but one refers to **files in a long-lived directory** and the other to **the temporary worktree itself**.
 The former survived because it resides inside `dc-warn`; the latter disappears when the worktree is cleaned up, leaving no trace.
 
 **Two kinds of reliability for record locations (tested 2026-10-01):**
@@ -72,14 +72,14 @@ The former survived because it resides inside `dc-warn`; the latter disappears w
 
 The three `out/` names are `out/kotlin-local-presence-facts`, `out/sw04-fix-wt`,
 `out/switchexpr-destination`; searched under the workspace root (`$WORKSPACE`) by directory name,
-branch name, and worktree name — **none found**. Among them, `out/sw04-fix-wt` differs from the actually present
+branch name, and worktree name: **none found**. Among them, `out/sw04-fix-wt` differs from the actually present
 `sw04-xcheck-local` by only a few characters, making it easy to mistake as verified.
 
-**This does not mean those instances do not exist** — they record facts observed at the time, and the commit hashes remain inspectable.
+**This does not mean those instances do not exist**: they record facts observed at the time, and the commit hashes remain inspectable.
 What has failed is the **"where to look"** column: worktrees get cleaned up, and cleanup leaves no trace, so references pointing to worktrees
 **fail silently**, and after failure still read as "verifiable".
 
-**Rule (added)**: when recording instances, prefer **commit hashes** — commits do not disappear, worktrees do.
+**Rule (added)**: when recording instances, prefer **commit hashes**: commits do not disappear, worktrees do.
 If a worktree reference is unavoidable, also write down the **observed output or evidence**, so the row remains checkable after the directory disappears.
 Status words like `(in progress)` are especially dangerous: they assert a **present-tense** fact, and once the document goes out of sync they lie.
 
@@ -88,24 +88,24 @@ Status words like `(in progress)` are especially dangerous: they assert a **pres
 1. **Locate the category first, then the site.** Reporting only "some file, some line is wrong" does not count as localisation.
 2. **A fix at one place must not change the behaviour of another category.** All four committed fixes performed full tree-of-generated-output comparisons;
    byte-for-byte identity is a **necessary condition**.
-3. **The owner of a category can differ from where the site physically resides** (Category D is exactly this case) —
-   this is why explicit contracts are necessary.
+3. **The owner of a category can differ from where the site physically resides** (Category D is exactly this case):
+   this is why explicit requirements are necessary.
 4. **Failure classification must carry attribution**: responsibility of the candidate / pre-existing repository state / missing documentation
    (lesson recorded from P10, published in `docs/architecture/ACCEPTANCE-REFLECTION.md` §2,
-   publication commit `ec4c5c2d` — that file was deleted on 2026-10-03 during the process-document clearance, traceable via the commit; the earlier draft path `out/p10-reflection/` has been superseded by that publication).
-5. **Fix scope must declare (Destination role x Existence) combination and enumerate sibling sites** (NEW). A fix at one site risks being silently incomplete: the same lowering path may reach other sites with the same (role, existence) pair. Before closing a defect, list all sibling sites that share the same Destination role and operand nullability/optionality/existence, and either fix or document why each is unaffected. This is analogous to the category-D lesson that the composition owns the destination — the frontend lowering owns all sites with the same composition shape.
+   publication commit `ec4c5c2d`: that file was deleted on 2026-10-03 during the process-document clearance, traceable via the commit; the earlier draft path `out/p10-reflection/` has been superseded by that publication).
+5. **Fix scope must declare (Destination role x Existence) combination and enumerate sibling sites** (NEW). A fix at one site risks being silently incomplete: the same lowering path may reach other sites with the same (role, existence) pair. Before closing a defect, list all sibling sites that share the same Destination role and operand nullability/optionality/existence, and either fix or document why each is unaffected. This is analogous to the category-D lesson that the composition owns the destination: the frontend lowering owns all sites with the same composition shape.
 6. **Anti-pattern: Open failure default** (NEW). A lowering function that returns a default when it cannot determine the correct value (null returns false, missing table entry returns "not nullable") produces a "looks valid, silently wrong" output. Every lowering function must either (a) abort with a diagnostic naming what fact is missing, or (b) refuse to emit the compilation unit. A default that silently passes a downstream check is a latent defect.
 
 ## What This Classification Does Not Yet Cover
 
 - **Category G1 (uniqueness of criterion source)** and **G2 (input completeness)** are now promoted into the main table above. The original gap described Rust
-  having **28 write sites** (3 files) and **12 read sites** (gating emission), with **no contract** specifying who must write;
+  having **28 write sites** (3 files) and **12 read sites** (gating emission), with **no requirement** specifying who must write;
   it is simultaneously treated as "a business reference to some extern" (intent) and "whether some resident should be emitted" (emission),
   **the two layers are not equivalent** ⇒ modules declared in `runtime/mod.rs` were never emitted (`E0583`).
   This is a **cross-cutting** category: it can appear inside any of A–F, so it is **not suitable** to squeeze into A–F;
-  it has been recorded as **Contract 6** in INTERFACE-REQUIREMENTS.md; this section only registers the classification gap.
+  it has been recorded as **Requirement 6** in INTERFACE-REQUIREMENTS.md; this section only registers the classification gap.
 - **Category J migration** (legacy Kotlin to Haxe) failures are not classified into A-F;
-- **Naming consistency** (ReadOnlyArray naming violation) — whether it belongs to F or is a separate category has not been decided.
+- **Naming consistency** (ReadOnlyArray naming violation): whether it belongs to F or is a separate category has not been decided.
 - The instance table for each target is **incomplete**: it only lists those recorded in this session,
   not an inventory of all known failures per target.
 
@@ -113,15 +113,15 @@ Status words like `(in progress)` are especially dangerous: they assert a **pres
 
 A–F in this document is a classification of **compiler responsibilities** (who is responsible for one piece of code).
 The matters this session repeatedly paid the price for are **not compiler responsibilities**, so they are **not here**,
-but in two sections of `LAYERED-VERIFICATION.md` — to avoid writing the same rule in two places:
+but in two sections of `LAYERED-VERIFICATION.md`, to avoid writing the same rule in two places:
 
 - **Criteria must state "on which tree they hold"** (the new L0 preamble section added to that file): the same thing yields
-  **opposite conclusions** on two trees — the hardened guardrail was reviewed and signed off but was **never an ancestor of base**, so base runs the weak version:
+  **opposite conclusions** on two trees; the hardened guardrail was reviewed and signed off but was **never an ancestor of base**, so base runs the weak version:
   deleting the real root + the one-word rationale `"because"` still **rc=0 PASS**, while the hardened version rc=1 and names it verbatim.
-  With a three-step verification method (branch exists / is ancestor of base / **read the shared tree directly** — the third step is the one that catches it).
-- **Delivery surface: load-bearing artefacts must answer "which commit contains it"** (same file): tools, guardrails, fixtures, drivers,
-  assertion scripts must be checked in; tested `dc-warn/worktrees/` — **37/37** all detached with none carrying commits beyond `e1c65975`,
+  With a three-step verification method (branch exists / is ancestor of base / **read the shared tree directly**: the third step is the one that catches it).
+- **Delivery obligation: load-bearing artefacts must answer "which commit contains it"** (same file): tools, guardrails, fixtures, drivers,
+  assertion scripts must be checked in; tested `dc-warn/worktrees/`: **37/37** all detached with none carrying commits beyond `e1c65975`,
   and the evidence checklist mixed in **git-ignored** paths, making "one command rc=0" **only hold for the author's working copy**.
-- **"Which tool" and "which diagnostics that tool can see" must be stated separately** (see `INTERFACE-REQUIREMENTS.md` Contract 3 supplement).
+- **"Which tool" and "which diagnostics that tool can see" must be stated separately** (see `INTERFACE-REQUIREMENTS.md` Requirement 3 supplement).
   This is **adjacent to but at a different angle from** Category F (warnings counted as acceptance) in this document: Category F asks "should it be counted",
   this asks "can this command **see** it" (`swiftc -typecheck` reports 0 even in baseline state ⇒ relying solely on the type-checker turns zero warnings into an empty criterion).

@@ -5,11 +5,11 @@ import std.ReadOnlyArray;
 /**
     Authored Haxe oracle for the two container-identity-transfer shapes:
 
-    (a) `Holder.Null<Array<Int>>` field — the container identity crosses a
+    (a) `Holder.Null<Array<Int>>` field: the container identity crosses a
         nullable field slot. The field is read back, unwrapped, and the
         retained mutable alias mutates the original container; the
         observation is whether the unwrapped read sees the mutation.
-    (b) `Array -> ReadOnlyArray` argument/return relay — the container
+    (b) `Array -> ReadOnlyArray` argument/return relay: the container
         identity crosses a call boundary as a read-only argument and is
         returned as a read-only value; the caller retains a mutable alias
         and mutates after the call; the observation is whether the relayed

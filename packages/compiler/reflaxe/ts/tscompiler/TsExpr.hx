@@ -1007,9 +1007,9 @@ class TsExpr {
     /**
         Eliminates declarations of locals that are never reassigned and never
         read in the block. The lowering materializes such locals for values it
-        ends up not using — constant-folded positions, folded switches, class
+        ends up not using (constant-folded positions, folded switches, class
         aliases inlined to their class name by field(), and side-effecting
-        calls whose returned binding is discarded — and the lint subset flags
+        calls whose returned binding is discarded), and the lint subset flags
         the leftover binding as unused. A side-effect-free initializer is
         dropped outright; a side-effecting one (a call or construction) is kept
         as a bare expression statement so its effect survives while the dead
@@ -1067,7 +1067,7 @@ class TsExpr {
                 return;
             // A direct `local = x` only writes its target, but a field or
             // array write (`a.field = x`, `a[i] = x`) still reads the object
-            // it writes through — so walk a non-local target to count that
+            // it writes through, so walk a non-local target to count that
             // object local as read. Compound assignment (`+=`, ...) reads its
             // target and is handled by the generic walk. Mirrors the Rust
             // scanUnusedLocals classification.
@@ -1336,9 +1336,9 @@ class TsExpr {
             // A `.length` read inside a nested statement list belongs to that
             // nested block's own LengthHoist pass, which re-hoists it and
             // scopes its own const. Descending into it here would move this
-            // block's `firstUse` earlier than any same-level reader, emit a
+            // block's `firstUse` earlier than any reader at the same level, emit a
             // block const, and let the nested pass shadow it, leaving an
-            // orphaned const (TS6133). Only same-level expressions (if/while
+            // orphaned const (TS6133). Only expressions at the same level (if/while
             // conditions, for iteration sources, call arguments, RHS values)
             // count as readers.
             switch (x.expr) {
@@ -1784,9 +1784,9 @@ class TsExpr {
                 return map == null ? assignTarget(l) + " = " + fieldAssignmentRhs(l, r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
                 // A compound assignment reads the element before writing it.
-                // Under noUncheckedIndexedAccess the read side carries
+                // Under noUncheckedIndexedAccess the read carries
                 // undefined; the non-null assertion restates the dense-array
-                // contract already carried by every element read on this
+                // guarantee already carried by every element read on this
                 // target (Haxe Int-typed arrays read OOB as null and throw
                 // on the arithmetic, which the assertion mirrors).
                 final elemRead = switch (stripWrap(l).expr) {
@@ -2082,7 +2082,7 @@ class TsExpr {
                 final rendered = staticRef(cls, cf.get().name);
                 if (!DataTableHelper.isDataTableField(cf.get()) || RuntimeResidents.isResident(cls.module))
                     return rendered;
-                // Site-level conversion: the table emits as Int32Array, and
+                // Conversion at the site: the table emits as Int32Array, and
                 // only a slot typed Array<T> gets an Array.from copy. A use
                 // outside any classified slot is a compile error, so a silent guess is
                 // impossible (length and index reads lower directly and
@@ -2155,7 +2155,7 @@ class TsExpr {
         Renders a receiver for a member call or an element-access base.
         When the receiver's Haxe type still includes null while Haxe reads
         the member straight off it, both runtimes throw on a null receiver,
-        so the assertion only restates the Haxe contract. (NullableReceiverUnwrap,
+        so the assertion only restates what Haxe guarantees. (NullableReceiverUnwrap,
         call and element-access variants)
     **/
     function receiverText(subj:TypedExpr):String {
@@ -3026,7 +3026,7 @@ class TsExpr {
         // std.FsException carrying the normalized std.FsError kind, the
         // operation and the path; the native error text is attached for
         // display only. The pre-checked predicates exists/isDirectory keep
-        // their Bool contract and stay raw.
+        // their Bool return type and stay raw.
         final exceptionName = imports.valueName("std.FsException", "FsException");
         final kindTest = "const detail = String(e); const code = (e as { code?: string } | null)?.code;";
         function kindThrow(code:String, kind:String):String {

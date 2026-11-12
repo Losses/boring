@@ -109,10 +109,10 @@ class Compiler extends PluginCompiler<Compiler> {
             Context.getType("runtime.StringTools");
             Context.getType("runtime.UString");
             Context.getType("runtime.TestCore");
-            // Force the WHOLE resident set, including the modules no corpus
+            // Force the WHOLE resident set, including the modules no example
             // entry happened to reach: a consumer build whose entry list omits
             // the `runtime.*` roots still reaches these through the std extern
-            // surface. Forcing only the three above left
+            // interface. Forcing only the three above left
             // `runtime.GraphemeWalk` / `runtime.Graphemes` /
             // `runtime.SortedTable` absent, so such a consumer emitted
             // references to files that were never typed
@@ -754,7 +754,7 @@ class Compiler extends PluginCompiler<Compiler> {
         URI_DOES_NOT_EXIST and the VM stops with "No such file or
         directory"). `runtime-emit=.` therefore means "beside the generated
         sources", which for the Dart target is `lib/`; the output-tree root
-        sits higher. Keeping the runtime one level up left every generated
+        sits higher. Keeping the runtime one directory up left every generated
         import one `..` too deep. A named directory stays relative to the output
         root, so an explicit `runtime-emit=lib` names the same place.
     **/

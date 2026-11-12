@@ -17,7 +17,7 @@
 #
 # Every stage records its argv, working directory, stdout, stderr, and raw
 # exit code under $RUN/stages/NN-<name>/ (no pipes around the measured
-# command). Target-level generation, compilation, or run failures are
+# command). Generation, compilation, or run failures in a target are
 # observations: they are recorded with the failed producer and
 # the downstream stages are marked not-reached. The runner exits non-zero
 # only on harness defects (oracle mismatch, input drift, a declared stage
@@ -65,7 +65,7 @@ VERDICT=ok
 
 # Verdicts rank like the dc-promoted-eval runner: a higher-ranked verdict
 # replaces a lower one, so a harness defect is never overwritten by a
-# target-level observation such as a rejected generation.
+# observation in a target such as a rejected generation.
 verdict_rank() {
 	case "$1" in
 		ok) printf '0' ;;
@@ -413,7 +413,7 @@ done
 	printf 'verdict %s\n' "$VERDICT"
 } >"$RUN/summary.txt"
 
-# Target-level generation, compilation, and run failures are observations and
+# Generation, compilation, and run failures in a target are observations and
 # do not fail the runner. A target whose reading diverges from the oracle is
 # the audit's data: it is noted in findings and the
 # runner exits 0 so the recorded evidence stays. Only harness defects

@@ -236,7 +236,7 @@ describe("record printed-member generated trees", () => {
       fs.rmSync(mutationRoot, { recursive: true, force: true });
     }
     // Eight haxe macro-compiler runs (two mutation variants across the four
-    // target lanes) measured at 188.5 s total (baseline machine, quiet
+    // targets) measured at 188.5 s total (baseline machine, quiet
     // window); 420_000 keeps ≥2× margin. The explicit timeout raises only
     // the harness patience for those subprocesses, never the asserted
     // behavior.

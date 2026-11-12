@@ -8,7 +8,7 @@ use crate::runtime::u_string::UString;
 pub struct Semver;
 
 impl Semver {
-    pub(crate) fn semver_int_of(x: &UStr) -> u32 {
+    pub fn semver_int_of(x: &UStr) -> u32 {
     let __units = x.as_slice();
     let __count = u_string::unit_count(&x);
         let mut out = 0u32;
@@ -18,7 +18,7 @@ impl Semver {
         return out;
     }
 
-    pub(crate) fn semver_split_parts(s: &UStr) -> Vec<UString> {
+    pub fn semver_split_parts(s: &UStr) -> Vec<UString> {
         let mut out: Vec<UString> = vec![];
         let ps = u_string::split(&s, &UString::from("."));
         for i in 0..match u32::try_from(ps.len()) { Ok(value) => value, Err(_) => u32::MAX } {
@@ -27,14 +27,14 @@ impl Semver {
         return out;
     }
 
-    pub(crate) fn semver_exception_of(f: SemverFault) -> SemverFault {
+    pub fn semver_exception_of(f: SemverFault) -> SemverFault {
         return match f {
             SemverFault::InvalidCore { version: _p0 } => SemverFault::InvalidCore { version: _p0.to_ustring() },
             SemverFault::InvalidExtension { version: _p0 } => SemverFault::InvalidExtension { version: _p0.to_ustring() },
         };
     }
 
-    pub(crate) fn semver_valid_numeric(x: &UStr) -> bool {
+    pub fn semver_valid_numeric(x: &UStr) -> bool {
     let __units2 = x.as_slice();
     let __count2 = u_string::unit_count(&x);
         if __count2 == 0 {
@@ -52,7 +52,7 @@ impl Semver {
         return true;
     }
 
-    pub(crate) fn semver_valid_identifier(x: &UStr) -> bool {
+    pub fn semver_valid_identifier(x: &UStr) -> bool {
     let __units4 = x.as_slice();
     let __count4 = u_string::unit_count(&x);
         if __count4 == 0 {
@@ -67,7 +67,7 @@ impl Semver {
         return true;
     }
 
-    pub(crate) fn semver_valid_identifiers(x: &UStr) -> bool {
+    pub fn semver_valid_identifiers(x: &UStr) -> bool {
         let a = u_string::split(&x, &UString::from("."));
         for i in 0..match u32::try_from(a.len()) { Ok(value) => value, Err(_) => u32::MAX } {
             if !Semver::semver_valid_identifier((a[usize::try_from(i).unwrap_or(0)]).clone().as_ustr()) {
@@ -77,7 +77,7 @@ impl Semver {
         return true;
     }
 
-    pub(crate) fn semver_parse_fault(version: &UStr) -> Option<SemverFault> {
+    pub fn semver_parse_fault(version: &UStr) -> Option<SemverFault> {
     let __units6 = version.as_slice();
     let __count6 = u_string::unit_count(&version);
         let mut core = (version.to_ustring()).clone();
@@ -106,7 +106,7 @@ impl Semver {
         return None;
     }
 
-    pub(crate) fn semver_parse_unvalidated(version: &UStr) -> Version {
+    pub fn semver_parse_unvalidated(version: &UStr) -> Version {
     let __units7 = version.as_slice();
     let __count7 = u_string::unit_count(&version);
         let dash = u_string::find_from(&(version), UString::from("-").as_ustr(), 0);
@@ -154,7 +154,7 @@ impl Semver {
         return match &(v) { Some(__option2) => i32::from_ne_bytes(((u32::try_from((__option2.pre.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()) > (0), None => false };
     }
 
-    pub(crate) fn semver_pre(a: &Vec<UString>, b: &Vec<UString>) -> u32 {
+    pub fn semver_pre(a: &Vec<UString>, b: &Vec<UString>) -> u32 {
         if u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 && u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
             return 0;
         }

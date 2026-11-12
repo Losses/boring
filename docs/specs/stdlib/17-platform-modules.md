@@ -295,10 +295,10 @@ diagnostic, never a silently uncaught failure.
 
 `exists` and `isDirectory` are non-fallible pre-checked predicates and
 answer only what the host can affirm. They return `false` for a missing
-path **and for every other failure to confirm** — permission denied, a
-not-a-directory component in the path, an unreadable or unstatable path —
+path **and for every other failure to confirm** (permission denied, a
+not-a-directory component in the path, an unreadable or unstatable path),
 and they never raise `std.FsException` and never enter the `FsError`
-domain. That is the predicate contract on every target: Node
+domain. That is the predicate every target must satisfy: Node
 `existsSync` is total and the `statSync` arm catches everything to
 `false`, the JVM `Files.exists`/`Files.isDirectory` return `false`
 on a failed lookup, Dart `FileSystemEntity.typeSync`/`isDirectorySync`

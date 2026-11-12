@@ -53,8 +53,8 @@ describe("static fields generated trees", () => {
 		expect(content).toContain("STATIC_STATE_OPS_SECTIONS.lock().unwrap_or_else(|e| e.into_inner()).push(section.to_ustring());");;
 		expect(content).not.toContain("unwrap()");
 		expect(content).not.toContain("expect(");
-		// The sanctioned &UStr constant lane builds its literal through pointer
-		// casts (`as *const [u16] as *const ...UStr`); strip exactly that lane
+		// The sanctioned &UStr constant path builds its literal through pointer
+		// casts (`as *const [u16] as *const ...UStr`); strip exactly that pattern
 		// so the no-cast guard still covers every other emitted construct.
 		expect(content.replace(/as \*const \[u16\] as \*const [A-Za-z_:]+/g, "")).not.toContain(" as ");
 	});

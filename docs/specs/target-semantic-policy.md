@@ -12,7 +12,7 @@ Release note (v1.0.2): semantic rules unchanged; test-module compilation coverag
 
 ## Purpose
 
-This document is the single cross-target semantic contract for Haxe reference
+This document is the single cross-target semantic specification for Haxe reference
 and handle semantics. It converges every prior ruling (Rc/RefCell handle,
 receiver ABI, interface traits without Send+Sync, @:sharedHandle,
 SingleThread/OnceLock static state, parameter/return/field/closure passing, and
@@ -23,7 +23,7 @@ syntax position or by a compiler error message.
 The executable encoding of this policy is
 `packages/compiler/SemanticPolicy.hx`. The typed IR it defines
 (ReprType, UseMode, ExprInfo, ReceiverAbi, ParamMode) is the policy's runnable
-form; the validator (landed in the follow-up IR task) is its enforcement; and
+form; the validator (added in the follow-up IR task) is its enforcement; and
 `Rc<RefCell<T>>`, `SingleThread<T>`, and all other concrete Rust types are
 only the Rust target's *realization* of the policy, never the policy itself.
 
@@ -32,14 +32,13 @@ only the Rust target's *realization* of the policy, never the policy itself.
 | Layer | Owns | Where |
 | --- | --- | --- |
 | Policy (this document) | The cross-target semantic rules | `docs/specs/target-semantic-policy.md` |
-| Typed IR contract | The executable encoding of the rules | `packages/compiler/SemanticPolicy.hx` |
+| Typed IR | The executable encoding of the rules | `packages/compiler/SemanticPolicy.hx` |
 | Validator | Enforcement of the rules (M2) | follow-up IR task, cites entry ids P-n |
 | Target realization | The concrete representation per target | Rust mapped here; TS/Kotlin/Swift/Dart left as TODO interfaces |
 | Renderer | Prints only already-resolved modes | follow-up IR task; consumes the typed IR |
 
 A target realization must not be mistaken for a cross-target rule. `Rc<RefCell<T>>`
-is how the Rust target realizes "plain-class handle", not a global policy that
-the other four targets must copy.
+is how the Rust target realizes "plain-class handle".
 
 ## Final boundary
 
@@ -61,21 +60,21 @@ implicitly promise it.
 Defined in `packages/compiler/SemanticPolicy.hx`; one-to-one with the entries
 below.
 
-- `ReprType` — the representation category of a Haxe type:
+- `ReprType`: the representation category of a Haxe type:
   `Copy`, `ImmutableValue`, `Handle(class_id, nullability, shared)`,
   `Collection(element)`, `Nullable(inner)`,
   `Function(args, result, mutability, captures)`, `Static(inner)`.
-- `UseMode` — how a value/handle is used at one occurrence:
+- `UseMode`: how a value/handle is used at one occurrence:
   `Owned`, `SharedRef`, `HandleClone`, `ReadBorrow`, `WriteBorrow`,
   `Move`, plus the function primitives `FunctionHandleClone` and `Call`.
-- `ExprInfo` — `{ repr, identity, place_kind }`; `identity` is one of
+- `ExprInfo`: `{ repr, identity, place_kind }`; `identity` is one of
   `SelfHandle`, `LocalHandle`, `FieldHandle`, `FreshObject`,
   `BorrowedProjection`; `place_kind` is one of `Value`, `Local`,
   `Field`, `Index`, `Static`.
-- `ReceiverAbi` — `None` (static) or `SharedHandle` (instance:
+- `ReceiverAbi`: `None` (static) or `SharedHandle` (instance:
   `&Rc<RefCell<Self>>` in Rust).
-- `ParamMode` — `Owned`, `SharedRef`, `MutableRef`, `HandleClone`.
-- `FunctionMutability` — `FnMut` (canonical) or `Fn` (proven immutable).
+- `ParamMode`: `Owned`, `SharedRef`, `MutableRef`, `HandleClone`.
+- `FunctionMutability`: `FnMut` (canonical) or `Fn` (proven immutable).
 
 ### UseMode naming consolidation
 
@@ -105,13 +104,13 @@ it never re-derives whether a value is Copy, Rc, &Rc, or Clone.
 
 Each entry carries the six required elements:
 
-1. **Haxe semantics** — the source behavior the entry rules.
-2. **Target mapping** — per-target representation (Rust is filled; the other
+1. **Haxe semantics**: the source behavior the entry rules.
+2. **Target mapping**: per-target representation (Rust is filled; the other
    four are TODO interfaces).
-3. **Typed IR encoding** — the exact `SemanticPolicy.hx` fields.
-4. **Validator invariant** — the assertion the M2 validator enforces.
-5. **Fixtures** — positive/negative fixture hooks (Executor-A matrix ids).
-6. **Version rule** — see the shared rule at the end of this section.
+3. **Typed IR encoding**: the exact `SemanticPolicy.hx` fields.
+4. **Validator invariant**: the assertion the M2 validator enforces.
+5. **Fixtures**: positive/negative fixture hooks (Executor-A matrix ids).
+6. **Version rule**: see the shared rule at the end of this section.
 
 ### P-1 Representation classification
 
@@ -215,7 +214,7 @@ Each entry carries the six required elements:
 
 ### P-8 Parameter passing
 
-1. A function parameter declares its passing contract; the caller satisfies it.
+1. A function parameter declares its passing mode; the caller satisfies it.
 2. Rust: a plain-class parameter arrives as `&Rc<RefCell<T>>` (borrowed
    shared handle) or an owned Rc when the callee takes ownership; a callee that
    accepts a shared handle must not receive an owned Rc argument; value and
@@ -292,11 +291,10 @@ Each entry carries the six required elements:
 1. A function value is a single-thread alias to a closure environment. Cloning
    a function value clones the handle and preserves one environment, never
    copies the environment. The Haxe closure environment can be mutated by a
-   call, so FnMut is the robust base model.
+   call, so FnMut is the base model.
 2. Rust: canonical realization is `Rc<RefCell<dyn FnMut(Args) -> R>>`. A
    proven-immutable value may use `Rc<dyn Fn(Args) -> R>` as an
-   observationally-equivalent optimization; it must not change the policy-level
-   type. No Send/Sync bounds, ever. A function value crossing a shared-interface
+   observationally-equivalent optimization; it must not change the type the policy names. No Send/Sync bounds, ever. A function value crossing a shared-interface
    slot is not cross-thread: shared-slot function parameters/returns still use
    the same function handle, never Arc or Fn+Send+Sync. TS, Kotlin, Swift,
    Dart: TODO interface.
@@ -332,7 +330,7 @@ Each entry carries the six required elements:
 2. Rust: the single-thread realization remains `Rc<RefCell<dyn Trait>>`;
    metadata is the only source of shared classification, never a class-name
    whitelist. Each slot passes the same Rc; the object is never re-wrapped into
-   multiple handles; Rc::clone is a handle clone, not an object clone. TS,
+   multiple handles; Rc::clone is a handle clone. TS,
    Kotlin, Swift, Dart: TODO interface.
 3. `ReprType.Handle(class_id, nullability, shared=true)`.
 4. The validator rejects fresh wrappers that break identity and rejects
@@ -396,11 +394,11 @@ guesses):
 
 ### P-20 Workflow rules
 
-1. (governance) The compiler workflow is: policy/IR contract first, then
+1. (governance) The compiler workflow is: policy/IR first, then
    backend; a rule is never derived back from a cargo/rustc error.
-2. Rust: no realization change lands without a policy/IR edit in the same
-   commit. TS, Kotlin, Swift, Dart: TODO interface.
-3. `SemanticPolicy.VERSION` and `entryIds()` are the contract's change ledger.
+2. Rust: no realization change is committed without a policy/IR edit in the
+   same commit. TS, Kotlin, Swift, Dart: TODO interface.
+3. `SemanticPolicy.VERSION` and `entryIds()` are the policy's change ledger.
 4. A backend-only change with no policy/IR edit fails review.
 5. Positive: every fixture. Negative: none.
 6. (shared rule)
@@ -463,17 +461,17 @@ guesses):
        @:native("pick") pickB(x:Null<Int>)
        -> ABI collision: NativeProbe.pick and NativeProbe.pick share JVM
           signature instance:pick(I)
-       (both reported names are "pick", the @:native JVM name, not pickA/pickB)
+       (both reported names are "pick", the @:native JVM name)
      Counterexample (no collision, must stay in the doc): @:native("pick")
        pickA(x:Int) plus @:native("pick") pickB(x:String) -> erasures I vs
        Ljava/lang/String; differ, so no collision; validator passes silently.
-       This is correct behavior, not a missed catch. Do not treat it as
+       This is correct behavior. Do not treat it as
        evidence: it is compatible with both "validator does not read @:native"
        and "validator reads it but different erasures should not collide", so
-       it is a control group, not a diagnostic observation.
+       it is a control group.
    Judgment: an observation is evidence only if the opposite hypothesis would
    produce a different result; if both hypotheses give the same result, it is
-   a control group, not evidence.
+   a control group.
    Probe hygiene: a probe class is only meaningful if it actually entered the
    compilation pipeline. Confirm by putting a deliberately erroring expression
    in the probe and checking that the error appears; only then is the probe
@@ -493,10 +491,10 @@ guesses):
    at the declared width, and FloatCanonical.encode64/encode32 write those bits
    big-endian (DataClassFloatHash / canonicalFloatHashBits). TS/Kotlin/Swift/
    Dart: data-class Float hashing routes to the same canonical bits (Kotlin
-   `toBits` with the signed-zero collapse, Swift `bitPattern` with an explicit
-   `isNaN` branch, Dart a big-endian `ByteData` round trip); TS emits no
-   data-class hashCode, so its encoder is the reference module. FloatCanonical
-   writes the same bytes big-endian on all five targets.
+   `toBits` with the signed-zero normalization, Swift `bitPattern` with an
+   explicit `isNaN` branch, Dart a big-endian `ByteData` round trip); TS
+   emits no data-class hashCode, so its encoder is the reference module.
+   FloatCanonical writes the same bytes big-endian on all five targets.
 3. IR: `FloatCanonical(width, value)`, `CanonicalBytes`, `FingerprintField`,
    `FieldOrder` (declaration order; inherited fields parent-first).
 4. Validator: a bare runtime hash fed into a fingerprint, a native-endian byte
@@ -540,7 +538,7 @@ fill-in (TODO -> concrete) does not bump the policy version.
 The four TODO columns are declared interfaces only; this round implements the
 Rust realization and leaves the others untouched.
 
-## Place plan contract
+## Place plan rules
 
 A mutation is emitted only when its place plan proves that the write reaches the
 storage the source program names. The plan is orthogonal to the representation
@@ -561,15 +559,14 @@ PlacePlan       = root + projections + intent + finalRepr
 - a projection detaches a value and the plan carries no writeback evidence.
 
 `RustHandleValidator.validatePlacePlans` turns each rejection into a `P-22`
-diagnostic, so the target refuses to emit code instead of patching the generated
-text after the fact.
+diagnostic, so the target refuses to emit code.
 
 ## Design principles
 
 This policy upholds the repository design principles (design-principles.md):
 content-defined semantics (P-1, P-2), restrict-and-provide-in-one-change (P-17
 names the sanctioned path), cost tiers (P-15), transpiler effort is not a
-design input (P-20), and the stage-one oracle verifies rather than defines
-(P-19). The audit tests T1-T4 are exercised by the positive/negative fixture
-hooks above.
+design input (P-20), and the stage-one oracle verifies while the specification
+defines (P-19). The audit tests T1-T4 are exercised by the positive/negative
+fixture hooks above.
 

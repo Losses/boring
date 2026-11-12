@@ -8,7 +8,14 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
-    pub fn format_float(v: f64) -> UString {
+    pub fn format_float(v: crate::TiqianFloat) -> UString {
+        #[cfg(feature = "f32")]
+        return Self::format_float_f32(v);
+        #[cfg(not(feature = "f32"))]
+        return Self::format_float_f64(v);
+    }
+
+    pub fn format_float_f64(v: f64) -> UString {
         if v.is_nan() { return UString::from("NaN"); }
         if v == f64::INFINITY { return UString::from("Infinity"); }
         if v == f64::NEG_INFINITY { return UString::from("-Infinity"); }
@@ -50,16 +57,16 @@ impl FPHelper {
     }
 
     // The two 64-bit FPHelper value edges carry the binary32 bit pattern,
-    // like every other backend: floatToI32 reads the f32 bit pattern with
-    // no truncation toward zero, and i32ToFloat reinterprets the i32 as raw
-    // binary32 bits with no numeric widening
+    // like every other backend: floatToI32 reads the f32 bit pattern
+    // with no truncation toward zero, and i32ToFloat reinterprets
+    // the i32 as raw binary32 bits with no numeric widening
     // (feature spec 23; FpText round-trips compare bit patterns).
     pub fn float_to_i32(v: f64) -> i32 {
         (v as f32).to_bits() as i32
     }
 
-    pub fn i32_to_float(v: i32) -> f64 {
-        f32::from_bits(v as u32) as f64
+    pub fn i32_to_float(v: i32) -> crate::TiqianFloat {
+        f32::from_bits(v as u32) as crate::TiqianFloat
     }
 
     pub fn f32_to_i32(v: f32) -> i32 {
@@ -70,14 +77,15 @@ impl FPHelper {
         f32::from_bits(v as u32)
     }
 
-    pub fn i64_to_double(low: u32, high: u32) -> f64 {
+    pub fn i64_to_double(low: u32, high: u32) -> crate::TiqianFloat {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();
         let bits = u64::from_be_bytes([h[0], h[1], h[2], h[3], l[0], l[1], l[2], l[3]]);
-        f64::from_bits(bits)
+        f64::from_bits(bits) as crate::TiqianFloat
     }
 
-    pub fn double_to_i64(v: f64) -> Int64Halves {
+    pub fn double_to_i64(v: crate::TiqianFloat) -> Int64Halves {
+        let v = v as f64;
         let bytes = v.to_bits().to_be_bytes();
         let high = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
         let low = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
@@ -87,7 +95,7 @@ impl FPHelper {
     // Binary32 variants of the two value edges: the same 8 wire bytes
     // decode to the f64 value, then round once to the module real; the
     // reverse widens losslessly before the bit conversion. Only the
-    // float-precision=f32 lane references them (feature spec 23).
+    // float-precision=f32 build references them (feature spec 23).
     pub fn i64_to_f32(low: u32, high: u32) -> f32 {
         f32::from_bits(Self::f64_halves_to_f32_bits(low, high))
     }
@@ -143,6 +151,6 @@ impl FPHelper {
     }
 
     pub fn f32_to_i64(v: f32) -> Int64Halves {
-        Self::double_to_i64(f64::from(v))
+        Self::double_to_i64(v as crate::TiqianFloat)
     }
 }

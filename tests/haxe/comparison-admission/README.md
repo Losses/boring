@@ -1,4 +1,4 @@
-# Finite source admission contract
+# Finite source admission check
 
 This suite checks the request-specific finite source admission entry
 `SourceComparisonAnalysis.admit` over declarations. It is a macro-only check:
@@ -39,11 +39,11 @@ declaration.
 
 ## Running
 
-    nix develop -c bash tests/haxe/comparison-admission-contract/run.sh
+    nix develop -c bash tests/haxe/comparison-admission/run.sh
 
 The run writes `probe.stdout`, `probe.stderr`, `expected.tsv`,
 `expected.diff`, and the excluded-input hashes under
-`out/comparison-admission-contract/run-*`. A nonzero exit status names the
+`out/comparison-admission/run-*`. A nonzero exit status names the
 failed attempt.
 
 This suite checks the source boundary only. It establishes no Swift or Tiqian

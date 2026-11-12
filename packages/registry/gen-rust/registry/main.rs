@@ -57,7 +57,7 @@ impl From<crate::registry::core_exception::CoreFault> for MainMainFault {
 pub struct Main;
 
 impl Main {
-    pub(crate) fn main_read_tree(root: &UStr, rel: &UStr, out: &mut Vec<InputRecord>) -> Result<(), FsError> {
+    pub fn main_read_tree(root: &UStr, rel: &UStr, out: &mut Vec<InputRecord>) -> Result<(), FsError> {
         let full = if rel == UString::from("") { (root.to_ustring()).clone() } else { Path::path_join(root, rel).to_ustring() };
         if Fs::is_directory(full.as_ustr()) {
             let names = Fs::read_dir(full.as_ustr())?;

@@ -1,4 +1,4 @@
-# PlacePlan / MutationPlan — 写路径的单一契约
+# PlacePlan / MutationPlan：写路径的单一契约
 
 状态：草案（Astra 裁定 2026-11-03，待落地）
 适用范围：Rust 发射器（`packages/compiler/reflaxe/rust/rustcompiler/`）与 RPlan（`packages/compiler/`）
@@ -11,7 +11,7 @@ owned 拷贝，把这份拷贝当作写入目标，写入就落在一个语句�
 
 | # | 入口 | 错误形态 |
 |---|---|---|
-| 1 | `Bytes.set` | `(self.block).clone()[i] = v` —— Sha256 每个输入字节写丢，空输入仍正确，只在 3 条指纹 golden 上暴露 |
+| 1 | `Bytes.set` | `(self.block).clone()[i] = v`：Sha256 每个输入字节写丢，空输入仍正确，只在 3 条指纹 golden 上暴露 |
 | 2 | 容器可变方法（`Map.set/remove/clear`、`Array.remove/insert/splice`） | `(self.map).clone().insert(...)` |
 | 3 | 嵌套下标写 | `((arr[i]).clone())[j][k] = v` |
 
@@ -73,7 +73,7 @@ projection 每一步标注：
 
 写回时机不是无条件「函数最后」，必须满足源语义；无法证明时不生成。
 
-## 4. clone 的裁决（由 repr + operation contract 声明，不看名字）
+## 4. clone 的裁决（由 repr + operation 语义声明，不看名字）
 
 | 情形 | 判定 |
 |---|---|
@@ -97,7 +97,7 @@ projection 每一步标注：
 `prepareValue`。planner 必须沿 field / index / nullable projection **递归传递目标意图**，
 不能先渲染成值再剥外层 clone。
 
-可变方法的修改目标由**已解析的 effect contract** 决定（改 receiver、改容器、改元素、还是
+可变方法的修改目标由**已解析的 effect 语义** 决定（改 receiver、改容器、改元素、还是
 改别处），不能只按 `set`/`remove` 这类名字判断。
 
 ## 6. 迁移路径
@@ -192,10 +192,10 @@ operand**。缺事实是未知，不等于不可变或可写。
 根 place 性**由 Policy 声明**，planner 负责组合验证：
 
 - `staticStorage = Immutable | ReadOnlyView` → 静态下标写在 planner 中必然报错；
-- `MutablePlace | RuntimeGuardedPlace` → 还必须有对应运行时访问/writeback contract 才可生成。
+- `MutablePlace | RuntimeGuardedPlace` → 还必须有对应的运行时访问/writeback 语义才可生成。
 
 **不得**由 RustExpr 依 `final`、名字或生成文本猜测。
 
 负向控制必须直接命中 policy/planner：`static final ARR[0] = 9` 在**生成前**失败；并且
-把 policy 错改为 `MutablePlace` 时判定确实改变——**不是只检查最终 Rust 文本**。
+把 policy 错改为 `MutablePlace` 时判定确实改变：**不是只检查最终 Rust 文本**。
 

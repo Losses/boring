@@ -9,7 +9,7 @@ use std::fmt::Write;
 pub struct Path;
 
 impl Path {
-    pub(crate) fn path_kind(p: &UStr) -> u32 {
+    pub fn path_kind(p: &UStr) -> u32 {
     let __units = p.as_slice();
     let __count = u_string::unit_count(&p);
         if p.starts_with(&UString::from("\\\\?\\")) || (p).starts_with(&UString::from("\\\\.\\")) {
@@ -41,7 +41,7 @@ impl Path {
         return 7;
     }
 
-    pub(crate) fn path_has_unc_shape(p: &UStr) -> bool {
+    pub fn path_has_unc_shape(p: &UStr) -> bool {
         let n = u_string::unit_count(&(p));
         let mut i = 2u32;
         let mut segments = 0u32;
@@ -61,7 +61,7 @@ impl Path {
         return false;
     }
 
-    pub(crate) fn path_is_sep(p: &UStr, index: u32) -> bool {
+    pub fn path_is_sep(p: &UStr, index: u32) -> bool {
     let __units1 = p.as_slice();
     let __count1 = u_string::unit_count(&p);
         if index > 2147483647 || (i32::from_ne_bytes(((index) as i32).to_ne_bytes())) >= i32::from_ne_bytes(((__count1) as i32).to_ne_bytes()) {
@@ -71,11 +71,11 @@ impl Path {
         return c == UString::from("/") || c == UString::from("\\");
     }
 
-    pub(crate) fn path_translated(p: &UStr) -> UString {
+    pub fn path_translated(p: &UStr) -> UString {
         return UString::from(format!("{}", { let joined = u_string::split(&p, &UString::from("\\")); let mut out = String::new(); let n = joined.len(); let mut index1 = 0usize; while index1 < n { if index1 > 0 { out.push_str("/"); } let _ = write!(out, "{}", joined[index1]); index1 += 1; } UString::from(out.as_str()) }).as_str());
     }
 
-    pub(crate) fn path_last_sep(p: &UStr, from: u32) -> u32 {
+    pub fn path_last_sep(p: &UStr, from: u32) -> u32 {
         let mut last = 4294967295u32;
         let mut i = from;
         while (i32::from_ne_bytes(((i) as i32).to_ne_bytes())) < (i32::from_ne_bytes(((u_string::unit_count(&(p))) as i32).to_ne_bytes())) {
@@ -87,7 +87,7 @@ impl Path {
         return last;
     }
 
-    pub(crate) fn path_root_end(t: &UStr, k: u32) -> u32 {
+    pub fn path_root_end(t: &UStr, k: u32) -> u32 {
         if k == 0 {
             return u_string::unit_count(&(t));
         }
@@ -109,7 +109,7 @@ impl Path {
         return 0;
     }
 
-    pub(crate) fn path_unc_root_end(t: &UStr) -> u32 {
+    pub fn path_unc_root_end(t: &UStr) -> u32 {
         let n = u_string::unit_count(&(t));
         let mut i = 2u32;
         let mut segment = 0u32;
@@ -200,7 +200,7 @@ impl Path {
         return if dir == UString::from("") { UString::from(".") } else { dir.to_ustring() };
     }
 
-    pub(crate) fn path_cut_dirname(t: &UStr, root: u32) -> UString {
+    pub fn path_cut_dirname(t: &UStr, root: u32) -> UString {
     let __units2 = t.as_slice();
     let __count2 = u_string::unit_count(&t);
         let mut end = __count2;
@@ -287,7 +287,7 @@ impl Path {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += prefix.as_ustr(); __s += body.as_ustr(); __s }).as_str());
     }
 
-    pub(crate) fn path_stack_push(kept: &mut Vec<UString>, depth: u32, segment: &UStr) -> u32 {
+    pub fn path_stack_push(kept: &mut Vec<UString>, depth: u32, segment: &UStr) -> u32 {
         if i32::from_ne_bytes(((depth) as i32).to_ne_bytes()) < (i32::from_ne_bytes(((u32::try_from((kept.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes())) {
             { while kept.len() <= usize::try_from(depth).unwrap_or(0) { kept.push(UString::new()); } kept[usize::try_from(depth).unwrap_or(0)] = segment.to_ustring(); };
         } else {
@@ -319,7 +319,7 @@ impl Path {
         return p.to_ustring();
     }
 
-    pub(crate) fn path_home_dir() -> Option<UString> {
+    pub fn path_home_dir() -> Option<UString> {
         let home = Env::get(UStr::new(&[72,79,77,69]));
         if home.is_none() {
             return Env::get(UStr::new(&[85,83,69,82,80,82,79,70,73,76,69]));

@@ -16,7 +16,7 @@ import path from "node:path";
  * It also text-scans KotlinExpr.hx (KE) for the P3.3 text-sniff read
  * patterns (indexOf("?."), indexOf("?: throw"), endsWith(x, "!!" | "?")) that
  * the criterion-1 grep targets.  P3.3b migrated the remaining 3 KE
- * sites to AST-level decisions, so KNOWN_TEXT_SNIFF is empty and the
+ * sites to decisions on the AST, so KNOWN_TEXT_SNIFF is empty and the
  * guard enforces zero text-sniffs in KE.
  *
  * Assertions:
@@ -63,8 +63,8 @@ const POSTFIX_BANG = /\+ *"!!"/;
 const TEXT_SNIFF = /endsWith\([a-zA-Z]+, "(?:!!|\?)"\)|indexOf\("(?:\?\.|\?: throw)"\)/;
 
 /**
- * P3.3b migrated all three remaining KE text-sniff sites to AST-level
- * decisions (the ?.-emission mirror in stringConcatOperand and the
+ * P3.3b migrated all three remaining KE text-sniff sites to decisions on
+ * the AST (the ?.-emission mirror in stringConcatOperand and the
  * AST-ified post-condition self-check plus enum-reflection lowering in
  * requiresNonNullCallArgument).  KNOWN_TEXT_SNIFF is empty, so the guard
  * enforces zero text-sniffs in KE.

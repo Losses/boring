@@ -14,7 +14,7 @@ package boring;
  *     }
  *
  * Haxe ACCEPTS this body without error.  `Null<Int>` is permissively
- * unifiable with the comparison operands — Haxe does NOT prove `code`
+ * unifiable with the comparison operands: Haxe does NOT prove `code`
  * non-null at the type level; it allows the comparison and, in its own
  * -js backend, wraps the body in a null guard (`if(code >= 48){
  * return code <= 57;}else{return false;}`).
@@ -35,7 +35,7 @@ package boring;
  * The first nullable reference carries a non-null assertion (`code!`);
  * the second reference is narrowed by TS control-flow analysis.  The
  * cross-target precedent (Kotlin `code!! >= 48 && code <= 57`, Dart
- * `code! >= 48 && code <= 57`) pins this as an erased assertion —
+ * `code! >= 48 && code <= 57`) pins this as an erased assertion:
  * `!` is type-only, so the runtime behavior for `isDigit(null)` is
  * `false` (null coerces to 0 for `>=`, and `0 >= 48` is `false`),
  * matching Haxe's own -js output exactly.

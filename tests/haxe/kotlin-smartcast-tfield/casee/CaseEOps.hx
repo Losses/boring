@@ -3,15 +3,15 @@ package casee;
 /**
     casee probe for PIT-388.
 
-    Kotlin smart-casts `recv.field` only when BOTH halves hold:
+    Kotlin smart-casts `recv.field` only when BOTH conditions hold:
 
       * the field renders as a `val` -- a `var` property is never
         smart-castable, so `varField` below is a negative control for the
-        field half; and
+        field condition; and
       * the receiver chain's root local is one Kotlin treats as stable -- a
         local this body rebinds, or one a capturing closure writes, makes
         every `recv.field` projection a non-stable value, so `betweenWrite`
-        and `closureWrite` are negative controls for the receiver half.
+        and `closureWrite` are negative controls for the receiver condition.
 
     An emitter that decides the whole question from the guard's flow proof
     alone emits a plain dot in all four shapes and kotlinc rejects three of

@@ -4,14 +4,14 @@ import * as path from "node:path";
 const root = path.resolve(import.meta.dir, "../..");
 
 /**
-    Runs the plain-Haxe contract for the Target Semantic Policy typed-IR
-    vocabulary (tests/haxe/semantic-policy/contract.hxml). It asserts the frozen
+    Runs the plain-Haxe test for the Target Semantic Policy typed-IR
+    vocabulary (tests/haxe/semantic-policy/requirements.hxml). It asserts the frozen
     variant sets exist and the policy-entry ids are complete and duplicate-free,
     so docs/specs/target-semantic-policy.md and packages/compiler/SemanticPolicy.hx
     cannot drift.
 **/
 async function runContract(): Promise<{ code: number; output: string }> {
-    const proc = Bun.spawn(["haxe", "tests/haxe/semantic-policy/contract.hxml"], {
+    const proc = Bun.spawn(["haxe", "tests/haxe/semantic-policy/requirements.hxml"], {
         cwd: root,
         stdout: "pipe",
         stderr: "pipe",

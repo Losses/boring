@@ -11,7 +11,7 @@
 # check.sh is run ONCE and its transcript carries the histogram, the
 # tier1/tier2 verdict lines, and the aggregate WARNING GATE PASS/FAIL, so this
 # composite cannot diverge from what check.sh already decided. The two tier
-# lines are the contract; they are extracted by sed below and default to FAIL
+# lines are the interface; they are extracted by sed below and default to FAIL
 # if missing.
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)

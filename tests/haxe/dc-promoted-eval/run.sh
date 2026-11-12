@@ -23,7 +23,7 @@
 # positive assertion must be able to see. The mutation is written into the run
 # directory only and is reported with before/after digests.
 #
-# Swift is attempted and expected to be blocked in this environment (the
+# Swift is attempted and expected to be blocked (this environment's
 # pinned swiftc wrapper needs user namespaces); that stage is recorded as
 # environment-not-reached and never silently skipped.
 #

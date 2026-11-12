@@ -141,10 +141,10 @@ class KotlinExpr {
     }
 
     /** A Return destination for P2.7 migration sites: the returned value must
-        satisfy the current function/lambda return-type contract, read from the
+        satisfy the current function/lambda return type, read from the
         P1 rebound return type. admitsAbsence follows Null<T> and safe-call
         widened returns, so a non-null return type extracts a nullable value
-        with "!!". The contract payload is empty because coerce/roleTag address
+        with "!!". The destination payload is empty because coerce/roleTag address
         the role by constructor name and only admitsAbsence drives the
         extraction (see roleTag / parseAblateRole). */
     static function returnDest(admitsAbsence:Bool):Destination {
@@ -1944,7 +1944,7 @@ class KotlinExpr {
                 // nullable receiver it throws at run time (measured on the
                 // reference interpreter: `g[0][1]` with a null g raises
                 // "Null Access", while `g?.length` yields null). Only the
-                // source-level safe navigation propagates absence. So a
+                // safe navigation in the source propagates absence. So a
                 // nullable receiver is asserted and then indexed - `?.get()`
                 // would both silence the throw and make chained subscripts
                 // (`grid?.get(0).set(1, 20)`) uncompilable. (NullIndexThrows)
@@ -2896,7 +2896,7 @@ class KotlinExpr {
                     // fieldProven). Kotlin never smart-casts a mutable
                     // property, so a printed `!!` on a `var` field neither
                     // proves the subject nor licenses dropping the next
-                    // assertion — both records stay reserved for the
+                    // assertion: both records stay reserved for the
                     // smart-castable subjects nullableAccess itself accepts,
                     // so the guard and the read answer one predicate for one
                     // subject. (MutableChainProofUniqueness)
@@ -3186,7 +3186,7 @@ class KotlinExpr {
         // needless assertion warns as redundant. (NullableAccessProof)
         // The question here is about the subject's *value*:
         // for a field read the receiver question also answers
-        // yes when the chain's root local is merely present (`rootPresent`),
+        // yes when the chain's root local is present (`rootPresent`),
         // which says nothing about the field's own value and would leave a
         // bare dot exactly where Kotlin refuses the smart cast. (PIT-388)
         if (isNullType(subj.t) && !valueProven(subj)) {
@@ -3636,16 +3636,16 @@ class KotlinExpr {
     /**
         THE smart-cast predicate: whether Kotlin turns a proof about this
         subject into a smart cast, i.e. whether the subject may render through
-        a bare dot. One judgement, one source (contract 6): the guard side
+        a bare dot. One judgement, one source (Requirement 6): the guard side
         (`addProofExpr`, deciding whether a printed `!!` may register the field
-        key) and the read side (`fieldProven`) both call this function, so the
+        key) and the read path (`fieldProven`) both call this function, so the
         two can no longer answer the same question differently. Same family as
         PIT-388 / PIT-416 / TCN-162.
 
         Kotlin smart-casts a property only when every clause below holds, and
         each clause names one fixture. GP-ABLATE: `-D
         kotlin_smartcast_drop=<clause>` drops that one clause, so its fixture
-        smart-casts anyway and kotlinc surfaces the error the clause prevents.
+        smart-casts anyway and kotlinc reports the error the clause prevents.
         Two clauses (`open`, `getter`) have no reachable negative shape, so
         dropping them is a no-op (see the table).
 
@@ -7061,7 +7061,7 @@ class KotlinExpr {
                 "null";
         };
         // stdlib/17: exists/isDirectory are pre-checked predicates and keep
-        // their Bool contract. Every other member maps the host failure to
+        // their Bool return type. Every other member maps the host failure to
         // std.FsException carrying the normalized std.FsError kind; the
         // native message is attached as nativeDetail for display only.
         if (name == "exists" || name == "isDirectory") {

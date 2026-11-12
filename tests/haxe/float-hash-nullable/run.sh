@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Durable runner for the nullable-float hashCode regression contract
+# Durable runner for the nullable-float hashCode regression test
 # (board t-mvzn8ckw-vh3s).
 #
 # One invocation allocates one fresh run directory under
 # out/float-hash-nullable/runs and never rewrites or removes another one, so
-# every attempt including a failed one is retained. The contract asserts:
+# every attempt including a failed one is retained. The test asserts:
 #   1) the generated Kotlin (f32 and f64) and Dart trees compile (exit 0);
 #   2) the generated hashCode guards the nullable field (grep the artifacts:
 #      the nullable float field must show "if (x == null) 0 else" on Kotlin
@@ -130,9 +130,9 @@ if generate kotlin "$KOTLIN_F32_DIR" -D float-precision=f32 -D "kotlin-output=$K
 	# shellcheck disable=SC2086
 	run_stage kotlinc-f32 kotlinc $kotlin_f32_sources -Xallow-kotlin-package -include-runtime -d "$KOTLIN_F32_JAR"
 	# Artifact assertion: the nullable float field must be null-guarded.
-	F32_SRC="$(find "$KOTLIN_F32_DIR" -name 'FloatHashNullableContract.kt' | head -1)"
+	F32_SRC="$(find "$KOTLIN_F32_DIR" -name 'FloatHashNullableRequirements.kt' | head -1)"
 	if [ -z "$F32_SRC" ]; then
-		fail grep-f32-null-guard "generated FloatHashNullableContract.kt not found under $KOTLIN_F32_DIR"
+		fail grep-f32-null-guard "generated FloatHashNullableRequirements.kt not found under $KOTLIN_F32_DIR"
 	else
 		grep_assert grep-f32-null-guard "$F32_SRC" '?.let { __fv ->' 'Kotlin f32 nullable float field is null-guarded'
 	fi
@@ -146,9 +146,9 @@ if generate kotlin "$KOTLIN_F64_DIR" -D float-precision=f64 -D "kotlin-output=$K
 	kotlin_f64_sources="$(find "$KOTLIN_F64_DIR" -name '*.kt' -not -path '*/runtime/test/*' | sort | tr '\n' ' ')"
 	# shellcheck disable=SC2086
 	run_stage kotlinc-f64 kotlinc $kotlin_f64_sources -Xallow-kotlin-package -include-runtime -d "$KOTLIN_F64_JAR"
-	F64_SRC="$(find "$KOTLIN_F64_DIR" -name 'FloatHashNullableContract.kt' | head -1)"
+	F64_SRC="$(find "$KOTLIN_F64_DIR" -name 'FloatHashNullableRequirements.kt' | head -1)"
 	if [ -z "$F64_SRC" ]; then
-		fail grep-f64-null-guard "generated FloatHashNullableContract.kt not found under $KOTLIN_F64_DIR"
+		fail grep-f64-null-guard "generated FloatHashNullableRequirements.kt not found under $KOTLIN_F64_DIR"
 	else
 		grep_assert grep-f64-null-guard "$F64_SRC" '?.let { __fv ->' 'Kotlin f64 nullable float field is null-guarded'
 	fi
@@ -166,7 +166,7 @@ DART_ENTRY="$RUN/entry-dart"
 mkdir -p "$DART_ENTRY" || exit 2
 cp "$HERE/native/main.dart" "$DART_ENTRY/main.dart" || exit 2
 if generate dart "$DART_DIR" -D float-precision=f64 -D "dart-output=$DART_DIR" -D "dart-test-output=$RUN/dart-gen-tests"; then
-	DART_SRC="$(find "$DART_DIR" -name 'float_hash_nullable_contract.dart' | head -1)"
+	DART_SRC="$(find "$DART_DIR" -name 'float_hash_nullable_requirements.dart' | head -1)"
 	if [ -n "$DART_SRC" ]; then
 		grep_assert grep-dart-null-guard "$DART_SRC" 'this.value == null ? 0 :' 'Dart nullable float field is null-guarded'
 	fi

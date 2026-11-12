@@ -1,4 +1,4 @@
-// CLI driver probe fixtures — deterministic environment, no execution logic.
+// CLI driver probe fixtures: deterministic environment, no execution logic.
 //
 // Boundary (packages/test/README.md): fixtures/ provides the fixture project
 // and the stub toolchain (fake haxe/tsc/bun/postgen shims) for the CLI

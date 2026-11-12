@@ -3,7 +3,7 @@
 -lib reflaxe
 -cp packages/compiler
 -cp samples
--cp tests/haxe/comparison-admission-contract
+-cp tests/haxe/comparison-admission
 -main admission.AdmissionProbe
 --macro include('admission')
 --macro admission.AdmissionProbe.run()

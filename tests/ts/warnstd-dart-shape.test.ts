@@ -7,7 +7,7 @@ import * as path from "node:path";
  * mechanism (478b3835): it pins promoted text patterns across
  * statements, branch merge, and closure unwrap. r2.log recorded
  * pre==post for these minimal shapes
- * (.tq-logs/warnstd/seats/r2.log) — the check asserts current
+ * (.tq-logs/warnstd/seats/r2.log): the check asserts current
  * rendered text but is not a validated degradation guard (no
  * negative control).
  *

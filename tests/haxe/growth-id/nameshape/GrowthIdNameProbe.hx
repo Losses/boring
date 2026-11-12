@@ -4,7 +4,7 @@ package nameshape;
 	Sibling-shape fixture for t-munebyud-bxbr (the enumDeclaresVariant half):
 	the payload enum EFault declares a construct whose RAW Haxe name is
 	`e_fault` but which EMITS as `EFault` (RustDecl.hx renders every
-	constructor through RustImports.toUpperCamelCase) — exactly the name the
+	constructor through RustImports.toUpperCamelCase): exactly the name the
 	rethrow growth variant for class E takes.
 
 	Pre-fix the dedup compared raw names (`e_fault` != `EFault`), missed the
@@ -14,7 +14,7 @@ package nameshape;
 	Post-fix the dedup compares the emitted name and suppresses the
 	registration, so E0428 disappears. The residual fallback in
 	RustExpr.throwVariant still names `EFault` for the rethrow with mismatched
-	arity — that is a separately-recorded defect (see REPORT), deliberately
+	arity: that is a separately-recorded defect (see REPORT), deliberately
 	NOT fixed in this row.
 **/
 enum EFault {

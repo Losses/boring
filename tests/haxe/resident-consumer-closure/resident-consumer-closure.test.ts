@@ -19,10 +19,10 @@ import { join, resolve } from "node:path";
  * the same property at the generation level, where it is cheap, toolchain-light
  * and directly attributable to the compiler:
  *
- *   1. closure — generate variant (a) (no `runtime.*` root) with the real
+ *   1. closure: generate variant (a) (no `runtime.*` root) with the real
  *      compiler; every resident the consumer reaches through the std extern
  *      face must be emitted;
- *   2. reverse — generate the same input with the four whole-set loops removed,
+ *   2. reverse: generate the same input with the four whole-set loops removed,
  *      via a classpath shadow (`-cp` AFTER the hxml, which wins the module
  *      lookup) that never touches the real sources; the resident must vanish.
  *

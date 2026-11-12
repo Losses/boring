@@ -30,7 +30,7 @@ package charcodeat;
 	The native harnesses print the six labeled lines; a null, undefined,
 	nil, or None unit value is rendered as the token `null` on every
 	target so the compare stage sees display-neutral output. The Haxe JS
-	oracle achieves the same token through JS null-collapse
+	oracle achieves the same token through JS loose equality
 	(`undefined == null` is true) inside an if-guard, keeping the oracle
 	source free of `Std.string` on a nullable (rejected by the reflaxe
 	pipeline) and of ternaries mixing `String` with `Null<Int>`
@@ -96,7 +96,7 @@ class CharCodeAtOracle {
 		reflaxe pipeline rejects, and no ternary whose branches mix
 		`String` with `Null<Int>`, which the pinned typer rejects): in
 		the Haxe JS oracle a miss is `undefined`, and `undefined == null`
-		collapses to true, so the guard selects the `null` token.
+		is true, so the guard selects the `null` token.
 	**/
 	public static function codeLine(label:String, c:Null<Int>):String {
 		if (c == null) return label + "null";

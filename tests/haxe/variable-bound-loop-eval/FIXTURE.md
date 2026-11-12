@@ -20,13 +20,13 @@ typechecks the store `haxe.io.Input`/`haxe.io.Output` against the shadowed
 `haxe.io.Bytes` and fails on all five targets with
 `haxe.io.Bytes has no field getData`. This was isolated by bisection: an
 empty `main` body generates (rc=0) and `trace(1)` inside `main` generates
-(rc=1) under the same hxml; the full `examples/*.hxml` trees only parse —
-never typecheck — the store `haxe.io.Input`, which is why they do not hit it.
+(rc=1) under the same hxml; the full `examples/*.hxml` trees only parse
+(never typecheck) the store `haxe.io.Input`, which is why they do not hit it.
 
 The fixture therefore carries a fixture-local shadow, `shadow/haxe/Log.hx`
 (a no-op `trace`), which each `gen/<t>.hxml` puts on the generation
-classpath. The shadow changes no counted expression — `trace` occurs only in
-`main()`, while the counters increment only inside `readLocal`/`readLength` —
+classpath. The shadow changes no counted expression (`trace` occurs only in
+`main()`, while the counters increment only inside `readLocal`/`readLength`),
 and the per-target native driver is the only printer of the observation line,
 which carries the same payload the oracle `trace` prints.
 
@@ -110,7 +110,7 @@ swift   0    swiftc lib 1 (1      not-reached (producer=swift-lib)
         -    error, see below)
 ```
 
-Three of the five targets — ts, kotlin, dart — completed generation, native
+Three of the five targets (ts, kotlin, dart) completed generation, native
 compilation, and execution, and each measured `local=4 length=3 control=4`,
 the same per-iteration triple the oracle establishes. The generated code of
 all five targets keeps the bound read inside the `while` condition
@@ -126,8 +126,8 @@ not missing-environment rows):
 
 - **rust** (`rust-lib`, rc=1, rustc 1.98.0): the frozen source's
   `localReads++`/`lengthReads++` post-increments on the static counters are
-  emitted as `{ let __guard = PROBE_LOCAL_READS.lock()...; __guard.clone() } += 1;`
-  — a block expression on the left of a compound assignment, which Rust does
+  emitted as `{ let __guard = PROBE_LOCAL_READS.lock()...; __guard.clone() } += 1;`:
+  a block expression on the left of a compound assignment, which Rust does
   not accept. Raw errors: `error: expected expression, found `+=`` (twice),
   `error[E0067]: invalid left-hand side of assignment` (twice). Separately,
   `runtime/mod.rs` declares `pub mod sorted_table;` while `sorted_table.rs`
@@ -145,7 +145,7 @@ not missing-environment rows):
   The store holds only one Swift toolchain (`swift-toolchain-6.2.4-al2`), so
   no alternate compiler version is available to soften the diagnostic.
 
-`run.sh` exits 0 for this run: target-level generation, compilation, and run
+`run.sh` exits 0 for this run: a target's generation, compilation, and run
 failures are recorded observations with their failed producer, and the
 runner fails only on harness defects (oracle mismatch, input drift, missing
 stage, or a run with no parseable observation).
@@ -153,7 +153,7 @@ stage, or a run with no parseable observation).
 ## Post-fix run (20261001T211624Z): all five targets reach the run stage
 
 A second run, `20261001T211624Z`, was produced after commit `1e0d8169`
-("fix(rust,swift): unblock variable-bound-loop-eval native compile") landed.
+("fix(rust,swift): unblock variable-bound-loop-eval native compile").
 Its evidence root is `out/variable-bound-loop-eval/runs/20261001T211624Z/`
 (gitignored, like the pre-fix root). The runner records 23 stages and every
 one exits 0 (`stages.tsv`): the identity and input-hash stages bookend the
@@ -211,8 +211,8 @@ and swift run-stage products from these artifacts directly:
 `rust-gen/harness-bin`, and `swift-build/runner` (with
 `LD_LIBRARY_PATH` set to the build directory) each print
 `local=4 length=3 control=4` and exit 0. The dart target was not
-independently re-executed — no `dart` toolchain is present in the author's
-environment (`which dart` exits 1) — so the dart reading rests on the
+independently re-executed (no `dart` toolchain is present in the author's
+environment, `which dart` exits 1), so the dart reading rests on the
 recorded `dart-run` stage alone (status 0, stdout
 `local=4 length=3 control=4`).
 
@@ -227,7 +227,7 @@ The triple `(local, length, control) = (4, 3, 4)` is jointly discriminating:
   `length` would read 2 (checks see 1, then 1); if the length were hoisted,
   it would read 1. Either change is falsified by the measured 3.
 - If the counter undercounted (for example a constant-one instrument),
-  `control` — which contains two counted bound expressions — would read 2,
+  `control`, which contains two counted bound expressions, would read 2,
   not 4: the oracle's `control=4` is an independent positive count above 1
   and falsifies a constant-one counter without relying on the other two
   shapes.
@@ -243,7 +243,7 @@ current `run.sh` is `printf 'evidence root %s\n' "$RUN"` followed by
 `exit 0`; the only non-zero exit path is the `exit 1` reserved for harness
 defects (oracle re-run mismatch, input-tree drift, a declared stage with no
 row, or a run stage that exits 0 without a parseable bound-read triple).
-Target-level failures never trip that path — this run demonstrates exactly
+A target's failures never trip that path: this run demonstrates exactly
 that (`rust-lib` and `swift-lib` both rc=1, runner rc=0). The pre-rework
 `run.sh` ended in `printf 'evidence=%s\n' "$OUT"` with no explicit exit, i.e.
 always 0. No variant of the runner therefore fails a build on a bad

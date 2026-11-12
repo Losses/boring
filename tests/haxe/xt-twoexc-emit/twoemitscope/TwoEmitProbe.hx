@@ -1,7 +1,7 @@
 package twoemitscope;
 
 /**
-	Two-exception-classes-in-one-module fixture for the class-level struct
+	Two-exception-classes-in-one-module fixture for the per-class struct
 	emission of a thrown-value exception class.
 
 	Both payload enums live in the same Haxe module, so the emitter's
@@ -10,7 +10,7 @@ package twoemitscope;
 	that module key. E2 is declared FIRST and therefore loses the key; E1 is
 	declared LAST and wins it. Only E1 needs the exception struct (it is
 	rethrown by value); E2 is only constructed at a throw site, which lowers
-	to its payload directly. That makes `pub struct E1` the single class-level
+	to its payload directly. That makes `pub struct E1` the single per-class
 	emission the generated tree depends on for compiling.
 **/
 enum E2Fault {

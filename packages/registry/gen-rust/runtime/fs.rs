@@ -105,7 +105,7 @@ impl Fs {
         let mut names = Vec::new();
         for entry in entries {
             // F7 (Claude review): match-rewrite removes the loop-body closure so
-            // reference/rust stays closure-free (loop-structure contract).
+            // reference/rust stays closure-free (loop-structure rule).
             let entry = match entry { Ok(e) => e, Err(e) => return Err(FsError::host("readDir", path, e)) };
             names.push(UString::from(entry.file_name().to_string_lossy().into_owned().as_str()));
         }

@@ -1073,7 +1073,7 @@ class DartExpr {
         // The snapshot is taken AFTER the condition renders: the condition
         // is evaluated on every path through the statement, so a promotion
         // it records (an operand `x!`, a null guard) holds in both arms and
-        // after the merge — snapshotting before the render rolled those
+        // after the merge: snapshotting before the render rolled those
         // back at the merge, a later `x!` on the same local re-emitted and
         // dart read it as redundant. (ConditionRenderPromotionSurvives)
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
@@ -5553,7 +5553,7 @@ class DartExpr {
                 "null";
         };
         // stdlib/17: exists/isDirectory are pre-checked predicates and keep
-        // their Bool contract. Every other member maps the dart:io failure
+        // their Bool return type. Every other member maps the dart:io failure
         // to std.FsException carrying the normalized std.FsError kind; the
         // native text is attached as nativeDetail for display only. The
         // specific subclasses are matched before the errno ladder, and the

@@ -1,6 +1,6 @@
 package admission;
 
-/** Authored declarations for the finite source admission contract. Every
+/** Authored declarations for the finite source admission check. Every
     declaration states one discriminator of stdlib/16 or of the finite demand
     summary. The expectations live in admission-expected.tsv and are written
     from the source rule, never from a probe run. */

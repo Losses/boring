@@ -5,7 +5,7 @@ import haxe.io.BytesBuffer;
 
 /**
  * P-23 canonical float observation bytes (encode64/encode32). The bytes are the
- * authoritative observation surface for cross-target float equality: both
+ * authoritative observation for cross-target float equality: both
  * signed zeroes encode as zero bits, every NaN as the width's quiet-NaN token,
  * and any other value as its IEEE bits, all big-endian. encode32 never widens a
  * binary32 value to binary64 before reading its bits, so an f32 NaN payload

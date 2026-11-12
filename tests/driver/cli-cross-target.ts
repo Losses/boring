@@ -1,4 +1,4 @@
-// CLI cross-target driver probe — orchestration and assertions.
+// CLI cross-target driver probe: orchestration and assertions.
 //
 // Boundary (packages/test/README.md): the fixture project and stub toolchain
 // construction live in packages/test/fixtures/cli-driver-fixture.ts, the

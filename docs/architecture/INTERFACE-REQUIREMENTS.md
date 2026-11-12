@@ -1,9 +1,9 @@
-# Architecture Contract
+# Architecture Requirements
 
 The classification (`PROBLEM-CLASSIFICATION.md`) clarifies "which class of failure belongs to whom"; this file clarifies
 **what each side of the interface commits to**, i.e., what a site must hand over, under what conditions.
 
-## Contract 1: Destination is passed in by composition (class D)
+## Requirement 1: Destination is passed in by composition (class D)
 
 **Rule**: a conversion site must be given the **destination** (target type); it must not infer it from compiler-instance state.
 
@@ -14,7 +14,7 @@ The classification (`PROBLEM-CLASSIFICATION.md`) clarifies "which class of failu
   and does **not re-bind** `currentReturnType`.
 - Inside a lambda the correct value is **`f.t`** (`:2349` already uses it to print the closure header).
 
-**Contract form**:
+**Requirement form**:
 ```
 conversion-site(value, destination, fallback) -> text
 where destination is provided by the composition that owns the site:
@@ -34,11 +34,11 @@ Target-side Destination roles (complement, from report Section 4.2 item 1):
 Destination is a value object (Destination): it carries the target type plus the role that the position demands.
 ```
 **The last item is this session's lesson**: the `blockExpression` block has its own destination;
-treating it as the lambda's return contract **injects a wrong conversion** (the P4 regression of `lambda-fix-xcheck`,
+treating it as the lambda's return type **injects a wrong conversion** (the P4 regression of `lambda-fix-xcheck`,
 `mx/MXProbe.swift:19:12`, `cannot convert 'ReadOnlyArray<Int32>' to closure
 result type 'TiqianArray<Int32>'`).
 
-## Contract 2: The intermediate destination of a nil-merge is provided by composition (class-C boundary × class-D destination)
+## Requirement 2: The intermediate destination of a nil-merge is provided by composition (class-C boundary × class-D destination)
 
 **Spec text** (`docs/compiler-policy-interfaces.md:171-173`, verbatim):
 > "A nil-merge with a required final result passes an **optional intermediate
@@ -50,11 +50,11 @@ result type 'TiqianArray<Int32>'`).
 - `override == true` ⇒ the composition declares "an optional intermediate result is accepted here" ⇒ that cell becomes a conversion
   (`MapOptionalMutableArrayView` `:200-202`, etc.)
 
-**Contract boundary**: `override` is **the composition's obligation**; it belongs to the composition and grants no exemption.
+**Scope of this requirement**: `override` is **the composition's obligation**; it belongs to the composition and grants no exemption.
 The three REFUSED rows in `RECORD.md` (the session-record file of the Swift boundary planner seat, which lives outside the product repo) are therefore qualified in the record as **PLANNER-CELL ONLY**
-(CORRECTION 13; the point is implemented in this contract).
+(CORRECTION 13; the point is implemented in this requirement).
 
-## Contract 3: Warnings count toward acceptance (class F)
+## Requirement 3: Warnings count toward acceptance (class F)
 
 **Binding standard**: `docs/specs/style/02-translator-implementation-standard.md`
 - `:78` *"Generated code compiles **without warnings** on every target … A
@@ -71,7 +71,7 @@ The three REFUSED rows in `RECORD.md` (the session-record file of the Swift boun
   the generated tree `reference/ts/gen-tests`). The job blocks and has no `continue-on-error`;
   baseline `1001 pass / 32 fail / 8 errors` (originally recorded in `BASELINE-FAILURES.md`, deleted 2026-10-03 with the cleanup; the current record is the baseline wiring in `.github/workflows/ci.yml`), and the discharge is still pending.
 - ⇒ the recorded form must be "**known baseline failures + explicit PIN**", and must **not** be named "zero-diagnostics met":
-  the owner ruling at `tests/swift-gap-boundary/gap-boundary.test.ts:44` is this contract's implementation.
+  the owner ruling at `tests/swift-gap-boundary/gap-boundary.test.ts:44` is this requirement's implementation.
 
 **Supplement (`t-muo92xms-s28t` ruling, `1a486ebd`; the original file `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` was deleted with the cleanup; the ruling content is in that row's note in the wb system):
 "Which tool is used" and "which class of diagnostics it can see" must be stated separately.**
@@ -82,11 +82,11 @@ the only things that can actually see it are `-c` (including `-whole-module-opti
 ⇒ **Ruling: build-phase diagnostics count toward `:78/:80`**. If we literally accept only "the type-checker", "zero warnings" degenerates into
 **an empty criterion** (real emitter defects all pass invisibly, while the downstream CI that compiles the binary still hits them).
 **Counting discipline**: count by the `file:line:col: severity` **shape**; `grep -c 'warning:'` overcounts.
-— Swift also prints caret/context lines, which would count 1 as 2 (PIT-336).
-**Generalization to the same family**: for every target, ask "does the current command **fail to see** a diagnostic it can report" —
-one same-family example from this session is that `cargo check` and `cargo build` differ in their warning surface.
+Swift also prints caret/context lines, which would count 1 as 2 (PIT-336).
+**Generalization to the same family**: for every target, ask "does the current command **fail to see** a diagnostic it can report":
+one same-family example from this session is that `cargo check` and `cargo build` differ in which warnings they report.
 
-## Contract 4: The acceptance criterion for generated output must be able to observe the property under test
+## Requirement 4: The acceptance criterion for generated output must be able to observe the property under test
 
 **Rule**: an acceptance check must **fail when the property is violated**.
 
@@ -102,7 +102,7 @@ one same-family example from this session is that `cargo check` and `cargo build
 2. **the shape that strips `return` must use `swiftc -c`; `-typecheck` misses the SILGen stage**
 3. splice-style changes must use a **discriminating backend** (deliberately take the wrong branch / deliberately return the wrong value) to prove it would FAIL
 
-## Contract 5: A fix must not change other classes' behavior
+## Requirement 5: A fix must not change other classes' behavior
 
 **Implementation**: after the fix, regenerate against **the full driver set** and do a whole-tree comparison; **byte-identical after path normalization**
 is the necessary condition. All four committed fixes satisfy it (W1: 19 drivers, only 2 differing lines and those expected;
@@ -111,14 +111,14 @@ lambda: 19 drivers, diff empty).
 **Limit**: whole-tree identity **cannot** prove the fix is correct; it can only prove **no spillover elsewhere**;
 "generation succeeded", "type-check passed", and "runtime correct" are three different strengths and must be stated separately.
 
-## Contract 6: One judgment must have only one source; what can be derived from facts must not be separately decided
+## Requirement 6: One judgment must have only one source; what can be derived from facts must not be separately decided
 
 **Rule**: when whether something "holds" affects output, that judgment must have **only one authoritative source**.
 If it can be **derived from facts that have already occurred** (whether a file was actually written, whether a declaration was actually emitted),
 then it **must be derived**; a second piece of code must not judge it **independently** again.
 
 **Why**: when a criterion and a fact are judged **in parallel**, the two can diverge, and **divergence is invisible in the passing state**.
-This is the same family as Contract 4 but at a different layer: Contract 4 says "the check must be able to observe the violated property",
+This is the same family as Requirement 4 but at a different layer: Requirement 4 says "the check must be able to observe the violated property",
 this one says "**the criterion itself must not become decoupled from the fact it describes**".
 
 **Measured (Rust target `state.shimsUsed`)**:
@@ -126,7 +126,7 @@ this one says "**the criterion itself must not become decoupled from the fact it
 |---|---|
 | write sites (each believes "some shim is used") | **28 sites**, scattered across `RustDecl.hx` / `RustExpr.hx` / `RustImports.hx` |
 | read sites (deciding whether a resident should be emitted) | **15 sites** |
-| contract specifying "which path must write" | **none** |
+| requirement specifying "which path must write" | **none** |
 
 (Write-site distribution: `RustExpr.hx` 23, `RustImports.hx` 3, `RustDecl.hx` 2;
 read-site distribution: `Compiler.hx` 13, `RustImports.hx` 1, `RustEmissionState.hx` 1.
@@ -135,7 +135,7 @@ Counted at `aceda352`, criterion is "line shape": left-hand assignment, subscrip
 ⇒ this global is used **with two different meanings**: "business code referenced some extern" (intent layer) and
 "should some resident be written as `.rs`" (emission layer). **The two layers are not equivalent, and nobody is responsible for ensuring equivalence.**
 The outcome is that `runtime/mod.rs` declares a module that was never written (`E0583`):
-**declarations follow one criterion, file emission follows another, and the write surfaces of the two do not overlap.**
+**declarations follow one criterion, file emission follows another, and the write sites of the two do not overlap.**
 
 **Two fix approaches, different criteria**:
 - **Add write sites**: every time an uncovered path is discovered, write the criterion again on that path
@@ -149,7 +149,7 @@ The outcome is that `runtime/mod.rs` declares a module that was never written (`
 **⇒ Implemented criteria**:
 1. When "two pieces of code make the same judgment" appears, first distinguish whether it is **same-layer duplication** or **write-side / read-side**;
    if both sides are needed, **the correctness-source side must be designated**.
-2. Ask "**is there a contract specifying who must write**". If the answer is "no + write sites far outnumber read sites",
+2. Ask "**is there a requirement specifying who must write**". If the answer is "no + write sites far outnumber read sites",
    the real defect is **not a missing merge**; it is that the criterion lacks a unique source.
 3. Verify whether the derivation is **self-sufficient**: if, without activating those write sites, the invariant still holds by derivation alone,
    then the derivation stands on its own; **if it only holds when a particular write site fires**, then correctness still depends on
@@ -166,18 +166,18 @@ and regenerate `examples/rust.hxml`.
 | declarations / references | 15 / 15, violations = **0** |
 | `cargo check` | rc=0, error count 0 |
 
-⇒ this write site is **completely inert** on this corpus, so "zero violations" **proves neither that the derivation is self-sufficient
+⇒ this write site is **completely inert** on this example set, so "zero violations" **proves neither that the derivation is self-sufficient
 nor that the write site is necessary**. The reason is that both paths evaluate the same set of externs: the emission gate at `Compiler.hx:862`
 itself reads `state.shimsUsed.exists(externModule)` (via `externsOf`),
 using the same pair `(isResident, externsOf)` as the write sites, so by construction they necessarily agree.
 
-To truly determine self-sufficiency, a test case is needed where "only `requireType` touches it, and its importing side does not trigger
+To determine self-sufficiency, a test case is needed where "only `requireType` touches it, and its importing side does not trigger
 extern activation"; until then this item is recorded as **undecided**, and must not be written as "self-sufficiency verified".
 
 **The above conclusion has been overturned (correction, independent reproduction)**: the "whole-tree zero diff" table above is **true,
-but it carries almost zero information for judging whether the write site is necessary** — the gate evaluates a **global union over the same shared `shimsUsed`
-map**, and any single explicit activation in the full corpus causes all residents to emit as usual,
-so the absence of the write site is masked by the corpus itself. **The byte identity of the full corpus must not be taken as evidence of "inertness".**
+but it carries almost zero information for judging whether the write site is necessary**: the gate evaluates a **global union over the same shared `shimsUsed`
+map**, and any single explicit activation in the full example set causes all residents to emit as usual,
+so the absence of the write site is masked by the example set itself. **The byte identity of the full example set must not be taken as evidence of "inertness".**
 
 Minimal counter-example (write site disabled, only the single root `boring.DataClassStringCompare` kept,
 the sample that was added together with that write site at `19ae7db6`):
@@ -189,21 +189,21 @@ the sample that was added together with that write site at `19ae7db6`):
 | `boring/data_class_string_compare.rs` | normal | still `use crate::runtime::sorted_table::SortedTable;` (:1), :26 still calls |
 | `cargo check` | **rc=0** | **rc=101, `error[E0432]: unresolved import`** |
 
-⇒ this write site is **load-bearing** and **must not be removed**. Contract 6 therefore has
+⇒ this write site is **load-bearing** and **must not be removed**. Requirement 6 therefore has
 a far stronger implemented criterion: **judging "whether a write site is necessary" must be done by ablation on the minimal root set,
-not on the full corpus** — the passing state of the full corpus masks single-point defects, the same phenomenon as class G's
+not on the full example set**: the passing state of the full example set masks single-point defects, the same phenomenon as class G's
 "divergence is invisible in the passing state". Path: `RustDecl.hx:557` /
 `RustType.hx:196-207`'s `requireType("runtime.SortedTable", …)` only activates
-the `std.SortedMap` family, while in the full corpus these keys are also activated by `RustImports.hx:61` via
+the `std.SortedMap` family, while in the full example set these keys are also activated by `RustImports.hx:61` via
 `RustType.hx:197/200/203/206`.
 
-**Applicability boundary of this rule (supplement, measured from the review at `9081d0d0`)**: Contract 6 requires criteria to be derived from
+**Applicability boundary of this rule (supplement, measured from the review at `9081d0d0`)**: Requirement 6 requires criteria to be derived from
 facts, but **"derived fields" does not mean "can validate each other"**. Within the same record,
 `stdoutAvailable` is derived from whether the stream object of the host outcome exists (`ChildEvidence.hx:439`),
 `stdoutBytes` is derived from the length of the final write-disk buffer (:505); the two come from **different sources**:
 in a healthy tree of 1005 records, 236 are simultaneously `available=true` and `bytes=0`.
 Therefore **do not** use the available flag to verify "the stream was indeed preserved", and do not
-treat available/bytes consistency as an invariant assertion — it is a normal shape in this system.
+treat available/bytes consistency as an invariant assertion: it is a normal shape in this system.
 
 Similarly, **mutation testing must be done before weakening an assertion**: after relaxing `stdout>0 && stderr>0` to
 `stdout+stderr>0`, a real regression that "silently drops stderr on the upper-limit path"
@@ -211,7 +211,7 @@ had the entire test suite rc=0 all-green (restoring the old assertion captured i
 "what does the subject under test guarantee"; a change that stops the sporadic failure says nothing about the guarantee.
 
 
-## Contract 7: Value object carries facts (NEW, from report Section 4.2 item 2)
+## Requirement 7: Value object carries facts (NEW, from report Section 4.2 item 2)
 
 **Rule**: every lowering function must return a `Lowered` value object.
 A `Lowered` carries:
@@ -228,7 +228,7 @@ A `Lowered` carries:
 `optionalValued` (Swift), and `funcErrorEnums.exists` string-query (Rust) are replaced by
 reading `Lowered.presence` and `Lowered.errorType`.
 
-## Contract 8: Single conversion entry, three-axis orthogonality (NEW, from report Section 4.2 item 3)
+## Requirement 8: Single conversion entry, three-axis orthogonality (NEW, from report Section 4.2 item 3)
 
 **Rule**: each backend exposes exactly one `coerce(Lowered, Destination): String` entry point.
 It operates on three independent axes in order:
@@ -241,7 +241,7 @@ A B-layer representation change (e.g. `ReadOnlyArray` -> `[T]`) only affects the
 the presence axis decision is independent. No backend code may skip `coerce` and emit raw text
 with ad-hoc `!` / `!!` / `?.` / `.unwrap()` appends.
 
-## Contract 9: Target-language rule predicate clause table (NEW, from report Section 4.2 item 4)
+## Requirement 9: Target-language rule predicate clause table (NEW, from report Section 4.2 item 4)
 
 **Rule**: every backend must maintain a table of `(predicate, required_inputs, L5_fixture)` clauses.
 Each clause names exactly which facts the predicate consumes and what the failing fixture scores.
@@ -254,7 +254,7 @@ Examples (Kotlin):
 **Every clause in the table is a verifiable criterion**: the L5 discriminating backend for that
 clause removes the clause and the corresponding fixture must fail.
 
-## Contract 10: References must point at emission-plan symbols (NEW, from report Section 4.2 item 5)
+## Requirement 10: References must point at emission-plan symbols (NEW, from report Section 4.2 item 5)
 
 **Rule**: every generated reference (module import, type symbol, function name) must be a
 `SymbolRef` registered in the emission plan for the current compilation unit. A `refer(symbol, fromUnit)`
@@ -266,11 +266,11 @@ any path constructed by string concatenation without symbol registration.
 
 ## Undecided
 
-**The three position references in this section, measured one by one on 2026-10-01, are as follows** — all three **point to nothing**,
+**The three position references in this section, measured one by one on 2026-10-01, are as follows**; all three **point to nothing**,
 but the **technical problems** they express **still stand**, so each is distinguished as "statement" vs "position":
 
 - **`switchExpression` destination**: Condition 3 requires an explicit destination argument
-  (binding route uses `v.t`, argument route uses the callee's parameter), `sw.t` only as a fallback when there is no contract.
+  (binding route uses `v.t`, argument route uses the callee's parameter), `sw.t` only as a fallback when there is no requirement.
   ~~implementation seat running (`out/switchexpr-destination`)~~ → **that worktree does not exist** (searched by directory name,
   branch name, and worktree name, three methods, none found; `git worktree list` returns 122 entries, this one is not among them).
   **Remove the status word "running"**: it claims a current fact; once the document is out of sync it becomes false.
@@ -280,25 +280,25 @@ but the **technical problems** they express **still stand**, so each is distingu
   ~~the P1 probe of `lambda-fix-xcheck` is byte-identical in both trees and both fail~~ →
   **`lambda-fix-xcheck` does not exist** (same three search methods). Keep the statement: this path has never applied
   boundary conversion; it is a residual gap; **a probe must be rebuilt** before it can be cited again.
-- **Class-J migration** (legacy Kotlin → Haxe) contract is undefined — **this one stands**,
+- **Class-J migration** (legacy Kotlin → Haxe) requirement is undefined; **this one stands**,
   unlike the two above: the classification document `:92` **registers class J**, writing that it is "a classification gap outside A–F"
   (per CODEX-AUDIT's "complete J migration were not established").
-  So this is a **valid** undecided item: **there is a class that is registered but has no contract yet**.
+  So this is a **valid** undecided item: **there is a class that is registered but has no requirement yet**.
 
 **These three are not the same thing; they only became distinguishable after measurement**:
 
 | Item | Statement holds | Position reachable |
 |---|---|---|
-| `switchExpression` destination | yes | **no** — worktree does not exist |
-| single-return fast-path gap | yes | **no** — `lambda-fix-xcheck` does not exist |
-| class-J migration contract undefined | yes | **yes** — classification document `:92` |
+| `switchExpression` destination | yes | **no**: worktree does not exist |
+| single-return fast-path gap | yes | **no**: `lambda-fix-xcheck` does not exist |
+| class-J migration requirement undefined | yes | **yes**: classification document `:92` |
 
-**Supplement (my own correction)**: I initially classified class J as a "dangling reference" too; **that was wrong** —
-it was indeed registered in the classification document, just not in the A–F table, so my lookup by class alphabet did not find it.
+**Supplement (my own correction)**: I initially classified class J as a "dangling reference" too; **that was wrong**:
+it was indeed registered in the classification document but not in the A–F table, so my lookup by class alphabet did not find it.
 **Checking "whether some class exists" must not look only at the main table**: the section that registers gaps is likewise part of the definition.
-The two that are truly broken are **worktree references**, because they point to **temporary** locations.
+The two that are broken are **worktree references**, because they point to **temporary** locations.
 
-**The common shape of these three is worth recording**: they are the **most fragile** kind of "known but undecided" record —
+**The common shape of these three is worth recording**: they are the **most fragile** kind of "known but undecided" record:
 they reference a **temporary** worktree, and worktrees get cleaned up leaving no trace.
 **Supplement rule**: undecided items should write down **the technical problem itself** (which can stand long-term) + **a reproducible probe command**,
 not + a worktree name. A worktree name is a position, and positions disappear; the problem is content, and content does not.

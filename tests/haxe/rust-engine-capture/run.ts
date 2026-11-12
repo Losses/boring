@@ -30,7 +30,7 @@ try {
   const genProc = spawnSync("haxe", ["-D", "rust-output=" + gen, HXML], { cwd: REPO_ROOT, encoding: "utf8", timeout: 120000 });
   if (genProc.status !== 0) fail("haxe generation failed (status=" + genProc.status + "): " + genProc.stdout + genProc.stderr);
 
-  // assertion: engine.rs was really emitted, surviving dead-code elimination.
+  // assertion: engine.rs was emitted, surviving dead-code elimination.
   const engineRs = join(gen, "probe/engine.rs");
   if (!existsSync(engineRs)) fail("engine.rs missing (path was dead-code-eliminated)");
 

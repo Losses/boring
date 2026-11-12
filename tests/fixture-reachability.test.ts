@@ -12,12 +12,12 @@ import { join, resolve } from "node:path";
  *
  * Measured 2026-10-01: 35 fixtures under tests/haxe/ are in exactly that state,
  * each with a runner, and several with probes and expected outputs. They are not
- * debris — they are unwatched.
+ * debris; they are unwatched.
  *
  * This guard does NOT fix them; it makes the count a FACT, so it need not be
  * rediscovered. The count may go DOWN deliberately (wire a fixture in, lower the
  * constant) or UP deliberately (add a fixture, raise it). It must not drift
- * while nobody is looking — which is the same contract the baseline's failure
+ * while nobody is looking, which is the same rule the baseline's failure
  * counts use.
  *
  * What it deliberately does not judge: whether each fixture SHOULD be collected.
@@ -47,24 +47,24 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * carries the corrected number.
  *
  * The two earlier bumps (35 -> 36, and 36 -> 37 when kotlin-smartcast-tfield
- * landed) were partly this blind spot, and no real drift occurred: the 36->37 step
+ * was added) were partly this blind spot, and no real drift occurred: the 36->37 step
  * counted kotlin-smartcast-tfield as unwatched when its test was already
  * driving it.
  *
- * This is the same failure mode the guard exists to catch, one level up: an
+ * This is the same failure mode the guard exists to catch, at a higher level: an
  * observation domain narrower than the property it claims (L6 in
  * LAYERED-VERIFICATION.md).
  *
  * Still open and deliberately NOT absorbed by this correction: the
  * `kotlin-mutable-chain-probe` leftover that caused the 35 -> 36 step. It has
- * no test anywhere and remains genuinely unwatched -- see the tracking task.
+ * no test anywhere and remains unwatched -- see the tracking task.
  *
  * CI-R1 F2 (Claude review): raised 34 -> 42. The observed unwatched count is
  * now 42: the runner-bearing fixtures added alongside the CI-R1 fixes
  * (comparison-*, kotlin-coerce-*, comparison consumers, ts-*-lowering,
  * rust-*-scope, fs-missing-isdirectory, source-container-policy, and others)
  * have no collected test. This raise is the deliberate acknowledgment the
- * guard's contract demands ("must not drift while nobody is looking");
+ * guard's rule demands ("must not drift while nobody is looking");
  * wiring them in is deferred to a follow-up task.
  */
 const RECORDED_UNCOLLECTED = 43; // +1: tests/haxe/rustGatedValueCopy (TraitIdentityAdapter pure-assertion runner)
@@ -122,7 +122,7 @@ function fixtures(): Fixture[] {
       // at `tests/kotlin/smartcast-tfield.test.ts`, which drives that
       // directory's `kotlin.hxml` -- so the old in-directory-only reading
       // counted it as unwatched when it is in fact wired in. That is this
-      // guard's own failure mode one level up: an observation domain narrower
+      // guard's own failure mode: an observation domain narrower
       // than the property it claims (the same shape as L6 in
       // LAYERED-VERIFICATION.md).
       hasCollectedTest:

@@ -28,7 +28,7 @@ So the reviewer's concern holds only for the **default position**; the coalescin
 - `throwingFallback(seed)`: throwable callee (throws `ThrowingDefaultException(OverThreshold(seed))` when seed>10).
 - `resolve(seed, ?value)`: coalescing default, E = `throwingFallback(seed)` (reads the earlier argument).
 - raw call layer (failure-domain observation subjects, left uncalled by the harness): `callOmittedSafe`=`resolve(5)`, `callOmittedThrowing`=`resolve(20)`, `callExplicit`=`resolve(5, 9)`.
-- probe layer (region absorption surface returning a uniform `String`, harness entry point): three `final outcome = try { "ok:"+… } catch (error:ThrowingDefaultException) { "caught:"+… }`.
+- probe layer (region absorption returning a uniform `String`, harness entry point): three `final outcome = try { "ok:"+… } catch (error:ThrowingDefaultException) { "caught:"+… }`.
 
 Two call shapes: **omitted argument** (default evaluated, the throwable call actually executes) and **explicit argument** (default not evaluated, the throwable call does not execute). Explicit null materialization (feature 51) is not in this line, untested.
 

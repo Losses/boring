@@ -16,21 +16,21 @@ import RustHandleValidator.HandleNode;
 import RustHandleValidator.HandleNodeKind;
 
 /**
-    Unit contract for the Target Semantic Policy typed-IR vocabulary.
+    Unit test for the Target Semantic Policy typed-IR vocabulary.
 
-    Plain-Haxe assertions over the shared contract types. It does not touch the
+    Plain-Haxe assertions over the shared policy types. It does not touch the
     macro Context or a target renderer: it proves that the frozen variant sets
     exist, are constructible, and that the policy-entry ids are complete and
-    duplicate-free, so the document and the contract stay in step.
+    duplicate-free, so the document and the typed IR stay in step.
 
-    Extended with the M2 validator contract (RustHandleValidator) and the
+    Extended with the M2 validator (RustHandleValidator) and the
     machine-readable trace (RustHandleTrace): the validator invariants
     (P-2/P-4/P-5/P-6/P-7/P-14/P-16, d-4), the synthetic positive/negative IR
     cases aligned to the fixture matrix, and the jsonl trace serialization.
 
-    Run: haxe tests/haxe/semantic-policy/contract.hxml
+    Run: haxe tests/haxe/semantic-policy/requirements.hxml
 **/
-class SemanticPolicyContract {
+class SemanticPolicyRequirements {
     static var failures:Int = 0;
     static var checks:Int = 0;
 

@@ -2,7 +2,7 @@
  * P-23 cross-target conformance comparison (criterion 4). Reads each target's
  * test-results JSONL and verifies the FloatCanonical fixture passed on every
  * target. "pass" means the target's canonical bytes matched the candidate bytes
- * baked into tests.FloatCanonicalTests (which are the TS reference encoder's
+ * recorded in tests.FloatCanonicalTests (which are the TS reference encoder's
  * output), so all-pass across targets is byte-for-byte consistency.
  *
  * Run: bun run tests/ts/float-canonical-conformance.ts

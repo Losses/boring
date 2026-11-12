@@ -1,4 +1,4 @@
-// Driver probe runner — the execution half of the cross-target driver probe.
+// Driver probe runner: the execution half of the cross-target driver probe.
 //
 // Boundary (packages/test/README.md): bin/ drives one test run (process
 // orchestration, cross-target scheduling) and never decides a verdict. The

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
- * R4.2 warn-zero TS regression pins — warn/ts3 criterion 5.
+ * R4.2 warn-zero TS regression pins: warn/ts3 criterion 5.
  *
  * Two families, two fixtures under samples/boring/, one test file.
  *
@@ -15,7 +15,7 @@ import * as path from "node:path";
  * ## Haxe type-check verdict (Haxe 4.3.7)
  *
  * Both fixture bodies compile in Haxe without error.  Null<T> is
- * permissively unifiable with T — the Haxe type checker does NOT
+ * permissively unifiable with T: the Haxe type checker does NOT
  * narrow the nullable references.  See .tq-logs/viii/haxe-typecheck-
  * probe/ for the probe sources and Haxe -js output.
  *
@@ -74,7 +74,7 @@ import * as path from "node:path";
  *
  * When generated artifacts are absent, all tests fail with ENOENT
  * (fs.readFileSync / dynamic import), which satisfies the "missing artifacts
- * must fail" requirement — no skipped test, no silent pass.
+ * must fail" requirement: no skipped test, no silent pass.
  */
 
 const gen = (name: string): string =>

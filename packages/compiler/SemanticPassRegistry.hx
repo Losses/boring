@@ -41,7 +41,7 @@ class SemanticPassRegistry {
 
     /**
         Write the consumer table for the trace runner. The table stays the
-        single source of truth: the runner reads this artifact, which keeps
+        only definition: the runner reads this artifact, which keeps
         the expectations out of TypeScript.
     **/
     public static function emitArtifact():Void {

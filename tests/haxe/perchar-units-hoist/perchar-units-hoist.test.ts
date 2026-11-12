@@ -16,7 +16,7 @@ import { resolve } from "node:path";
  * tests/haxe/rust-resident-dataclass/resident-dataclass.test.ts: check the exit
  * status FIRST. A missing toolchain exits 0 by construction in run.sh, so a
  * non-zero status can never legitimately mean "skipped", and consulting the
- * skip phrase before the status would let a real failure that merely mentions
+ * skip phrase before the status would let a real failure that mentions
  * it read as a pass.
  */
 

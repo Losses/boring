@@ -303,7 +303,7 @@ class RustExpr {
     // are hoisted once at function entry and every read routes through
     // unit_at_from. Key is the param local id. (StrParamHoist)
     final hoistedStrParams:Map<Int, {unitsTemp:String, countTemp:String, receiverText:String}> = [];
-    // Active statement-level static-read hoist: static path -> local name.
+    // Active static-read hoist within one statement: static path -> local name.
     // Set while stmtLines renders one statement so a second read of the same
     // static in that statement resolves to the one cloned local, so the
     // Mutex is taken once. (StaticReadStatementScope)
@@ -1600,7 +1600,7 @@ class RustExpr {
                 // guards and can deadlock. It is excluded here because the
                 // statement hoist binds a cloned value, while the container
                 // form would have to bind one mutable guard and reuse it
-                // across the statement. No current corpus site reads one
+                // across the statement. No current example reads one
                 // container static twice in one statement; revisit when one
                 // does.
                 if (RustDecl.isPlainClassHandleContainerStaticType(typeStr))
@@ -2607,7 +2607,7 @@ class RustExpr {
                     // parse_f64 result) renders as a bare name; the return
                     // statement is the emission terminal, so it casts once
                     // into the slot alias. An alias-typed value casts to
-                    // itself, so both lanes keep their values.
+                    // itself, so both feature settings keep their values.
                     // (FloatSlotAliasCast)
                     // A u32-domain return carries a wrapped negative as its
                     // two's complement bits; converting it numerically would
@@ -2722,8 +2722,8 @@ class RustExpr {
         Degrade for a throw whose wrapping variant name collides with a
         variant the target error enum already declares (the dedup suppresses
         the growth registration, so no wrapping constructor exists). The
-        thrown value is the whole exception class value — `Ex::new(payload)`
-        — and the catch site of this error domain binds the payload enum
+        thrown value is the whole exception class value (`Ex::new(payload)`),
+        and the catch site of this error domain binds the payload enum
         value itself, so the Haxe semantics ("raise an Ex carrying this
         fault") lower faithfully by extracting the payload and raising it
         directly: the region's Err arm receives the same fault value. This
@@ -2731,7 +2731,7 @@ class RustExpr {
         lowering never observes. Reachable whenever the exception class's
         payload enum IS the current error enum (nameshape fixture: the
         rethrow `throw new E(e.fault)` under a `Result<_, EFault>`), which
-        is checked here; anything else keeps the previous diverging path —
+        is checked here; anything else keeps the previous diverging path:
         a strictly narrower residual than before.
     **/
     function collisionPayloadExtract(inner:TypedExpr, raw:String):String {
@@ -3155,7 +3155,7 @@ class RustExpr {
         }
     }
 
-    /** The source-level operation a host Fs failure diagnostic names. */
+    /** The operation in the source that a host Fs failure diagnostic names. */
     function hostFsOperationLabel(c:Ref<ClassType>, cf:Ref<ClassField>):String {
         return c.get().module == "std.Fs" ? "std.Fs." + cf.get().name : c.get().name + "." + cf.get().name;
     }
@@ -5651,8 +5651,8 @@ class RustExpr {
         final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
             // The fallback Int may carry a wrapped u32 value; widen signed. (SignedIntFloatWiden)
             // The fallback literal is a ternary arm terminal: it names the
-            // float slot alias so both arms unify under either feature lane.
-            // (FloatSlotAliasCast)
+            // float slot alias so both arms unify under either feature
+            // setting. (FloatSlotAliasCast)
             ? floatSlotAliasCast(intToFloatSignedText(expr(ifFalse), ifFalse))
             : expr(ifFalse);
         // The fallback must be a concrete non-null value so both arms of the
@@ -5991,7 +5991,7 @@ class RustExpr {
                         // explicit cast through the crate alias, so the
                         // untyped literal parses at binary64 first. The
                         // decision reads only the literal value, so both
-                        // feature lanes emit identical text.
+                        // feature settings emit identical text.
                         // (Float32LiteralRange)
                         final v = Std.parseFloat(padded);
                         final abs = Math.abs(v);
@@ -7092,7 +7092,7 @@ class RustExpr {
         // (SignedIntToFloatBranch)
         if (isIntType(inner) && (target == "f32" || target == "f64" || target == "crate::TiqianFloat"))
             // The arm terminal renames its cast to the slot alias so both
-            // ternary arms unify under either feature lane; the numeric
+            // ternary arms unify under either feature setting; the numeric
             // float-shape predicate recognizes the alias text, so the
             // enclosing boundary keeps its plain-cast route.
             // (FloatSlotAliasCast)
@@ -9218,7 +9218,7 @@ class RustExpr {
                 // Math arguments are Float even when the typed AST retains the
                 // original Int constant. Casting this literal to the crate
                 // alias prevents Rust method calls from leaving its numeric
-                // type ambiguous under either feature lane.
+                // type ambiguous under either feature setting.
                 "(" + Std.string(v) + ".0) as crate::TiqianFloat";
             // A Math call treats its Int argument as a signed Haxe Int; a wrapped negative (u32::wrapping_sub underflow) must widen through the i32 bit reading; the u32 Display value would be wrong. (SignedMathFloatArg)
             case _ if (isIntType(emittedType(a))): intToFloatSignedText(expr(a), a);
@@ -12741,8 +12741,8 @@ class RustExpr {
                     imports.requireType(cls.module, "FPHelper");
                     // The FPHelper entry names are precision-independent:
                     // i64ToDouble, doubleToI64, i32ToFloat, and floatToI32
-                    // exist in the resident runtime under both feature lanes
-                    // and route through the crate alias, so no
+                    // exist in the resident runtime under both feature
+                    // settings and route through the crate alias, so no
                     // generation-time rename is applied.
                     final targetName = name;
                     // The signed bit edge takes the i32 domain while the Haxe
@@ -12812,8 +12812,8 @@ class RustExpr {
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
                     // The parse edge names the binary64 runtime entry in both
-                    // feature lanes; the closing cast names the crate alias so
-                    // the Float slot type holds under either lane.
+                    // feature settings; the closing cast names the crate
+                    // alias so the Float slot type holds under either setting.
                     imports.require("crate::runtime::u_string");
                     return "u_string::parse_f64(&(" + expr(args[0]) + ")) as crate::TiqianFloat";
                 }
@@ -13802,7 +13802,7 @@ class RustExpr {
         }
         collect(root);
         // The binary64 accumulator widening applies under both feature
-        // lanes with identical emission: the generated tree is
+        // settings with identical emission: the generated tree is
         // precision-independent and the crate alias decides the slot
         // width. (FloatAccumulatorBinary64)
         for (id in compoundTargets.keys())
@@ -15401,15 +15401,15 @@ class RustExpr {
                     // The typer unifies a non-null initializer to the
                     // nullable anonymous field type, so the authoritative
                     // slot is the matched named typedef's field type: only
-                    // a truly nullable named slot wraps. (NullableFieldSomeWrap)
+                    // a nullable named slot wraps. (NullableFieldSomeWrap)
                     final slotType = namedFieldTypes != null && namedFieldTypes.exists(f.name)
                         ? namedFieldTypes.get(f.name) : fieldType;
                     // A value whose rendered form is already Option-shaped
                     // (a get-tail, a Some(...), an Option-slot local) or a
                     // try-operator payload (expr? renders the bare value)
-                    // must not wrap again. The declared type of the value —
-                    // the local's slot, the class field, the function return
-                    // — decides payload vs Option: the typer reports the
+                    // must not wrap again. The declared type of the value
+                    // (the local's slot, the class field, the function return)
+                    // decides payload vs Option: the typer reports the
                     // unified nullable field type at this boundary, which
                     // would otherwise suppress or mis-apply the wrap.
                     // (NullableFieldSomeWrap)
@@ -16683,7 +16683,7 @@ class RustExpr {
         would outlive one compilation and let the next one read a plan decided
         by the previous one.
 
-        contract and useMode default to the receiver-shared-ref axis the first
+        The destination and useMode default to the receiver-shared-ref axis the first
         three wired sites consumed, so existing call sites keep their decided
         plan byte-for-byte; newer sites pass their own axis and still share the
         decide call and the planKey cache. **/
@@ -16717,7 +16717,7 @@ class RustExpr {
         };
         final plan = SemanticPolicy.decide(input);
         // Cache is keyed by role only, so on a hit receiverAbi/paramAbi are
-        // first-caller-wins and may not match this site's contract/useMode.
+        // first-caller-wins and may not match this site's destination/useMode.
         // Callers may read plan.role only; the ABI read rule is documented on
         // RepresentationPlan.receiverAbi (SemanticPolicy.hx).
         final cached = state.representationPlans.get(plan.planKey);
@@ -17010,8 +17010,8 @@ class RustExpr {
 
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String,
         contract:DestinationContract = DestinationContract.Param):String {
-        // contract names the destination position this coercion serves (P-22:
-        // decide() is handed the contract, never asked to infer it). Every
+        // The destination argument names the position this coercion serves (P-22:
+        // decide() is handed the destination, never asked to infer it). Every
         // caller passes its own position; the default only guards unforeseen
         // callers on the parameter axis.
         if (expected == null || actual == null)
@@ -17091,7 +17091,7 @@ class RustExpr {
             // `as f64` cast, which breaks the --features f32 build with a
             // hardcoded-width leak once the declaration strips the outer
             // parentheses. Naming the boundary cast with the alias keeps
-            // both lanes at slot width. (FloatSlotAliasCast)
+            // both feature settings at slot width. (FloatSlotAliasCast)
             // A u32-domain value carries a wrapped negative as its two's
             // complement bits; converting it numerically would read -4 as
             // 4294967292. Reinterpret to i32 before the widening, even when

@@ -1,7 +1,7 @@
 package classemit;
 
 /**
-	Discriminating fixture for the class-level struct emission of a
+	Discriminating fixture for the per-class struct emission of a
 	thrown-value exception class (ThrowFaultVariantGrowth).
 
 	Shape: ONE payload exception class in its own module, rethrown by value
@@ -9,8 +9,7 @@ package classemit;
 	so the throw-site wrap path (RustExpr.throwVariant) is active. The
 	rethrow therefore renders `E1Fault::E1Fault(Box::new(E1::new(e)))`: the
 	generated Rust names both the growth variant and the exception class
-	struct, so a missing `pub struct E1` is a hard rustc error (E0433) and
-	not merely an absent declaration.
+	struct, so a missing `pub struct E1` is a hard rustc error (E0433).
 
 	`plainThrow()` is the constructor-shaped control: it lowers to the
 	payload directly and must not need the exception struct.

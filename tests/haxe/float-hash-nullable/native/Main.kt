@@ -3,7 +3,7 @@ import kotlin.system.exitProcess
 
 /**
  * Native assertion harness for the Kotlin (f64) generated tree of the
- * nullable-float hashCode regression contract (board t-mvzn8ckw-vh3s). kotlinc
+ * nullable-float hashCode regression test (board t-mvzn8ckw-vh3s). kotlinc
  * builds this file against the generated library jar and java runs it. The
  * harness instantiates the generated NullableFloatRecord and asserts, in the
  * target language, that hashCode is stable for null / signed zero / NaN and

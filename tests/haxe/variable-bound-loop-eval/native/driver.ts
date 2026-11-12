@@ -8,7 +8,7 @@
 // line. It takes no verdict; the runner compares the printed observation with
 // the authored expectation.
 //
-// The pinned toolchain ships no @types/node, so the little of the Node surface
+// The pinned toolchain ships no @types/node, so the little of the Node API
 // this driver uses is declared here, with nothing pulled from the network. The
 // generated modules are compiled unmodified; only this authored driver carries
 // the declaration.

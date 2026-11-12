@@ -1,6 +1,6 @@
 // GATE-GUARD static check (A): every file target referenced by a package.json
 // script must exist. This is the layer that catches "the script still runs but
-// its entry file was deleted by a merge" — a gutted script cannot check itself,
+// its entry file was deleted by a merge": a gutted script cannot check itself,
 // so this check lives OUTSIDE the scripts it guards.
 //
 // Scope rules:

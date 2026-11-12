@@ -21,33 +21,33 @@ pub static CORE_FILES: Mutex<Vec<OutputFile>> = Mutex::new(vec![]);
 pub struct Core;
 
 impl Core {
-    const CORE_USAGE: &UStr = unsafe { &*(&[0x0075u16, 0x0073u16, 0x0061u16, 0x0067u16, 0x0065u16, 0x003Au16, 0x0020u16, 0x0067u16, 0x0065u16, 0x006Eu16, 0x0065u16, 0x0072u16, 0x0061u16, 0x0074u16, 0x0065u16, 0x0020u16, 0x002Du16, 0x002Du16, 0x0074u16, 0x0072u16, 0x0065u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0064u16, 0x0069u16, 0x0072u16, 0x003Eu16, 0x0020u16, 0x002Du16, 0x002Du16, 0x006Fu16, 0x0075u16, 0x0074u16, 0x0070u16, 0x0075u16, 0x0074u16, 0x0020u16, 0x003Cu16, 0x0073u16, 0x0069u16, 0x0074u16, 0x0065u16, 0x003Eu16, 0x0020u16, 0x002Du16, 0x002Du16, 0x0062u16, 0x0061u16, 0x0073u16, 0x0065u16, 0x002Du16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x0020u16, 0x003Cu16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x003Eu16, 0x0020u16, 0x005Bu16, 0x002Du16, 0x002Du16, 0x0073u16, 0x0077u16, 0x0069u16, 0x0066u16, 0x0074u16, 0x002Du16, 0x0073u16, 0x0063u16, 0x006Fu16, 0x0070u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0073u16, 0x0063u16, 0x006Fu16, 0x0070u16, 0x0065u16, 0x003Eu16, 0x005Du16, 0x0020u16, 0x005Bu16, 0x002Du16, 0x002Du16, 0x0061u16, 0x0072u16, 0x0063u16, 0x0068u16, 0x0069u16, 0x0076u16, 0x0065u16, 0x002Du16, 0x0062u16, 0x0061u16, 0x0073u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x003Eu16, 0x005Du16] as *const [u16] as *const crate::runtime::u_string::UStr) };
+    const CORE_USAGE: &UStr = crate::runtime::u_string::UStr::from_slice(&[0x0075u16, 0x0073u16, 0x0061u16, 0x0067u16, 0x0065u16, 0x003Au16, 0x0020u16, 0x0067u16, 0x0065u16, 0x006Eu16, 0x0065u16, 0x0072u16, 0x0061u16, 0x0074u16, 0x0065u16, 0x0020u16, 0x002Du16, 0x002Du16, 0x0074u16, 0x0072u16, 0x0065u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0064u16, 0x0069u16, 0x0072u16, 0x003Eu16, 0x0020u16, 0x002Du16, 0x002Du16, 0x006Fu16, 0x0075u16, 0x0074u16, 0x0070u16, 0x0075u16, 0x0074u16, 0x0020u16, 0x003Cu16, 0x0073u16, 0x0069u16, 0x0074u16, 0x0065u16, 0x003Eu16, 0x0020u16, 0x002Du16, 0x002Du16, 0x0062u16, 0x0061u16, 0x0073u16, 0x0065u16, 0x002Du16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x0020u16, 0x003Cu16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x003Eu16, 0x0020u16, 0x005Bu16, 0x002Du16, 0x002Du16, 0x0073u16, 0x0077u16, 0x0069u16, 0x0066u16, 0x0074u16, 0x002Du16, 0x0073u16, 0x0063u16, 0x006Fu16, 0x0070u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0073u16, 0x0063u16, 0x006Fu16, 0x0070u16, 0x0065u16, 0x003Eu16, 0x005Du16, 0x0020u16, 0x005Bu16, 0x002Du16, 0x002Du16, 0x0061u16, 0x0072u16, 0x0063u16, 0x0068u16, 0x0069u16, 0x0076u16, 0x0065u16, 0x002Du16, 0x0062u16, 0x0061u16, 0x0073u16, 0x0065u16, 0x0020u16, 0x003Cu16, 0x0075u16, 0x0072u16, 0x006Cu16, 0x003Eu16, 0x005Du16]);
 
-    pub(crate) fn core_fail(x: &UStr) -> Result<(), CoreFault> {
+    pub fn core_fail(x: &UStr) -> Result<(), CoreFault> {
         return Err(CoreFault::Tree { text: x.to_ustring() });
     }
 
-    pub(crate) fn core_config_fail(x: &UStr) -> Result<(), CoreFault> {
+    pub fn core_config_fail(x: &UStr) -> Result<(), CoreFault> {
         return Err(CoreFault::Config { text: x.to_ustring() });
     }
 
-    pub(crate) fn core_s(x: &UStr) -> JsonValue {
+    pub fn core_s(x: &UStr) -> JsonValue {
         return JsonValue::JString { value: x.to_ustring() };
     }
 
-    pub(crate) fn core_o(x: &Vec<JsonField>) -> JsonValue {
+    pub fn core_o(x: &Vec<JsonField>) -> JsonValue {
         return JsonValue::JObject { fields: x.to_vec() };
     }
 
-    pub(crate) fn core_a(x: &Vec<JsonValue>) -> JsonValue {
+    pub fn core_a(x: &Vec<JsonValue>) -> JsonValue {
         return JsonValue::JArray { values: x.to_vec() };
     }
 
-    pub(crate) fn core_get(o: JsonValue, n: &UStr) -> JsonValue {
+    pub fn core_get(o: JsonValue, n: &UStr) -> JsonValue {
         return Json::json_get_field((o).clone(), n);
     }
 
-    pub(crate) fn core_json_kind(v: JsonValue) -> u32 {
+    pub fn core_json_kind(v: JsonValue) -> u32 {
         return match v {
             JsonValue::JObject { .. } => 2,
             JsonValue::JArray { .. } => 3,
@@ -58,7 +58,7 @@ impl Core {
         };
     }
 
-    pub(crate) fn core_jstring(v: JsonValue) -> UString {
+    pub fn core_jstring(v: JsonValue) -> UString {
         return match v {
             JsonValue::JObject { .. } => UString::from("").to_ustring(),
             JsonValue::JArray { .. } => UString::from("").to_ustring(),
@@ -69,7 +69,7 @@ impl Core {
         };
     }
 
-    pub(crate) fn core_jarray(v: JsonValue) -> Vec<JsonValue> {
+    pub fn core_jarray(v: JsonValue) -> Vec<JsonValue> {
         return match v {
             JsonValue::JObject { .. } => vec![],
             JsonValue::JArray { values: _p0 } => _p0,
@@ -80,7 +80,7 @@ impl Core {
         };
     }
 
-    pub(crate) fn core_jobject(v: JsonValue) -> Vec<JsonField> {
+    pub fn core_jobject(v: JsonValue) -> Vec<JsonField> {
         return match v {
             JsonValue::JObject { fields: _p0 } => _p0,
             JsonValue::JArray { .. } => vec![],
@@ -91,7 +91,7 @@ impl Core {
         };
     }
 
-    pub(crate) fn core_str(o: JsonValue, n: &UStr) -> Result<UString, CoreFault> {
+    pub fn core_str(o: JsonValue, n: &UStr) -> Result<UString, CoreFault> {
         let v = Core::core_get((o).clone(), n);
         if Core::core_json_kind((v).clone()) != 1 {
             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("missing or invalid ")); __s += n; __s }).as_str()).as_ustr())?;
@@ -100,7 +100,7 @@ impl Core {
         return Ok(Core::core_jstring((v).clone()));
     }
 
-    pub(crate) fn core_opt(o: JsonValue, n: &UStr) -> Result<Option<UString>, CoreFault> {
+    pub fn core_opt(o: JsonValue, n: &UStr) -> Result<Option<UString>, CoreFault> {
         let v = Core::core_get((o).clone(), n);
         let k = Core::core_json_kind((v).clone());
         if k != 0 && k != 1 {
@@ -113,11 +113,11 @@ impl Core {
         return Ok(Some(Core::core_jstring((v).clone())));
     }
 
-    pub(crate) fn core_null_value() -> JsonValue {
+    pub fn core_null_value() -> JsonValue {
         return (JsonValue::JNull).clone();
     }
 
-    pub(crate) fn core_read_metadata(text: &UStr, pp: &UStr) -> Result<JsonValue, CoreFault> {
+    pub fn core_read_metadata(text: &UStr, pp: &UStr) -> Result<JsonValue, CoreFault> {
         let mut result = Core::core_null_value();
         let __outcome: Result<(), JsonFault> = (|| {
             result = Json::json_read(text)?;
@@ -132,7 +132,7 @@ impl Core {
         return Ok(result);
     }
 
-    pub(crate) fn core_read_artifacts(v: JsonValue, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
+    pub fn core_read_artifacts(v: JsonValue, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
         if Core::core_json_kind((v).clone()) != 3 {
             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += pp; __s += &(UString::from(": artifacts must be array")); __s }).as_str()).as_ustr())?;
             return Ok(false);
@@ -140,14 +140,14 @@ impl Core {
         return Ok(Core::core_read_artifact_array(&Core::core_jarray((v).clone()), r, pp)?);
     }
 
-    pub(crate) fn core_read_artifact_array(xs: &Vec<JsonValue>, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
+    pub fn core_read_artifact_array(xs: &Vec<JsonValue>, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
         for xi in 0..match u32::try_from(xs.len()) { Ok(value) => value, Err(_) => u32::MAX } {
             Core::core_read_artifact((xs[usize::try_from(xi).unwrap_or(0)]).clone(), r, pp)?;
         }
         return Ok(true);
     }
 
-    pub(crate) fn core_read_artifact(v: JsonValue, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
+    pub fn core_read_artifact(v: JsonValue, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
         if Core::core_json_kind((v).clone()) != 2 {
             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += pp; __s += &(UString::from(": invalid artifact")); __s }).as_str()).as_ustr())?;
             return Ok(false);
@@ -158,11 +158,11 @@ impl Core {
         return Ok(true);
     }
 
-    pub(crate) fn core_url_ok(u: &UStr) -> bool {
+    pub fn core_url_ok(u: &UStr) -> bool {
         return (u).starts_with(&UString::from("http://")) || (u).starts_with(&UString::from("https://"));
     }
 
-    pub(crate) fn core_sort_strings(a: &mut Vec<UString>) {
+    pub fn core_sort_strings(a: &mut Vec<UString>) {
         for i in 1..match u32::try_from(a.len()) { Ok(value) => value, Err(_) => u32::MAX } {
             let x = (a[usize::try_from(i).unwrap_or(0)]).clone();
             let mut j = i;
@@ -174,7 +174,7 @@ impl Core {
         }
     }
 
-    pub(crate) fn core_compare_versions(a: &UStr, b: &UStr) -> Result<u32, CoreFault> {
+    pub fn core_compare_versions(a: &UStr, b: &UStr) -> Result<u32, CoreFault> {
         let mut out = 0u32;
         let __outcome1: Result<(), SemverFault> = (|| {
             out = Semver::semver_compare(a, b);
@@ -189,7 +189,7 @@ impl Core {
         return Ok(out);
     }
 
-    pub(crate) fn core_sort_releases(a: &mut Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_sort_releases(a: &mut Vec<Release>) -> Result<(), CoreFault> {
         for i in 1..match u32::try_from(a.len()) { Ok(value) => value, Err(_) => u32::MAX } {
             let x = (a[usize::try_from(i).unwrap_or(0)]).clone();
             let mut j = i;
@@ -202,7 +202,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_names(a: &Vec<Release>, p: &UStr) -> Vec<UString> {
+    pub fn core_names(a: &Vec<Release>, p: &UStr) -> Vec<UString> {
         let mut o: Vec<UString> = vec![];
         for r in a {
             if r.platform.to_ustring() == p && !(o).contains(&(r.name).to_ustring()) {
@@ -213,7 +213,7 @@ impl Core {
         return o;
     }
 
-    pub(crate) fn core_group(a: &Vec<Release>, p: &UStr, n: &UStr) -> Result<Vec<Release>, CoreFault> {
+    pub fn core_group(a: &Vec<Release>, p: &UStr, n: &UStr) -> Result<Vec<Release>, CoreFault> {
         let mut o: Vec<Release> = vec![];
         for r in a {
             if r.platform.to_ustring() == p && (r.name).to_ustring() == n {
@@ -224,7 +224,7 @@ impl Core {
         return Ok(o);
     }
 
-    pub(crate) fn core_latest(g: &Vec<Release>) -> Result<UString, CoreFault> {
+    pub fn core_latest(g: &Vec<Release>) -> Result<UString, CoreFault> {
         let mut b: Option<Release> = None;
         for r in g {
             if !Semver::semver_is_prerelease((r.version).to_ustring().as_ustr()) && (match &(b) { None => true, Some(__option) => i32::from_ne_bytes(((Core::core_compare_versions((r.version).to_ustring().as_ustr(), (__option.version).to_ustring().as_ustr())?) as i32).to_ne_bytes()) > (0) }) {
@@ -237,7 +237,7 @@ impl Core {
         return Ok((((b).as_ref().unwrap().version).to_ustring()).clone());
     }
 
-    pub(crate) fn core_fields(r: Release) -> Vec<JsonField> {
+    pub fn core_fields(r: Release) -> Vec<JsonField> {
         let mut a = vec![
     (JsonField { name: UString::from("name").to_ustring(), value: Core::core_s((r.name).to_ustring().as_ustr()) }).clone(),
     (JsonField { name: UString::from("version").to_ustring(), value: Core::core_s((r.version).to_ustring().as_ustr()) }).clone(),
@@ -253,7 +253,7 @@ impl Core {
         return a;
     }
 
-    pub(crate) fn core_content_of(records: &Vec<InputRecord>, path: &UStr) -> Result<UString, CoreFault> {
+    pub fn core_content_of(records: &Vec<InputRecord>, path: &UStr) -> Result<UString, CoreFault> {
         let r = Core::core_record(&records, path);
         match &(r) {
             Some(__option2) => {
@@ -266,7 +266,7 @@ impl Core {
         return Ok(UString::new());
     }
 
-    pub(crate) fn core_record(records: &Vec<InputRecord>, path: &UStr) -> Option<InputRecord> {
+    pub fn core_record(records: &Vec<InputRecord>, path: &UStr) -> Option<InputRecord> {
         for r in records {
             if r.path.to_ustring() == path {
                 return Some((*r).clone());
@@ -275,7 +275,7 @@ impl Core {
         return None;
     }
 
-    pub(crate) fn core_children(records: &Vec<InputRecord>, path: &UStr) -> Vec<UString> {
+    pub fn core_children(records: &Vec<InputRecord>, path: &UStr) -> Vec<UString> {
         let mut out: Vec<UString> = vec![];
         let prefix = if path == UString::from("") { UString::from("") } else { UString::from(format!("{}", { let mut __s = UString::new(); __s += path; __s += &(UString::from("/")); __s }).as_str()) };
         for r in records {
@@ -292,7 +292,7 @@ impl Core {
         return out;
     }
 
-    pub(crate) fn core_scan(tree: &UStr, records: &Vec<InputRecord>) -> Result<Vec<Release>, CoreFault> {
+    pub fn core_scan(tree: &UStr, records: &Vec<InputRecord>) -> Result<Vec<Release>, CoreFault> {
         let mut out: Vec<Release> = vec![];
         if u32::try_from((records.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += tree; __s += &(UString::from(": missing tree")); __s }).as_str()).as_ustr())?;
@@ -338,6 +338,7 @@ impl Core {
                         }
                         let j = Core::core_read_metadata(Core::core_content_of(&records, UString::from(format!("{}", { let mut __s = UString::new(); __s += pp.as_ustr(); __s += &(UString::from("/metadata.json")); __s }).as_str()).as_ustr())?.as_ustr(), UString::from(format!("{}", { let mut __s = UString::new(); __s += tree; __s += &(UString::from("/")); __s += pp.as_ustr(); __s }).as_str()).as_ustr())?;
                         let mut r = Release::new(owner.as_ustr(), repo.as_ustr(), v.as_ustr(), p.as_ustr(), Core::core_str((j).clone(), UStr::new(&[110,97,109,101]))?.as_ustr(), Core::core_opt((j).clone(), UStr::new(&[108,105,99,101,110,115,101]))?.clone(), Core::core_content_of(&records, UString::from(format!("{}", { let mut __s = UString::new(); __s += rp.as_ustr(); __s += &(UString::from("/README.md")); __s }).as_str()).as_ustr())?.as_ustr());
+                        r.repository = Core::core_opt((j).clone(), UStr::new(&[114,101,112,111,115,105,116,111,114,121]))?;
                         if Core::core_str((j).clone(), UStr::new(&[118,101,114,115,105,111,110]))? != *v {
                             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += tree; __s += &(UString::from("/")); __s += pp.as_ustr(); __s += &(UString::from(": version disagreement")); __s }).as_str()).as_ustr())?;
                         }
@@ -386,7 +387,7 @@ impl Core {
         return Ok(out);
     }
 
-    pub(crate) fn core_write_npm(a: &Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_write_npm(a: &Vec<Release>) -> Result<(), CoreFault> {
         let ns = Core::core_names(&a, UStr::new(&[110,112,109]));
         for n in &ns {
             let g = Core::core_group(&a, UStr::new(&[110,112,109]), n.as_ustr())?;
@@ -413,7 +414,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_write_pub(a: &Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_write_pub(a: &Vec<Release>) -> Result<(), CoreFault> {
         let ns = Core::core_names(&a, UStr::new(&[112,117,98]));
         for n in &ns {
             let g = Core::core_group(&a, UStr::new(&[112,117,98]), n.as_ustr())?;
@@ -437,14 +438,14 @@ impl Core {
             }
             Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("pub/api/packages/")); __s += n.as_ustr(); __s }).as_str()).as_ustr(), Json::json_write(Core::core_o(&vec![
     (JsonField { name: UString::from("name").to_ustring(), value: Core::core_s(n.as_ustr()) }).clone(),
-    (JsonField { name: UString::from("latest").to_ustring(), value: Core::core_s(Core::core_latest(&g)?.as_ustr()) }).clone(),
+    (JsonField { name: UString::from("latest").to_ustring(), value: if i32::from_ne_bytes(((u32::try_from((rev.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()) > (0) { (rev[0usize]).clone() } else { JsonValue::JNull } }).clone(),
     (JsonField { name: UString::from("versions").to_ustring(), value: Core::core_a(&rev) }).clone(),
 ])).as_ustr());
         }
         Ok(())
     }
 
-    pub(crate) fn core_write_cargo(base: &UStr, a: &Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_write_cargo(base: &UStr, a: &Vec<Release>) -> Result<(), CoreFault> {
         Core::core_emit(UStr::new(&[99,97,114,103,111,47,105,110,100,101,120,47,99,111,110,102,105,103,46,106,115,111,110]), Json::json_write(Core::core_o(&vec![
     (JsonField { name: UString::from("dl").to_ustring(), value: Core::core_s(UString::from(format!("{}", { let mut __s = UString::new(); __s += base; __s += &(UString::from("/cargo/dl/{crate}-{version}.crate")); __s }).as_str()).as_ustr()) }).clone(),
 ])).as_ustr());
@@ -460,7 +461,7 @@ impl Core {
     (JsonField { name: UString::from("cksum").to_ustring(), value: Core::core_s((r.digest).to_ustring().as_ustr()) }).clone(),
     (JsonField { name: UString::from("features").to_ustring(), value: Core::core_o(&vec![]) }).clone(),
     (JsonField { name: UString::from("yanked").to_ustring(), value: JsonValue::JBool { value: false } }).clone(),
-    (JsonField { name: UString::from("v").to_ustring(), value: JsonValue::JNumber { value: 2.0f64 } }).clone(),
+    (JsonField { name: UString::from("v").to_ustring(), value: JsonValue::JNumber { value: 2.0 } }).clone(),
 ])));
             }
             Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("cargo/index/")); __s += (if u_string::unit_count(&(n)) == 1 { UString::from("1/") } else { if u_string::unit_count(&(n)) == 2 { UString::from("2/") } else { if u_string::unit_count(&(n)) == 3 { UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("3/")); __s += u_string::substring(&n, 0i32, 1i32).as_ustr(); __s += &(UString::from("/")); __s }).as_str()) } else { UString::from(format!("{}", { let mut __s = UString::new(); __s += u_string::substring(&n, 0i32, 2i32).as_ustr(); __s += &(UString::from("/")); __s += u_string::substring(&n, 2i32, 4i32).as_ustr(); __s += &(UString::from("/")); __s }).as_str()) }.to_ustring() }.to_ustring() }).as_ustr(); __s += n.as_ustr(); __s }).as_str()).as_ustr(), UString::from(format!("{}", { let mut __s = UString::new(); __s += UString::from(format!("{}", { let joined5 = lines; let mut out = String::new(); let n = joined5.len(); let mut index5 = 0usize; while index5 < n { if index5 > 0 { out.push_str(concat!("\n",
@@ -470,7 +471,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_write_swift(scope: &UStr, a: &Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_write_swift(scope: &UStr, a: &Vec<Release>) -> Result<(), CoreFault> {
         let ns = Core::core_names(&a, UStr::new(&[115,119,105,102,116]));
         for n in &ns {
             let g = Core::core_group(&a, UStr::new(&[115,119,105,102,116]), n.as_ustr())?;
@@ -500,7 +501,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_write_maven(a: &Vec<Release>) -> Result<(), CoreFault> {
+    pub fn core_write_maven(a: &Vec<Release>) -> Result<(), CoreFault> {
         let ns = Core::core_names(&a, UStr::new(&[109,97,118,101,110]));
         for n in &ns {
             let g = Core::core_group(&a, UStr::new(&[109,97,118,101,110]), n.as_ustr())?;
@@ -538,7 +539,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_redirects(scope: &UStr, archive_base: &UStr, a: &Vec<Release>) -> Result<UString, CoreFault> {
+    pub fn core_redirects(scope: &UStr, archive_base: &UStr, a: &Vec<Release>) -> Result<UString, CoreFault> {
         let mut lines = vec![
     { let mut __s = UString::new(); __s += &(UString::from("/swift/:scope/:name/*.zip  ")); __s += archive_base; __s += &(UString::from("/swift/:scope/:name/:splat.zip  303")); __s }.clone(),
 ];
@@ -553,15 +554,19 @@ impl Core {
         let cn = Core::core_names(&a, UStr::new(&[99,97,114,103,111]));
         for n in &cn {
             let r = (Core::core_group(&a, UStr::new(&[99,97,114,103,111]), n.as_ustr())?[0usize]).clone();
-            lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/cargo/dl/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  https://github.com/")); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  302")); __s }).as_str()));
+            let cargo_target = match &(r.repository) { None => UString::from(format!("{}", { let mut __s = UString::new(); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s }).as_str()),
+Some(__option14) => (*__option14).clone() };
+            lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/cargo/dl/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  https://github.com/")); __s += cargo_target.as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  302")); __s }).as_str()));
         }
         for r in a {
             if r.platform.to_ustring() == UString::from("maven") {
                 for fi in 0..match u32::try_from((r.artifacts).clone().len()) { Ok(value) => value, Err(_) => u32::MAX } {
                     let file = (r.artifacts[usize::try_from(fi).unwrap_or(0)]).clone();
                     let rg = (r.group_id).clone().clone();
-                    let gid = match &(rg) { None => UString::from(""), Some(__option14) => __option14.to_ustring() };
-                    lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/maven/")); __s += UString::from(format!("{}", { let joined8 = u_string::split(&gid, &UString::from(".")); let mut out = String::new(); let n = joined8.len(); let mut index8 = 0usize; while index8 < n { if index8 > 0 { out.push_str("/"); } let _ = write!(out, "{}", joined8[index8]); index8 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s += &(UString::from("/")); __s += (r.name).to_ustring().as_ustr(); __s += &(UString::from("/:version/")); __s += file.as_ustr(); __s += &(UString::from("  https://github.com/")); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += file.as_ustr(); __s += &(UString::from("  302")); __s }).as_str()));
+                    let gid = match &(rg) { None => UString::from(""), Some(__option15) => __option15.to_ustring() };
+                    let maven_target = match &(r.repository) { None => UString::from(format!("{}", { let mut __s = UString::new(); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s }).as_str()),
+Some(__option16) => (*__option16).clone() };
+                    lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/maven/")); __s += UString::from(format!("{}", { let joined8 = u_string::split(&gid, &UString::from(".")); let mut out = String::new(); let n = joined8.len(); let mut index8 = 0usize; while index8 < n { if index8 > 0 { out.push_str("/"); } let _ = write!(out, "{}", joined8[index8]); index8 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s += &(UString::from("/")); __s += (r.name).to_ustring().as_ustr(); __s += &(UString::from("/:version/")); __s += file.as_ustr(); __s += &(UString::from("  https://github.com/")); __s += maven_target.as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += file.as_ustr(); __s += &(UString::from("  302")); __s }).as_str()));
                 }
             }
         }
@@ -585,7 +590,7 @@ impl Core {
 ""))); __s }).as_str()));
     }
 
-    pub(crate) fn core_validate(a: &Vec<Release>, scope: &UStr) -> Result<(), CoreFault> {
+    pub fn core_validate(a: &Vec<Release>, scope: &UStr) -> Result<(), CoreFault> {
         for x in a {
             if x.platform.to_ustring() == UString::from("cargo") && (x.name).to_ustring() != (x.name).to_ustring().to_lowercase() {
                 let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += (x.name).to_ustring().as_ustr(); __s += &(UString::from(": cargo name must be lowercase")); __s }).as_str()).as_ustr())?;
@@ -617,7 +622,7 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn core_headers() -> UString {
+    pub fn core_headers() -> UString {
         return UString::from(concat!("/*\n",
 "  Content-Version: 1\n",
 "/swift/:scope/:name\n",
@@ -633,7 +638,7 @@ impl Core {
 "")).to_ustring();
     }
 
-    pub(crate) fn core_emit(rel: &UStr, data: &UStr) {
+    pub fn core_emit(rel: &UStr, data: &UStr) {
         let file = OutputFile { path: rel.to_ustring(), content: data.to_ustring(), output_file: 1 };
         CORE_FILES.lock().unwrap_or_else(|e| e.into_inner()).push(file);
     }
@@ -681,19 +686,19 @@ impl Core {
             }
             i = u32::wrapping_add(i, 2);
         }
-        if match &(t) { None => true, Some(__option15) => o.is_none() } || b.is_none() {
+        if match &(t) { None => true, Some(__option17) => o.is_none() } || b.is_none() {
             let _ = Core::core_config_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from(concat!("required flags missing\n",
 ""))); __s += Core::CORE_USAGE.to_ustring().as_ustr(); __s }).as_str()).as_ustr())?;
         }
-        let tree_str = match &(t) { None => UString::from(""), Some(__option16) => __option16.to_ustring() };
-        let output_str = match &(o) { None => UString::from(""), Some(__option17) => __option17.to_ustring() };
-        let base_url_str = match &(b) { None => UString::from(""), Some(__option18) => __option18.to_ustring() };
+        let tree_str = match &(t) { None => UString::from(""), Some(__option18) => __option18.to_ustring() };
+        let output_str = match &(o) { None => UString::from(""), Some(__option19) => __option19.to_ustring() };
+        let base_url_str = match &(b) { None => UString::from(""), Some(__option20) => __option20.to_ustring() };
         if !Core::core_url_ok(base_url_str.as_ustr()) {
             let _ = Core::core_config_fail(UStr::new(&[105,110,118,97,108,105,100,32,98,97,115,101,32,85,82,76,32,40,104,116,116,112,32,111,114,32,104,116,116,112,115,32,114,101,113,117,105,114,101,100,41]))?;
         }
-        let swift_str = match &(s) { None => UString::from(""), Some(__option19) => __option19.to_ustring() };
-        let archive_str = match &(ar) { None => UString::from(""), Some(__option20) => __option20.to_ustring() };
-        if match &(ar) { Some(__option22) => !Core::core_url_ok(archive_str.as_ustr()), None => false } {
+        let swift_str = match &(s) { None => UString::from(""), Some(__option21) => __option21.to_ustring() };
+        let archive_str = match &(ar) { None => UString::from(""), Some(__option22) => __option22.to_ustring() };
+        if match &(ar) { Some(__option24) => !Core::core_url_ok(archive_str.as_ustr()), None => false } {
             let _ = Core::core_config_fail(UStr::new(&[105,110,118,97,108,105,100,32,97,114,99,104,105,118,101,45,98,97,115,101,32,85,82,76,32,40,104,116,116,112,32,111,114,32,104,116,116,112,115,32,114,101,113,117,105,114,101,100,41]))?;
         }
         let config = RegistryConfig { tree: tree_str.clone(), output: output_str.clone(), base_url: base_url_str.clone(), swift_scope: swift_str.clone(), archive_base: archive_str.clone(), config_record: 1 };

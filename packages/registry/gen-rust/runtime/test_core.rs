@@ -29,7 +29,7 @@ impl TestCore {
         }
     }
 
-    pub fn test_core_equals_float(expected: f64, actual: f64, message: &UStr) {
+    pub fn test_core_equals_float(expected: crate::TiqianFloat, actual: crate::TiqianFloat, message: &UStr) {
         if expected != actual {
             panic!("{}", TestCore::test_core_format_canonical_message(UString::from(format!("{}", crate::runtime::test::current_test_id()).as_str()).as_ustr(), message, TestCore::test_core_format_float(expected).as_ustr(), TestCore::test_core_format_float(actual).as_ustr(), true));
         }
@@ -56,17 +56,17 @@ impl TestCore {
         return UString::from((v).to_string().as_str());
     }
 
-    pub fn test_core_format_float(v: f64) -> UString {
+    pub fn test_core_format_float(v: crate::TiqianFloat) -> UString {
         if v != v {
             return UString::from("NaN").to_ustring();
         }
-        if v == f64::INFINITY {
+        if v == crate::TiqianFloat::INFINITY {
             return UString::from("Infinity").to_ustring();
         }
-        if v == f64::NEG_INFINITY {
+        if v == crate::TiqianFloat::NEG_INFINITY {
             return UString::from("-Infinity").to_ustring();
         }
-        if v == 0.0f64 {
+        if v == 0.0 {
             return UString::from("0").to_ustring();
         }
         let raw = UString::from((v).to_string().as_str());
@@ -117,7 +117,7 @@ impl TestCore {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += (if negative { UString::from("-") } else { UString::from("") }).as_ustr(); __s += mantissa.as_ustr(); __s += &(UString::from("e")); __s += (if sci_exponent >= 0 { UString::from("+") } else { UString::from("") }).as_ustr(); __s += &(UString::from(format!("{}", (sci_exponent).to_string()).as_str())); __s }).as_str());
     }
 
-    pub(crate) fn test_core_plain_leading(digits: &UStr, decimal_position: i32) -> UString {
+    pub fn test_core_plain_leading(digits: &UStr, decimal_position: i32) -> UString {
         let mut head = UString::from("0.").to_ustring();
         for _ in 0..-decimal_position {
             head += &(UString::from("0"));
@@ -125,7 +125,7 @@ impl TestCore {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += head.as_ustr(); __s += digits; __s }).as_str());
     }
 
-    pub(crate) fn test_core_plain_trailing(digits: &UStr, decimal_position: i32) -> UString {
+    pub fn test_core_plain_trailing(digits: &UStr, decimal_position: i32) -> UString {
         let mut tail = UString::new();
         for _ in 0..i32::wrapping_sub(decimal_position, i32::from_ne_bytes(((u_string::unit_count(&(digits))) as i32).to_ne_bytes())) {
             tail += &(UString::from("0"));
@@ -212,7 +212,7 @@ impl TestCore {
 ""))); __s }).as_str());
     }
 
-    pub(crate) fn test_core_hex_digit(nibble: i32) -> UString {
+    pub fn test_core_hex_digit(nibble: i32) -> UString {
         if nibble < (10) {
             return UString::from(&char::from_u32(u32::from_ne_bytes(((i32::wrapping_add(48, nibble)) as u32).to_ne_bytes())).unwrap_or('\0').to_string());
         }

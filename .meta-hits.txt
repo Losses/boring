@@ -1,0 +1,147 @@
+README.md:90: [metaphor] lane: | 2 | `swiftc`: 13 libs missing, and its wrapper needs user namespaces denied | the whole Swift lane |
+README.md:117: [metaphor] lane: - the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
+docs/architecture/LAYERED-VERIFICATION.md:86: [metaphor] land: **After merging, also verify the landing point**: `git rev-parse --abbrev-ref HEAD` (which line am I on now) **and** step 2 (is it really on the **declared base**) —
+docs/architecture/LAYERED-VERIFICATION.md:87: [metaphor] land: this session had one case where all four merges landed on the work line while the declared base was untouched, so newly opened worktrees did not get those fixes.
+docs/architecture/LAYERED-VERIFICATION.md:243: [metaphor] land: that duplicate `let __units = u_string::units(&s);` lands inside the outer loop body, which is what makes it quadratic.
+docs/specs/float-precision-policy.md:14: [metaphor] lane: "known source numeric semantics + target/lane + operation context" onto a
+docs/specs/float-precision-policy.md:25: [metaphor] lane: ## Precision lane (v1 mixed)
+docs/specs/float-precision-policy.md:29: [metaphor] lane: - Value floats take the precision lane (F32 or F64).
+docs/specs/float-precision-policy.md:30: [metaphor] lane: - Accumulator state is always binary64, regardless of lane, and must be
+docs/specs/float-precision-policy.md:32: [metaphor] lane: - Wire and NumericHelper widths do not follow the lane.
+docs/specs/float-precision-policy.md:35: [metaphor] lane: ValuePrecision (accumulator width follows the lane). That change is an
+docs/specs/float-precision-policy.md:53: [metaphor] lane: value, or container element. The lane decides the width: F32 lane ->
+docs/specs/float-precision-policy.md:54: [metaphor] lane: binary32 storage, F64 lane -> binary64 storage. Computation happens at
+docs/specs/float-precision-policy.md:58: [metaphor] lane: return passing, container storage -- all allowed at lane width. Forbidden:
+docs/specs/float-precision-policy.md:64: [metaphor] lane: - **Plan fields**: role=Value, storageType=f32/f64 per lane, computeType=
+docs/specs/float-precision-policy.md:68: [metaphor] lane: storageType matches the lane; every conversion edge in/out is a registered
+docs/specs/float-precision-policy.md:72: [metaphor] lane: lane resolves to Value/f32 with no conversion edges. Negative -- the same
+docs/specs/float-precision-policy.md:76: [metaphor] lane: under the F64 lane (`number` is binary64, the F32 lane is rejected at
+docs/specs/float-precision-policy.md:84: [metaphor] lane: independent of the lane.
+docs/specs/float-precision-policy.md:88: [metaphor] lane: on the way out; inheriting Value behavior by default (see "Precision lane").
+docs/specs/float-precision-policy.md:126: [metaphor] lane: - **Fixtures**: positive -- a f32 bit pattern round-trip under the F32 lane:
+docs/specs/float-precision-policy.md:131: [metaphor] lane: F64-lane only.
+docs/specs/float-precision-policy.md:136: [metaphor] lane: width is declared by the protocol and never follows the lane.
+docs/specs/float-precision-policy.md:139: [metaphor] lane: Forbidden: using the lane to change wire width; arithmetic on Wire values
+docs/specs/float-precision-policy.md:140: [metaphor] lane: without first converting to Value; implicit lane-driven re-encodings.
+docs/specs/float-precision-policy.md:152: [metaphor] lane: the F32 lane to f64 on one target and f32 on another fails (lane leaked
+docs/specs/float-precision-policy.md:162: [metaphor] lane: types because a caller lane changed.
+docs/specs/float-precision-policy.md:165: [metaphor] lane: operations are allowed. Forbidden: retyping a helper per caller lane; a
+docs/specs/float-precision-policy.md:175: [metaphor] lane: a caller lane never alters the helper plan.
+docs/specs/float-precision-policy.md:177: [metaphor] lane: f64 under both lanes with the same plan. Negative -- a helper whose plan
+docs/specs/float-precision-policy.md:178: [metaphor] lane: flips storage from f64 to f32 because the caller is F32-lane fails
+docs/specs/float-precision-policy.md:179: [metaphor] lane: (lane-sensitive helper signature).
+docs/specs/float-precision-policy.md:186: [metaphor] lane: a Value at lane width; it is not an implicit f64 intermediate and does not
+docs/specs/float-precision-policy.md:194: [metaphor] lane: ints at both lane widths, so roundingPoint=none.
+docs/specs/float-precision-policy.md:195: [metaphor] lane: - **Plan fields**: role=Value, storageType per lane,
+docs/specs/float-precision-policy.md:199: [metaphor] lane: lane-bound.
+docs/specs/float-precision-policy.md:200: [metaphor] lane: - **Fixtures**: positive -- `var f:Float = i;` under the F32 lane: IntToFloat
+docs/specs/float-precision-policy.md:205: [metaphor] lane: no-op annotation); Kotlin i.toDouble()/i.toFloat() per lane; Rust
+docs/specs/target-semantic-policy.md:26: [metaphor] land: form; the validator (landed in the follow-up IR task) is its enforcement; and
+docs/specs/target-semantic-policy.md:401: [metaphor] land: 2. Rust: no realization change lands without a policy/IR edit in the same
+docs/specs/target-semantic-policy.md:496: [metaphor] collapse: `toBits` with the signed-zero collapse, Swift `bitPattern` with an explicit
+packages/compiler/AssignTargetPlan.hx:16: [metaphor] land: emitter decided at the wrong granularity: the assignment would land
+packages/compiler/AssignTargetPlan.hx:61: [metaphor] land: write would land in the fresh value, and the original slot stays untouched.
+packages/compiler/CompilationUnits.hx:164: [metaphor] collapse: // fixpoint: iterating to a fixpoint would collapse a whole library whose
+packages/compiler/EmitSink.hx:362: [metaphor] land: // events never land here: written once via writeReferEvents().
+packages/compiler/FloatPrecisionPolicy.hx:10: [metaphor] lane: numeric semantics + target/lane + operation context" onto a verifiable
+packages/compiler/FloatPrecisionPolicy.hx:14: [metaphor] lane: v1 declares mixed precision: Value follows the lane, Accumulator is always
+packages/compiler/FloatPrecisionPolicy.hx:16: [metaphor] lane: are declared, never lane-derived. A strict-f32 switch rewrites the
+packages/compiler/FloatPrecisionPolicy.hx:23: [metaphor] lane: /** The precision lane of the compilation (FP-1). */
+packages/compiler/FloatPrecisionPolicy.hx:37: [metaphor] lane: /** FP-1: Float value/field/param/return/container element; lane decides width. */
+packages/compiler/FloatPrecisionPolicy.hx:43: [metaphor] lane: /** FP-4: protocol-fixed width; never lane-derived. */
+packages/compiler/FloatPrecisionPolicy.hx:179: [metaphor] lane: 3. the lane decides Value width; Accumulator is binary64 under v1 mixed.
+packages/compiler/FloatPrecisionPolicy.hx:183: [metaphor] lane: Conflict priority: declared accumulator identity > context > lane >
+packages/compiler/FloatPrecisionPolicy.hx:196: [metaphor] lane: // FP-2: binary64 under v1 mixed, never lane-derived.
+packages/compiler/FloatPrecisionPolicy.hx:205: [metaphor] lane: // FP-4: the protocol declares the width; the lane never changes it.
+packages/compiler/FloatPrecisionPolicy.hx:214: [metaphor] lane: // FP-5: the helper explicit signature decides; never the caller lane.
+packages/compiler/FloatPrecisionPolicy.hx:223: [metaphor] lane: // FP-1: the lane decides Value width; compute at storage width.
+packages/compiler/FloatPrecisionPolicy.hx:237: [metaphor] lane: // FP-6: exact Int->Float; the result is a Value at lane width.
+packages/compiler/FloatPrecisionValidator.hx:84: [metaphor] lane: /** Value node storage/compute width disagrees with the lane. */
+packages/compiler/FloatPrecisionValidator.hx:92: [metaphor] lane: /** wire/helper storage width drifted from its declared width under lane pressure. */
+packages/compiler/FloatPrecisionValidator.hx:146: [metaphor] lane: // FP-V-4: a Value node stores and computes at lane width only.
+packages/compiler/FloatPrecisionValidator.hx:169: [metaphor] lane: // FP-V-8: wire/helper widths are declared, never lane-derived or empty.
+packages/compiler/FloatPrecisionValidator.hx:259: [metaphor] lane: lane cannot be read off the token).
+packages/compiler/FloatPrecisionValidator.hx:266: [metaphor] lane: (the lane leaking into a conditional-compilation axis).
+packages/compiler/PlaceWritePolicy.hx:10: [metaphor] land: The write-landing and alias-capability declaration face for PlacePlan
+packages/compiler/PlaceWritePolicy.hx:16: [metaphor] land: module states, per (landing storage, access intent), which landings admit a
+packages/compiler/PlaceWritePolicy.hx:30: [metaphor] land: /** The verdict for one write landing (policy entry P-26). */
+packages/compiler/PlaceWritePolicy.hx:32: [metaphor] land: /** the landing is a place; a write reaches the source slot/referent. */
+packages/compiler/PlaceWritePolicy.hx:38: [metaphor] land: /** the write loses the mutation at this landing; refused. */
+packages/compiler/PlaceWritePolicy.hx:40: [metaphor] land: /** no declaration covers this landing; fails closed (P-26). */
+packages/compiler/PlaceWritePolicy.hx:44: [metaphor] land: /** One named write-landing ruling, citing its policy entry id. */
+packages/compiler/PlaceWritePolicy.hx:54: [metaphor] land: /** Write-landing declaration surface (this module). */
+packages/compiler/PlaceWritePolicy.hx:62: [metaphor] land: The declared storage kind of a landing repr. This is the composition of
+packages/compiler/PlaceWritePolicy.hx:85: [metaphor] land: The declared write-landing ruling for one (repr, intent) pair (P-26).
+packages/compiler/PlaceWritePolicy.hx:106: [metaphor] land: - any Unknown-landing storage combination: Undeclared (fail closed;
+packages/compiler/SemanticPolicy.hx:51: [metaphor] collapse: The eight categories of the frozen ruling collapse into these variants:
+packages/compiler/SemanticPolicy.hx:649: [metaphor] land: /** Write-landing rulings (P-26; declared in PlaceWritePolicy as P_26). */
+packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinCoerce.hx:159: [metaphor] collapse: // Mirrors KotlinExpr.isAtomicAppendTarget until P3.3 collapses both (I2).
+packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx:437: [metaphor] collapse: IEEE bits. Kotlin's toBits() already collapses every NaN payload to the
+packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx:438: [metaphor] collapse: canonical token, so only the signed-zero collapse needs the explicit
+packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx:332: [metaphor] lane: // longer branches on the lane; this call stays as the generation-time
+packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx:974: [metaphor] lane: // The float helpers name the crate alias in both feature lanes, so
+packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx:109: [metaphor] collapse: // but Context.follow collapses Null<T> to T here, so the bare inner form
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:2610: [metaphor] lane: // itself, so both lanes keep their values.
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:5654: [metaphor] lane: // float slot alias so both arms unify under either feature lane.
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:5994: [metaphor] lane: // feature lanes emit identical text.
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:7095: [metaphor] lane: // ternary arms unify under either feature lane; the numeric
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:9221: [metaphor] lane: // type ambiguous under either feature lane.
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:12744: [metaphor] lane: // exist in the resident runtime under both feature lanes
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:12815: [metaphor] lane: // feature lanes; the closing cast names the crate alias so
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:12816: [metaphor] lane: // the Float slot type holds under either lane.
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:13805: [metaphor] lane: // lanes with identical emission: the generated tree is
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:17094: [metaphor] lane: // both lanes at slot width. (FloatSlotAliasCast)
+packages/compiler/reflaxe/rust/rustcompiler/RustType.hx:777: [metaphor] collapse: // Canonical float hash bits (P-13 / Astra ruling): +-0.0 collapse to
+packages/compiler/reflaxe/rust/rustcompiler/RustType.hx:778: [metaphor] collapse: // 0, every NaN collapses to the quiet-NaN token (so any NaN key finds
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftCoerce.hx:19: [metaphor] land: the storage-axis-only SAB refactor lands with it.
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx:524: [metaphor] collapse: branch collapses them. (P-13 float canonical) */
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:6101: [metaphor] swallow: // the line text: that splice swallowed an explicit arm return and
+packages/driver/src/driver/Config.hx:245: [metaphor] land: // that must land before the test-harness -- separator; the rust
+packages/driver/src/driver/Plan.hx:121: [metaphor] land: // cargoArgs land before the harness -- separator, so cargo-level
+packages/registry/gen-rust/runtime/fp_helper.rs:90: [metaphor] lane: // float-precision=f32 lane references them (feature spec 23).
+packages/registry/gen-rust/runtime/u_string.rs:46: [metaphor] land: /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+packages/registry/gen-rust/runtime/u_string.rs:54: [metaphor] land: /// Deref) both land here; the result is an owned Haxe String.
+packages/registry/gen-rust/runtime/u_string.rs:67: [metaphor] land: /// receivers and owned UString (through Deref) both land here; the
+packages/registry/gen-rust/runtime/u_string.rs:69: [metaphor] halve: /// whitespace table because char::from_u32 rejects surrogate halves.
+samples/rusthandlefixtures/README.md:59: [metaphor] land: handle-lowering lands.
+samples/rusthandlefixtures/README.md:66: [metaphor] land: They stay as canaries: once the IR handle-lowering lands, these are the first
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:791: [metaphor] land: // byte and exited 0, 18 where the stop landed mid-write, and 1 where it
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:792: [metaphor] land: // landed after the last byte. So `signal === "SIGTERM"` and
+tests/fixture-reachability.test.ts:50: [metaphor] land: * landed) were partly this blind spot, and no real drift occurred: the 36->37 step
+tests/haxe/alias-transfer-boundary/README.md:64: [metaphor] land: - **But run.sh itself is an observation fixture**: the script's last statement is `cat "$RUN/summary.txt"`, with no `exit` statement after it and no `set -e`; the file header claims "Only failed and harness-defect exit nonzero", but stage-level failure only lands in the `VERDICT=failed` string — **in this round the measured verdict is failed while the directly read rc is still 0**. The script's only nonzero exit paths are the opening setup/fixture-missing case (`exit 1`) and the missing `.haxelib` dev pointer (`exit 2`). Therefore treating rc as a gate would always pass green; a gate consumer must read the `verdict` field in `summary.txt`.
+tests/haxe/charcodeat/charcodeat/CharCodeAtOracle.hx:33: [metaphor] collapse: oracle achieves the same token through JS null-collapse
+tests/haxe/charcodeat/charcodeat/CharCodeAtOracle.hx:99: [metaphor] collapse: collapses to true, so the guard selects the `null` token.
+tests/haxe/dc-null-guard-fallthrough/run.sh:15: [metaphor] land: # Evidence lands outside the worktree. Default is the workspace dc-warn layout
+tests/haxe/dc-promoted-eval/dcpe/SubjectProbe.hx:30: [metaphor] land: runner measures: the subject call appears once in the typed AST and lands in
+tests/haxe/dc-promoted-eval/run.sh:26: [metaphor] locked in: # Swift is attempted and expected to be blocked in this environment (the
+tests/haxe/growth-cross/REPORT.md:12: [metaphor] land: variant named `BFault` on the growth key `"EFault"`; the two land in the same bucket and
+tests/haxe/growth-id/gi/GrowthIdProbe.hx:21: [metaphor] land: (RustEmissionState.throwGrowthKey) and lands on AFault, which then grows
+tests/haxe/growth-id/gi/GrowthIdProbe.hx:71: [metaphor] land: // payload-constructor) argument must then land a variant on AFault.
+tests/haxe/kotlin-smartcast-tfield/README.md:3: [metaphor] halve: PIT-388. Kotlin smart-casts a read `recv.field` only when **both** halves hold:
+tests/haxe/kotlin-smartcast-tfield/README.md:13: [metaphor] halve: `casee.Holder` and a Kotlin `var` in `casee.MutableHolder`, so the two halves
+tests/haxe/kotlin-smartcast-tfield/README.md:16: [metaphor] halve: | Function | Halves | Expected |
+tests/haxe/kotlin-smartcast-tfield/casee/CaseEOps.hx:6: [metaphor] halve: Kotlin smart-casts `recv.field` only when BOTH halves hold:
+tests/haxe/variable-bound-loop-eval/FIXTURE.md:156: [metaphor] land: ("fix(rust,swift): unblock variable-bound-loop-eval native compile") landed.
+tests/haxe/variable-bound-loop-eval/README.md:18: [metaphor] land: with their failed producer. Evidence is observational and lands under
+tests/kotlin/smartcast-tfield.test.ts:7: [metaphor] halve: * Kotlin TField smart cast: the receiver-root and field-mutability halves
+tests/swift-fs-foundation-import/fsfnd/FsFoundationOps.hx:10: [metaphor] land: * classifier's NSError / NSPOSIXErrorDomain references land. The
+tests/swift-gap-boundary/gap-boundary.test.ts:53: [metaphor] land: // to make the recording rot-proof, and it fired exactly as designed: when W1's fix landed the
+tests/swift-gap-boundary/gap-boundary.test.ts:120: [metaphor] freeze: // The sole path to discharge is to freeze the successor candidate and obtain two
+tests/ts/deferred-locals.test.ts:75: [metaphor] lane: // One full haxe macro-compiler run (kotlin lane) plus one kotlinc typecheck
+tests/ts/degradation-lvalue.test.ts:9: [metaphor] land: * emitters protect with the site-level DegradedLvalueGuard must still land
+tests/ts/float-canonical-conformance.ts:5: [metaphor] baked in: * baked into tests.FloatCanonicalTests (which are the TS reference encoder's
+tests/ts/fn-values.test.ts:148: [metaphor] lane: // One full haxe macro-compiler run (rust lane) measured at 23.7 s
+tests/ts/package-artifacts.test.ts:244: [metaphor] lane: // Two full haxe macro-compiler runs (rust and dart lanes) plus the
+tests/ts/printed-record.test.ts:239: [metaphor] lane: // target lanes) measured at 188.5 s total (baseline machine, quiet
+tests/ts/rust-bytes-ownership.test.ts:45: [metaphor] lane: // One full haxe macro-compiler run (rust lane) measured at 22.6 s (baseline
+tests/ts/rust-packages.test.ts:41: [metaphor] lane: // One full haxe macro-compiler run (rust lane) measured at 23.0 s (baseline
+tests/ts/sealed-variants.test.ts:221: [metaphor] lane: // Five haxe macro-compiler runs (one per target lane) measured at 113.7 s
+tests/ts/static-state.test.ts:56: [metaphor] lane: // The sanctioned &UStr constant lane builds its literal through pointer
+tests/ts/static-state.test.ts:57: [metaphor] lane: // casts (`as *const [u16] as *const ...UStr`); strip exactly that lane
+tests/ts/std-string.test.ts:114: [metaphor] lane: // Five haxe macro-compiler runs (one per target lane) measured at
+tests/ts/value-type.test.ts:155: [metaphor] lane: // the five target lanes, run synchronously) measured at 353.7 s total
+tools/doc-style/check.ts:593: [metaphor] prose: // excluding the originals measures nothing about authored prose, and it leaves
+tools/gate-proof/verify-commit.ts:16: [metaphor] freeze: //       freeze archive) against the commit's recorded tree instead.
+tools/gate-proof/verify-commit.ts:104: [metaphor] freeze: // --verify-export: an independently produced export (the R3 freeze-archive
+tools/roots-guard/check-roots-guard.sh:69: [metaphor] prose: #      oxen") still passes: a script cannot verify that prose is
+tools/warning-gate/check.sh:20: [metaphor] lock in: # now. See the rc-wiring block inside check() for why the loose rc is the bare

@@ -9,7 +9,7 @@
 # Assertions (by mapped symbol):
 #   1. engine_make_capture's parameter is the handle Rc<RefCell<Engine>>.
 #   2. The parameter is NOT a bare borrow (&Engine / &mut Engine).
-#   3. The generated file exists (the path was really emitted, not
+#   3. The generated file exists (the path was emitted, not
 #      dead-code-eliminated).
 #
 # Exit 0 = green (correct handle form). Exit 1 = red (degraded or missing).

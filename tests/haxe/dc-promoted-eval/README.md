@@ -1,10 +1,10 @@
-# dc-promoted-eval — runtime single-evaluation probe for the promoted switch shape
+# dc-promoted-eval: runtime single-evaluation probe for the promoted switch shape
 
 Runtime counterpart of `tests/haxe/dc-enum-switch-gen` (board task
 `t-mum05sop-cbtu`, review `dc-warn/out/enum-switch-xcheck/REVIEW.md` §3).
 That fixture established, structurally, that a **statement-position** enum
 switch over a non-local subject generates on all five targets with the subject
-read once into the synthetic local `_g` — and that it never compiled or ran
+read once into the synthetic local `_g`, and that it never compiled or ran
 anything, so "single evaluation" was a reading of generated text alone, with no
 measurement behind it. This fixture closes that gap for the four targets whose toolchains
 run in the pinned devShell.
@@ -56,10 +56,10 @@ stdout.
 The assertion is only meaningful if it can see the doubled value, so the run
 carries two independent negative controls:
 
-1. **source control** — `dcpe.DoubleEvalControl` writes the same side-effecting
+1. **source control**: `dcpe.DoubleEvalControl` writes the same side-effecting
    subject at two source positions, so it must print
    `case=double acc=42 callCount=2`.
-2. **generated-tree mutation control** — the runner copies each generated tree,
+2. **generated-tree mutation control**: the runner copies each generated tree,
    inserts exactly one extra evaluation of the subject expression immediately
    after the promoted local's initializer (the hazard is duplicate rendering of
    a single scrutinee), and re-compiles and re-runs. The mutated program must

@@ -128,10 +128,10 @@ class Compiler extends PluginCompiler<Compiler> {
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
         //
-        // Force the WHOLE resident set. A corpus entry reaches only the modules
+        // Force the WHOLE resident set. An example entry reaches only the modules
         // it happens to touch, and a consumer build whose entry list omits the
         // `runtime.*` roots still references these through the std extern
-        // surface, and `keep` cannot substitute because it only protects an
+        // interface, and `keep` cannot substitute because it only protects an
         // already-typed module from DCE. Forcing only two of the six left
         // `runtime.Graphemes` / `runtime.SortedTable` / `runtime.TestCore`
         // absent, so such a consumer emitted references to files that were
@@ -329,11 +329,11 @@ class Compiler extends PluginCompiler<Compiler> {
 
     public override function generateFilesManually() {
         // The rust emitter renders every Float as the crate alias, so it no
-        // longer branches on the lane; this call stays as the generation-time
+        // longer branches on the precision mode; this call stays as the generation-time
         // validation of the float-precision define (f64/f32) and as the
         // registered shared-mechanism consumption (SemanticPassRegistry).
         FloatPrecision.isF32();
-        // Contract 6: every render-time write to state.referencedImpls
+        // Requirement 6: every render-time write to state.referencedImpls
         // (RustExpr.hx static call sites) must already be in the emission
         // plan's referenced-impl set; a miss means the pre-scan root-set
         // walk missed a reference, so scanFallibility skipped a module's
@@ -579,13 +579,13 @@ class Compiler extends PluginCompiler<Compiler> {
         libLines.push("");
         final rootPackages:Array<String> = mainChildren.get("") == null ? [] : mainChildren.get("").copy();
         rootPackages.sort(Reflect.compare);
-        // Root-level modules (a module with no Haxe package) are module leaves
+        // Modules at the root (a module with no Haxe package) are module leaves
         // emitted beside the crate root. They are declared here directly, not
         // as package children, so a root module can never be dropped from the
         // crate entry. (RustRootModuleRegistration)
         final rootModules:Array<String> = mainPackages.get("") == null ? [] : mainPackages.get("").copy();
         rootModules.sort(Reflect.compare);
-        // A root-level module and a root package can share one snake-case
+        // A module at the root and a root package can share one snake-case
         // module name (a class `Consumer` and a package `consumer.*`). Both
         // would map to `pub mod consumer;`, which rustc rejects with E0428/E0761.
         // Reject that collision here with a named diagnostic, so no duplicate
@@ -971,7 +971,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function generateTestHelperContent():String {
-        // The float helpers name the crate alias in both feature lanes, so
+        // The float helpers name the crate alias in both feature settings, so
         // the aggregate helpers (equals_vec_float, ...) resolve against a
         // defined symbol on both target configurations (feature spec 23,
         // ruling 10) and the generated tree stays precision-independent.
@@ -2215,8 +2215,8 @@ class Compiler extends PluginCompiler<Compiler> {
         final entries:Array<{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}> = [];
         // Rethrow growth registrations met during the walk are deferred until
         // the funcErrorTypes fixpoint below has settled: the registration
-        // must resolve the containing function's Result error enum — the same
-        // identity the emitter's throwVariant lookup uses — and that map only
+        // must resolve the containing function's Result error enum (the same
+        // identity the emitter's throwVariant lookup uses), and that map only
         // exists after propagation (t-munebyud-bxbr). The absorbed snapshot
         // holds the enclosing region domains at walk time: a throw absorbed
         // into a region looks its variant up under that region's catch domain
@@ -3424,7 +3424,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
         `fnError` is the containing function's Result error enum as settled
         by the funcErrorTypes fixpoint; the growth target is
-        RustEmissionState.throwGrowthKey(fnError, cls.name) — the same
+        RustEmissionState.throwGrowthKey(fnError, cls.name): the same
         identity the emitter's throwVariant lookup queries. Before this
         predicate the target was the class's payload enum, an identity the
         lookup never consults when the two differ, so the registered variant
@@ -3441,7 +3441,7 @@ class Compiler extends PluginCompiler<Compiler> {
            identity, so a class without a matching payload pair never
            registers;
         4. a declared variant of the same name is never shadowed by a growth
-           variant, which would collide at E0428 — checked against the enum
+           variant, which would collide at E0428: checked against the enum
            the variant will actually be attached to.
     **/
     function registerThrownExceptionVariant(thrown:TypedExpr, ownerClass:ClassType, fnError:Null<{module:String, name:String}>, absorbed:Array<String>):Void {
@@ -3495,11 +3495,11 @@ class Compiler extends PluginCompiler<Compiler> {
                 // The growth target follows the lookup's own identity. A
                 // throw absorbed into a region catching this class's payload
                 // domain looks its variant up under that region's catch
-                // domain — the payload enum itself (RustExpr retargets
+                // domain: the payload enum itself (RustExpr retargets
                 // errorTypeName to the caught domain for the region body), so
                 // the target is the payload enum name. An unabsorbed throw
                 // looks it up under the containing function's Result error
-                // enum, resolved through RustEmissionState.throwGrowthKey —
+                // enum, resolved through RustEmissionState.throwGrowthKey:
                 // the same predicate shape the emitter applies. When the
                 // predicate returns null the emitter never consults the
                 // growth table for this throw, so no variant is registered;

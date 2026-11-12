@@ -7,13 +7,13 @@
 //
 // Read-only with respect to the repository: the live worktree is never touched
 // and no object is ever written (`git hash-object` is used without `-w`), so
-// the proof does not require a clean live worktree — it cannot even see one.
+// the proof does not require a clean live worktree: it cannot even see one.
 //
 // Usage:
 //   bun tools/gate-proof/verify-commit.ts <commit-ish>                 export + verify
 //   bun tools/gate-proof/verify-commit.ts <commit-ish> --verify-export <dir>
 //       skip git archive and verify an already-exported directory (e.g. a
-//       freeze archive) against the commit's recorded tree instead.
+//       frozen archive) against the commit's recorded tree instead.
 //   --json <path>   additionally write the machine-readable summary there.
 //
 // Exit codes: 0 all files match; 1 mismatch/error; 2 usage error.
@@ -101,7 +101,7 @@ for (const entry of lsTree.split("\0")) {
 }
 
 // Export side. Default: git archive into a throwaway temp directory.
-// --verify-export: an independently produced export (the R3 freeze-archive
+// --verify-export: an independently produced export (the R3 frozen-archive
 // case); it must exist and be a directory, and every path below is checked.
 let exportDir: string;
 let madeTemp = false;

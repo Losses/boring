@@ -7,14 +7,14 @@ import PlacePlan.PlaceProjection;
 import PlacePlan.PlacePlan;
 
 /**
-    The write-landing and alias-capability declaration face for PlacePlan
+    The write-destination and alias-capability declaration face for PlacePlan
     (policy entries P-26/P-27/P-28, declared in the same rule-id style as
     P-22).
 
     SemanticPolicy declares the base capability domains (StorageKind,
     CloneRelation, PlaceCapability, NullableProjection, StaticStorage); this
-    module states, per (landing storage, access intent), which landings admit a
-    write, which landings carry an alias-check obligation, and which projection
+    module states, per (destination storage, access intent), which destinations
+    admit a write, which destinations require an alias check, and which projection
     combinations are structurally forbidden. The planner (RustExpr
     planPlaceChain) reads these declarations; it never invents an undeclared
     capability, and an Undeclared ruling fails closed before generation.
@@ -27,21 +27,21 @@ import PlacePlan.PlacePlan;
     silent guess.
 **/
 
-/** The verdict for one write landing (policy entry P-26). */
+/** The verdict for one write destination (policy entry P-26). */
 enum WriteLanding {
-    /** the landing is a place; a write reaches the source slot/referent. */
+    /** the destination is a place; a write reaches the source slot/referent. */
     Writable;
     /** the write is admissible only with complete writeback evidence. */
     WritableWithWriteback;
     /** the write requires an alias proof before it may be emitted. */
     AliasCheckRequired;
-    /** the write loses the mutation at this landing; refused. */
+    /** the write loses the mutation at this destination; refused. */
     Forbidden;
-    /** no declaration covers this landing; fails closed (P-26). */
+    /** no declaration covers this destination; fails closed (P-26). */
     Undeclared;
 }
 
-/** One named write-landing ruling, citing its policy entry id. */
+/** One named write-destination ruling, citing its policy entry id. */
 typedef WriteTargetRuling = {
     var landing:WriteLanding;
     /** true when emitting this write also discharges a P-27 alias obligation. */
@@ -51,7 +51,7 @@ typedef WriteTargetRuling = {
 }
 
 class PlaceWritePolicy {
-    /** Write-landing declaration surface (this module). */
+    /** Write-destination declarations (this module). */
     public static final P_26 = "P-26";
     /** Alias-check obligation (P-27). */
     public static final P_27 = "P-27";
@@ -59,7 +59,7 @@ class PlaceWritePolicy {
     public static final P_28 = "P-28";
 
     /**
-        The declared storage kind of a landing repr. This is the composition of
+        The declared storage kind of a destination repr. This is the composition of
         the SemanticPolicy domains, with no new semantic: Copy/ImmutableValue and
         a Collection backing are owned value storage; a Handle is a shared
         referent; a static slot is StaticSlot; a closure environment is shared
@@ -82,7 +82,7 @@ class PlaceWritePolicy {
     }
 
     /**
-        The declared write-landing ruling for one (repr, intent) pair (P-26).
+        The declared write-destination ruling for one (repr, intent) pair (P-26).
 
         Rulings, fail-closed:
           - AssignSlot over Value storage: Writable (placeCapability=Place).
@@ -98,12 +98,12 @@ class PlaceWritePolicy {
           - MutateReferent over a SharedReferent: Writable (handle clone keeps
             the referent identity; spec section 4).
           - MutateReferent over Value or Collection storage: WritableWithWriteback
-            (the read detaches the backing value; only an operation contract
+            (the read detaches the backing value; only an operation rule
             with writeback reaches the original - spec section 5, operationContractId).
           - MutateReferent over a Nullable value payload: Forbidden (the payload
             identity is lost; NullableProjection=WritebackRequired/NonPlace).
           - ReadValue never writes: Undeclared with an explicit reason.
-          - any Unknown-landing storage combination: Undeclared (fail closed;
+          - any storage combination with an unknown destination: Undeclared (fail closed;
             spec section 9.3 forbids defaulting to a place).
     **/
     public static function writeTargetFor(repr:ReprType, intent:AccessIntent):WriteTargetRuling {

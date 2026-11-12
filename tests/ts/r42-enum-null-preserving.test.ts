@@ -13,7 +13,7 @@ import * as path from "node:path";
  * a pass; the failure names the exact file to regenerate.
  *
  * The `!` asserted below is a TypeScript non-null assertion
- * (type-level, erased). It does not add a runtime guard, and the
+ * (erased at the type level). It does not add a runtime guard, and the
  * runtime TypeError on a null receiver is unchanged from the pre-fix
  * state.
  */

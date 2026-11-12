@@ -218,7 +218,7 @@ test("the sanctioned self-construction static uses each target lane", async () =
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
-  // Five haxe macro-compiler runs (one per target lane) measured at 113.7 s
+  // Five haxe macro-compiler runs (one per target) measured at 113.7 s
   // total (baseline machine, quiet window); 300_000 keeps ≥2× margin. The
   // explicit timeout raises only the harness patience for those subprocesses,
   // never the asserted behavior.

@@ -241,7 +241,7 @@ describe("package artifact emission", () => {
       fs.rmSync(rustRoot, { recursive: true, force: true });
       fs.rmSync(dartRoot, { recursive: true, force: true });
     }
-    // Two full haxe macro-compiler runs (rust and dart lanes) plus the
+    // Two full haxe macro-compiler runs (rust and dart targets) plus the
     // crate/Pub packing steps measured at 79.3 s total (baseline machine,
     // quiet window); 180_000 keeps ≥2× margin. The explicit timeout raises
     // only the harness patience for those subprocesses, never the asserted

@@ -19,7 +19,7 @@ translations and test tooling live in separate trees; every test suite
 and the shared vectors live under `tests/`.
 
 Three scripts run the checks. `test:compiler` needs no regeneration and
-covers the compiler itself: it runs the semantic-policy contract, the
+covers the compiler itself: it runs the semantic-policy check, the
 `GatedValueCopy` assertions and the handle fixture matrix. `test` runs the
 bun suites under `tests/`, which read the generated trees and therefore need
 `gen:all` to have produced them first; without it those suites fail with
@@ -82,12 +82,12 @@ run. Of the tools the flake provides, only what is already on `PATH` is usable:
 | `haxe`, `cargo`, `kotlinc`, `swiftc`, `boring` | **no** |
 
 **All four sandbox limits, in one place** (each re-checked; the
-underlying measurements are recorded in `docs/architecture/ARCHITECTURAL-CONTRACTS.md`, `docs/architecture/LAYERED-VERIFICATION.md`, and the CI baseline wiring in `.github/workflows/ci.yml`):
+underlying measurements are recorded in `docs/architecture/INTERFACE-REQUIREMENTS.md`, `docs/architecture/LAYERED-VERIFICATION.md`, and the CI baseline wiring in `.github/workflows/ci.yml`):
 
 | # | Limit | Blocks |
 |---|---|---|
 | 1 | `nix develop`: writes to `~/.cache/nix` denied | `bun run verify`, and every `tests/haxe/**/run.sh` |
-| 2 | `swiftc`: 13 libs missing, and its wrapper needs user namespaces denied | the whole Swift lane |
+| 2 | `swiftc`: 13 libs missing, and its wrapper needs user namespaces denied | the whole Swift target |
 | 3 | `haxe`/`cargo`/`kotlinc` off the default `PATH` | 56 tests, which then read as failures |
 
 All three are **why results must be read carefully**. None is a defect in this
@@ -114,7 +114,7 @@ however you arrange that (the flake normally does it):
   pass)**; with it on `PATH`, **5 failures (1075 pass)**. Those 56 are
   the cause is a missing toolchain; no defect is involved. The CI baseline step in `.github/workflows/ci.yml`
   measures the class by running both ways, with no inference from a marker;
-- the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
+- the Swift target cannot run at all here (`swiftc` needs 13 missing libraries, and
   its wrapper needs user namespaces the sandbox denies), which is why the
   residual 5 also cannot be cleared;
 - 35 fixtures under `tests/haxe/` are uncollected **and** unrunnable here, so

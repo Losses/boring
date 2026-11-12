@@ -10,7 +10,7 @@ package;
 
     The lines array is indexed by 0-based line number. A null
     entry means no mapping for that line. The columns map holds
-    sparse column-level overrides keyed by line index.
+    sparse overrides per column, keyed by line index.
 
     Format v2 adds a global callStackFrames table and, on every line
     with a Haxe source, the 1-based source line/column and the list of

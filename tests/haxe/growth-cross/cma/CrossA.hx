@@ -12,7 +12,7 @@ package cma;
 	or `crate::cmb::cross_b::B`) wins, the second is dropped by the
 	calleeName dedup. The loser's enum then emits a variant carrying the
 	winner's payload type while the loser's throw site constructs the loser's
-	own `B` — the shape this fixture measures.
+	own `B`: the shape this fixture measures.
 
 	Declaration order in this module matches cmb/CrossB.hx exactly; only the
 	Haxe package differs.

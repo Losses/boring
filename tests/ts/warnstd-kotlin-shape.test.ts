@@ -5,7 +5,7 @@ import * as path from "node:path";
 /**
  * guardedNonNullTernary elvis is a shape snapshot: the rendered
  * Kotlin text for this minimal mechanism pins the current emitter
- * output but has no pre-fix emitter shape that flips it red — it
+ * output but has no pre-fix emitter shape that flips it red: it
  * holds the current rendered text but does NOT prove a regression
  * would be caught.
  *

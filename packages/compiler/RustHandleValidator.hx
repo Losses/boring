@@ -21,7 +21,7 @@ import SemanticPolicy.ModuleContext;
     handle) and P-16 (shared handle meta) have no standalone validator site: P-2
     is enforced by SemanticPolicy.roleFor(ClassHandle) + RustAbiProfile.spell +
     the P-22 plan/repr mismatch, and P-16 by the RustAbiProfile.spell sendSync
-    two-way split (guarded by a dedicated contract test). It is a pure,
+    two-way split (guarded by a dedicated test). It is a pure,
     plain-Haxe module with no macro Context and no target renderer, so it is
     unit-testable over synthetic IR before the M3 lowering exists.
 
@@ -117,7 +117,7 @@ class RustHandleValidator {
     }
 
     /**
-        Plan-level fail-closed validation (policy entries P-22/P-24/P-25).
+        Fail-closed validation of the plan (policy entries P-22/P-24/P-25).
 
         Checks, in addition to the per-node invariants above:
           - missing plan: a grouped handle node with no RepresentationPlan.
@@ -212,7 +212,7 @@ class RustHandleValidator {
     }
 
     /**
-        Check every place plan against the mutation contract. A plan that cannot
+        Check every place plan against the mutation rules. A plan that cannot
         prove its write reaches the source location yields one error, so the
         target refuses to emit code for it, so no text patch happens later.
     **/
@@ -268,7 +268,7 @@ class RustHandleValidator {
         Fail-closed plan access for a renderer site. Reads node.plan and throws
         with the declaration id and the site when the plan is not yet decided, so
         an ordering bug (a site reading the plan before collectHandleNode ran
-        decide) surfaces as an explicit "plan not decided" error with the context,
+        decide) appears as an explicit "plan not decided" error with the context,
         never a bare null dereference. This is the renderer-side counterpart of
         the validator's P-22 "missing plan" gate.
     **/

@@ -13,8 +13,8 @@ class AssignTargetPlan {
     /**
         Owned-conversion suffixes a rendered target must never carry. Each
         one marks the text as a fresh value produced by a conversion the
-        emitter decided at the wrong granularity: the assignment would land
-        in that fresh value and be dropped while the product still compiles
+        emitter decided at the wrong granularity: the assignment would write
+        into that fresh value and be dropped while the product still compiles
         and value tests stay green (the silent lost-write class).
         (DegradedLvalueGuard)
     **/
@@ -58,7 +58,7 @@ class AssignTargetPlan {
         The assignment-target boundary is an lvalue site. A degradation
         decision made on the rendered shape only loses the write silently
         when the conversion is the place-path's value-producing step: the
-        write would land in the fresh value, and the original slot stays untouched.
+        write would reach the fresh value, and the original slot stays untouched.
         A conversion that only feeds a place path is legitimate: Rust's
         interior mutability reads *`x.lock().unwrap()` and *`c.borrow_mut()` write
         through, so the guard masks those readers and only refuses a

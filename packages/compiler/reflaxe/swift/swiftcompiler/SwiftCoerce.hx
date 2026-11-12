@@ -16,7 +16,7 @@ import EmitSink;
 /**
     Swift-side single conversion entry (I2/I3). P5.3 adds the presence
     axis for array boundaries and the two-axis composition renderBoundary;
-    the storage-axis-only SAB refactor lands with it.
+    the storage-axis-only SAB refactor arrives with it.
 **/
 class SwiftCoerce {
     /** P5.2 forwarding entry (generic sites migrate in P5.4+). */

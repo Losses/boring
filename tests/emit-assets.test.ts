@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
 /**
- * Emit-Assets contract (t-mvlogmat-pam8): a @:asset data module's large
+ * Emit-Assets requirement (t-mvlogmat-pam8): a @:asset data module's large
  * string literal is externalized to a data file plus a native resource read,
  * so the target language carries no inline copy. The same fixture must
  * externalize on all four non-Rust targets (TS, Kotlin, Swift, Dart).

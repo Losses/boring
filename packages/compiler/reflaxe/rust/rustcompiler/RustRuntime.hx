@@ -192,8 +192,8 @@ impl FPHelper {
 
     // The two 64-bit FPHelper value edges carry the binary32 bit pattern,
     // like every other backend: floatToI32 reads the f32 bit pattern
-    // instead of truncating toward zero, and i32ToFloat reinterprets
-    // the i32 as raw binary32 bits instead of widening numerically
+    // with no truncation toward zero, and i32ToFloat reinterprets
+    // the i32 as raw binary32 bits with no numeric widening
     // (feature spec 23; FpText round-trips compare bit patterns).
     pub fn float_to_i32(v: f64) -> i32 {
         (v as f32).to_bits() as i32
@@ -229,7 +229,7 @@ impl FPHelper {
     // Binary32 variants of the two value edges: the same 8 wire bytes
     // decode to the f64 value, then round once to the module real; the
     // reverse widens losslessly before the bit conversion. Only the
-    // float-precision=f32 lane references them (feature spec 23).
+    // float-precision=f32 build references them (feature spec 23).
     pub fn i64_to_f32(low: u32, high: u32) -> f32 {
         f32::from_bits(Self::f64_halves_to_f32_bits(low, high))
     }
@@ -534,7 +534,7 @@ impl Fs {
         let mut names = Vec::new();
         for entry in entries {
             // F7 (Claude review): match-rewrite removes the loop-body closure so
-            // reference/rust stays closure-free (loop-structure contract).
+            // reference/rust stays closure-free (loop-structure rule).
             let entry = match entry { Ok(e) => e, Err(e) => return Err(FsError::host("readDir", path, e)) };
             names.push(UString::from(entry.file_name().to_string_lossy().into_owned().as_str()));
         }
@@ -856,7 +856,7 @@ pub fn parse_f64(s: &str) -> f64 {
     if !valid_decimal_token(t.as_bytes()) {
         return f64::NAN;
     }
-    // parse_f64 keeps the protocol f64 width even under the f32 lane;
+    // parse_f64 keeps the protocol f64 width even under the f32 build;
     // parse_f32 is the separate TiqianFloat-width edge.
     t.parse::<f64>().unwrap_or(f64::NAN)
 }
@@ -1016,7 +1016,7 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 // native string type. UString is the owned form, UStr is the borrowed
 // slice form, matching the String/&str relationship. Both Deref to
 // [u16], so s[i] reads a u16 unit, s.len() returns the unit count,
-// and s[a..b] yields a &[u16] slice — extra Index impls are not needed.
+// and s[a..b] yields a &[u16] slice; extra Index impls are not needed.
 //
 // Conversions to Rust String (UTF-8) are explicit and named:
 //   to_utf8_lossy() -> String     (always succeeds, replaces unpaired surrogates)
@@ -1043,7 +1043,7 @@ impl UStr {
     /// The cast changes no bytes, the returned borrow has exactly the
     /// the lifetime of the input slice, and it aliases the same units. [u16]
     /// imposes no UTF-16 validity requirement, so empty slices, non-empty
-    /// slices, and slices holding unpaired surrogate halves are all valid.
+    /// slices, and slices holding unpaired surrogate code units are all valid.
     /// This is the same layout argument std relies on for &str over [u8].
     #[inline]
     pub const fn from_slice(units: &[u16]) -> &UStr {
@@ -1073,7 +1073,7 @@ impl UStr {
     }
 
     /// Unicode lowercase of the text (String.toLowerCase). Borrowed
-    /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+    /// receivers (`&UStr`) and owned `UString` (through Deref) both reach
     /// here; the result is an owned Haxe String.
     pub fn to_lowercase(&self) -> UString {
         UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
@@ -1081,7 +1081,7 @@ impl UStr {
 
     /// Unicode uppercase of the text (String.toUpperCase). Mirrors
     /// to_lowercase: borrowed receivers and owned UString (through
-    /// Deref) both land here; the result is an owned Haxe String.
+    /// Deref) both reach here; the result is an owned Haxe String.
     pub fn to_uppercase(&self) -> UString {
         UString(self.to_utf8_lossy().to_uppercase().encode_utf16().collect())
     }
@@ -1094,9 +1094,9 @@ impl UStr {
     }
 
     /// Trim Unicode whitespace from both ends (String.trim). Borrowed
-    /// receivers and owned UString (through Deref) both land here; the
+    /// receivers and owned UString (through Deref) both reach here; the
     /// result is an owned Haxe String. The u16 domain needs its own
-    /// whitespace table because char::from_u32 rejects surrogate halves.
+    /// whitespace table because char::from_u32 rejects surrogate code units.
     pub fn trim(&self) -> UString {
         let units = self.as_slice();
         let is_ws = |u: u16| -> bool {
@@ -1315,7 +1315,7 @@ impl UString {
 
 impl UString {
     /// The UTF-16 code units of this string. UString stores units natively,
-    /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
+    /// so this is the slice itself, with no re-encoding. (String.encodeUtf16)
     /// Items are owned `u16`, matching the std String encode_utf16 item type.
     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<\'_, u16>> {
         self.0.iter().copied()
@@ -1416,7 +1416,7 @@ pub fn count(s: &UStr) -> u32 {
 }
 
 // The String.length member counts UTF-16 code units on every target
-// (stdlib/15). With UStr storage in units, this is just the slice length.
+// (stdlib/15). With UStr storage in units, this is the slice length.
 pub fn unit_count(s: &UStr) -> u32 {
     u32::try_from(s.as_slice().len()).unwrap_or(0)
 }
@@ -1668,7 +1668,7 @@ pub fn parse_f64(s: &UStr) -> f64 {
     if !valid_decimal_token(t2.as_bytes()) {
         return f64::NAN;
     }
-    // parse_f64 keeps the protocol f64 width even under the f32 lane;
+    // parse_f64 keeps the protocol f64 width even under the f32 build;
     // parse_f32 is the separate TiqianFloat-width edge.
     t2.parse::<f64>().unwrap_or(f64::NAN)
 }

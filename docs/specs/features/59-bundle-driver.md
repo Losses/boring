@@ -76,7 +76,7 @@ The example selects `app.Main` and matching modules under
 module. The parser rejects invalid module paths, duplicate entries, unknown
 source-set names, and discovery roots that are absolute or contain `..`.
 For a configuration, the driver first includes its `rootsFile`, or the
-project-level `rootsFile` when there is no override. It then adds the selected
+project-wide `rootsFile` when there is no override. It then adds the selected
 source set's package macros and module roots. A configuration can use either
 mechanism alone or both together. Boring's own `boring.json` currently uses
 `rootsFile` and does not declare `sourceSets`.

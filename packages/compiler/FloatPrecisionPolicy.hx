@@ -2,25 +2,25 @@ package;
 
 /**
     Float Precision Policy: the executable encoding of the cross-target
-    float-precision contract (docs/specs/float-precision-policy.md, FP-n
+    float-precision specification (docs/specs/float-precision-policy.md, FP-n
     entries). A sibling policy to SemanticPolicy, never part of
     RepresentationRole: FP-n and P-n are independent namespaces.
 
     The policy does not decide Haxe source semantics. It maps "known source
-    numeric semantics + target/lane + operation context" onto a verifiable
-    representation and conversion plan. decide() consumes facts, never source
-    text.
+    numeric semantics + target and precision mode + operation context" onto a
+    verifiable representation and conversion plan. decide() consumes facts,
+    never source text.
 
-    v1 declares mixed precision: Value follows the lane, Accumulator is always
-    binary64 and narrows exactly once on exit, Wire and NumericHelper widths
-    are declared, never lane-derived. A strict-f32 switch rewrites the
+    v1 declares mixed precision: Value follows the precision mode, Accumulator
+    is always binary64 and narrows exactly once on exit, Wire and NumericHelper
+    widths are declared, never mode-derived. A strict-f32 switch rewrites the
     Accumulator rule to ValuePrecision explicitly; it is never a silent
     default and Accumulator never inherits Value behavior by omission.
 
     This round: types + decide/explain skeleton. The emitter is not wired.
 **/
 
-/** The precision lane of the compilation (FP-1). */
+/** The precision mode of the compilation (FP-1). */
 enum PrecisionLane {
     /** binary32 Value storage; accumulators stay binary64 under v1 mixed. */
     F32;
@@ -34,13 +34,13 @@ enum PrecisionLane {
     disjoint from PrecisionContext constructors (one global enum namespace).
 **/
 enum PrecisionRole {
-    /** FP-1: Float value/field/param/return/container element; lane decides width. */
+    /** FP-1: Float value/field/param/return/container element; the mode decides width. */
     RoleValue;
     /** FP-2: named or identified accumulation state; binary64 under v1 mixed. */
     RoleAccumulator;
     /** FP-3: matching-width unsigned ints and bitcast/NaN bit constants. */
     RoleBits;
-    /** FP-4: protocol-fixed width; never lane-derived. */
+    /** FP-4: protocol-fixed width; never mode-derived. */
     RoleWire;
     /** FP-5: parse/format/protocol helpers with their own explicit signatures. */
     RoleNumericHelper;
@@ -176,11 +176,11 @@ class FloatPrecisionPolicy {
         Skeleton judgment order:
           1. completeness: unresolved facts fail closed (UnknownInput).
           2. context routes the role: Accumulator > Wire > NumericHelper > Value.
-          3. the lane decides Value width; Accumulator is binary64 under v1 mixed.
+          3. the precision mode decides Value width; Accumulator is binary64 under v1 mixed.
           4. the operation + source fact add the IntToFloat / wire edges.
           5. the accumulator exit is exactly one Narrow (validator-enforced).
 
-        Conflict priority: declared accumulator identity > context > lane >
+        Conflict priority: declared accumulator identity > context > precision mode >
         operation. A conflict is a failure reason, never a silent tie-break.
     **/
     public static function decide(request:PrecisionRequest):PrecisionPlanResult {
@@ -193,7 +193,7 @@ class FloatPrecisionPolicy {
         final plan = basePlan();
         switch (request.context) {
             case PrecisionContext.CtxAccumulator:
-                // FP-2: binary64 under v1 mixed, never lane-derived.
+                // FP-2: binary64 under v1 mixed, never mode-derived.
                 plan.role = PrecisionRole.RoleAccumulator;
                 plan.storageType = "f64";
                 plan.computeType = "f64";
@@ -202,7 +202,7 @@ class FloatPrecisionPolicy {
                 plan.operationAllowance = "binary64 accumulation only; exactly one Narrow on exit";
                 plan.roundingPoint = "exit Narrow (round-to-nearest)";
             case PrecisionContext.CtxWire:
-                // FP-4: the protocol declares the width; the lane never changes it.
+                // FP-4: the protocol declares the width; the precision mode never changes it.
                 plan.role = PrecisionRole.RoleWire;
                 plan.storageType = "wire-f32"; // TODO: protocol-declared width input, never a default guess
                 plan.computeType = plan.storageType;
@@ -211,7 +211,7 @@ class FloatPrecisionPolicy {
                 plan.operationAllowance = "encode/decode at declared width only";
                 plan.roundingPoint = "encode of f32 (round-to-nearest)";
             case PrecisionContext.CtxNumericHelper:
-                // FP-5: the helper explicit signature decides; never the caller lane.
+                // FP-5: the helper explicit signature decides; never the caller's precision mode.
                 plan.role = PrecisionRole.RoleNumericHelper;
                 plan.storageType = ""; // TODO: helper signature input
                 plan.computeType = plan.storageType;
@@ -220,7 +220,7 @@ class FloatPrecisionPolicy {
                 plan.operationAllowance = "declared parse/format/encode/decode only";
                 plan.roundingPoint = "as declared by the helper signature";
             case PrecisionContext.CtxValue:
-                // FP-1: the lane decides Value width; compute at storage width.
+                // FP-1: the precision mode decides Value width; compute at storage width.
                 final isF32 = request.precisionLane == PrecisionLane.F32;
                 plan.role = PrecisionRole.RoleValue;
                 plan.storageType = isF32 ? "f32" : "f64";
@@ -234,7 +234,7 @@ class FloatPrecisionPolicy {
         switch (request.operation) {
             case PrecisionOperation.Cast:
                 if (request.sourceType == "Int") {
-                    // FP-6: exact Int->Float; the result is a Value at lane width.
+                    // FP-6: exact Int->Float; the result is a Value at the mode's width.
                     plan.conversionEdges.push({
                         from: PrecisionRole.RoleValue,
                         to: PrecisionRole.RoleIntToFloat,

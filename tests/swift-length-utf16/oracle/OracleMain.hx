@@ -11,7 +11,7 @@ class OracleMain {
 		final text = "a😀b";
 		// Haxe eval (interp) counts code points: prints 3.
 		Sys.println("eval-length " + lenfix.CharCount.charCount(text));
-		// The cross-target Haxe contract (UTF-16 targets: js, jvm, ...)
+		// The cross-target Haxe rule (UTF-16 targets: js, jvm, ...)
 		// is UTF-16 code units: prints 4. Swift output must match this.
 		Sys.println("utf16-units " + utf16Units(text));
 	}

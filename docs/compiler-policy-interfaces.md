@@ -28,29 +28,29 @@ remain under review.
 
 This inventory describes the integrated compiler at `2159c657`. Historical
 comparison consumer inputs copied on 2026-09-28 came from the frozen
-worktrees `ts-comparison-consumer` (tracked diff `5adb5f00` — uncommitted,
+worktrees `ts-comparison-consumer` (tracked diff `5adb5f00`: uncommitted,
 not an object id),
-`policy-kotlin-comparison-consumer` (`907c53e9` — tracked diff, uncommitted,
+`policy-kotlin-comparison-consumer` (`907c53e9`: tracked diff, uncommitted,
 not an object id), `boring-wt-rust-comparison`
-(`a7b60a81` — tracked diff, uncommitted, and therefore no object id), and
+(`a7b60a81`: tracked diff, uncommitted, and therefore no object id), and
 `policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
-diff `74c58a3c` — uncommitted, and therefore no object id). It distinguishes a typed
+diff `74c58a3c`: uncommitted, and therefore no object id). It distinguishes a typed
 result that exists in the tree
 from a target consumer that uses it. Refresh the inventory when a candidate
 is integrated.
 
 **Note (2026-10-01, verified): the four `tracked diff` values above are not object ids; `git cat-file`
-cannot retrieve any of them.** They refer to the **diff states that were uncommitted at the time** in those four worktrees — an uncommitted diff
+cannot retrieve any of them.** They refer to the **diff states that were uncommitted at the time** in those four worktrees; an uncommitted diff
 has no object id, so any lookup of the form `git show 5adb5f00` fails:
 
 | Value | `git cat-file -t` | Explanation |
 |---|---|---|
 | `ae73c11e` (marked as HEAD) | **commit** | The only one retrievable |
-| The four `tracked diff` values | all four **ABSENT** | Also **not in** their respective worktrees — they should not be there in the first place |
+| The four `tracked diff` values | all four **ABSENT** | Also **not in** their respective worktrees: they should not be there in the first place |
 
 **This is a notation problem**: the author wrote "HEAD" and "tracked diff" separately, which shows they **know**
 the two are different; but writing the diff state as a bare hex value makes it read the same as a commit hash.
-**Rule (supplement)**: when citing **uncommitted** state, do not write a bare hash — write **worktree name + file name + recheck date**,
+**Rule (supplement)**: when citing **uncommitted** state, do not write a bare hash; write **worktree name + file name + recheck date**,
 or the `git diff --stat` summary from that time. A bare hash promises "retrievable via `cat-file`",
 but an uncommitted state cannot honor that promise, so **every such reference will fail when a reader tries to resolve it**,
 and the failure reason ("it was never an object") looks **exactly the same** as the staleness reason ("it was cleaned up").
@@ -377,7 +377,7 @@ Future direction. A generic adapter mechanism (tracked as a backlog task) will
 thread the handle through the trait-method boundary explicitly, so the direct
 impl can run the shared semantic helper with a caller-supplied handle context
 Until then the fail-closed body is the accepted
-intermediate state and its panic text is part of the contract.
+intermediate state and its panic text is part of the interface.
 
 Verification. A three-way fixture asserts (1) the concrete handle path returns
 the expected layout, (2) the struct trait path reaches the fail-closed panic

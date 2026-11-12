@@ -8,7 +8,7 @@ import std.FsException;
 	Cross-target failure-identity fixture for std.Fs
 	(docs/specs/stdlib/17-platform-modules.md, docs/specs/stdlib/03-haxe-exception.md).
 
-	A host failure must surface as one std.FsException carrying one normalized
+	A host failure must appear as one std.FsException carrying one normalized
 	std.FsError variant, so the Haxe-observable identity is `Kind|operation` on
 	every target and never the host text. Only the fallible operations raise;
 	exists/isDirectory stay total and answer false for a missing path.

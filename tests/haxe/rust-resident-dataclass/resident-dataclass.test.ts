@@ -11,12 +11,12 @@ import { resolve } from "node:path";
  * guard up: `run.sh` beside a `.test.ts` is otherwise never collected.
  *
  * Why a single root is required is documented in run.sh and in PIT-390: over
- * the full corpus the emission gate is a global union, so the bridge's
- * absence is masked and a corpus-level test cannot see it.
+ * the full example set the emission gate is a global union, so the bridge's
+ * absence is masked and a test over the full set cannot see it.
  *
  * ORDERING MATTERS HERE. An earlier version of this wrapper tested the output
  * for "environment-not-reached" BEFORE looking at the exit status, and matched
- * the whole combined stdout+stderr. A real failure whose message merely
+ * the whole combined stdout+stderr. A real failure whose message
  * contained that phrase -- e.g. run.sh echoing its generation log on failure --
  * was then reported as 1 pass / rc=0. Reproduced. So:
  *

@@ -61,9 +61,9 @@ impl SortedTable {
 
 #[derive(Clone)]
 pub struct SortedMapTable<K, V> {
-    pub(crate) keys: Vec<K>,
-    pub(crate) values: Vec<V>,
-    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
+    pub keys: Vec<K>,
+    pub values: Vec<V>,
+    pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: PartialEq, V: PartialEq> PartialEq for SortedMapTable<K, V> {
@@ -148,9 +148,9 @@ impl<K: Clone + std::fmt::Debug, V: Clone + std::fmt::Debug> SortedMapTable<K, V
 
 #[derive(Clone)]
 pub struct SortedMapTableBuilder<K, V> {
-    pub(crate) keys: Vec<K>,
-    pub(crate) values: Vec<V>,
-    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
+    pub keys: Vec<K>,
+    pub values: Vec<V>,
+    pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
@@ -249,8 +249,8 @@ impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
 
 #[derive(Clone)]
 pub struct SortedSetTable<K> {
-    pub(crate) keys: Vec<K>,
-    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
+    pub keys: Vec<K>,
+    pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: PartialEq> PartialEq for SortedSetTable<K> {
@@ -321,8 +321,8 @@ impl<K: Clone + std::fmt::Debug> SortedSetTable<K> {
 
 #[derive(Clone)]
 pub struct SortedSetTableBuilder<K> {
-    pub(crate) keys: Vec<K>,
-    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
+    pub keys: Vec<K>,
+    pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: Clone> SortedSetTableBuilder<K> {

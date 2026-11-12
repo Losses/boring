@@ -5,17 +5,17 @@
  * Replaces the source-text backstop. The old check required a module name to
  * appear in a target compiler's source, which passes for a dead reference and
  * says nothing about a target that ships its own copy. This check compiles the
- * standard behavior corpus to every target with `-D shared-module-trace`, and
+ * standard behavior test set to every target with `-D shared-module-trace`, and
  * the shared mechanisms record the caller of every public entry point that
  * actually runs. A module the registry expects but the trace never sees is a
  * bypass: the target produced that behavior without the shared implementation.
  *
- * The registry (SemanticPassRegistry.hx) stays the source of truth: the
+ * The registry (SemanticPassRegistry.hx) is the only definition: the
  * compilation writes out/shared-module-consumers.json, and this runner asserts
  * exactly that table. Attribution at the direct caller is preserved in the
  * trace and reported as a warning when a module is only reached through
  * another shared mechanism, so a dead direct wrapper stays visible without
- * turning a genuinely consumed module red.
+ * turning a consumed module red.
  *
  * Usage: bun tools/registry-guard/trace-check.ts [target ...]
  *
@@ -96,12 +96,12 @@ function firstTargetCaller(callers: Set<string> | undefined, target: Target): st
 }
 
 /**
- * The trace corpus is the target's own generation corpus. The one exclusion
+ * The trace test set is the target's own generation set. The one exclusion
  * is tests.DriverPlanTests: it pulls in driver.Config, whose StepOverride
  * object literal the dart and swift emitters reject on the current baseline,
  * so keeping it would make the settled targets and the unsettled ones
  * incomparable. The hxml is derived here at read time, so the
- * corpus cannot drift from examples/<target>.hxml.
+ * test set cannot drift from examples/<target>.hxml.
  */
 function traceHxml(target: Target): string {
     const source = readFileSync(join(examplesRoot, target + ".hxml"), "utf8");

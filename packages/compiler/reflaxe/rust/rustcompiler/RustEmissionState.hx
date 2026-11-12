@@ -21,7 +21,7 @@ class RustEmissionState {
     }
 
     /**
-        ThrowFaultVariantGrowth identity predicate — the single definition of
+        ThrowFaultVariantGrowth identity predicate: the single definition of
         the enum a rethrow's growth variant belongs to: the containing
         function's Result error enum. Registration
         (Compiler.registerThrownExceptionVariant) resolves it from the
@@ -34,7 +34,7 @@ class RustEmissionState {
         degenerate case where the error enum is named like the thrown class
         itself and throwVariant returns the raw expression), so a growth
         registration can no longer exist that no lookup can find. Before this
-        predicate the registration keyed the class's payload enum — an
+        predicate the registration keyed the class's payload enum: an
         identity the lookup never consults when the function's Result error
         enum differs (t-munebyud-bxbr, TCN-109).
     **/
@@ -190,7 +190,7 @@ class RustEmissionState {
 
     public final escapingHandleMethods:Map<String, Bool> = [];
 
-    /** Class-level index of the escaping scan: "<module>::<name>" for
+    /** Index of the escaping scan by class: "<module>::<name>" for
         every class with at least one escaping method. Static so the
         declaration-side ABI predicates (RustDecl.usesHandleIdentity)
         can read it without a state instance. One compilation per

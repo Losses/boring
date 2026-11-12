@@ -13,7 +13,7 @@ package pch;
                             (TestTraceRender.stripWholeFraction) verbatim.
       whileDotCount      -- a single `while` walk of a parameter.
       whileLocalDotCount -- a single `while` walk of a local String, which the
-                            function-level String-parameter hoist cannot cover.
+                            hoist for a String parameter cannot cover.
       forRangeDotCount   -- `for (i in 0...s.length)` of a parameter.
       forRangeLocal...   -- `for (i in 0...s.length)` of a local String, which
                             the emitter lowers through the interval

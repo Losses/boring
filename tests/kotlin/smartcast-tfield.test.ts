@@ -4,14 +4,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 /**
- * Kotlin TField smart cast: the receiver-root and field-mutability halves
+ * Kotlin TField smart cast: the receiver-root and field-mutability conditions
  * (PIT-388).
  *
  * Kotlin smart-casts a read `recv.field` only when the field renders as a
  * `val` **and** the receiver chain's root local is a value Kotlin treats as
- * stable. The guard's flow proof (`recv.field != null`) supplies neither half
- * by itself: a `var` property is never smart-castable, a local this body
- * rebinds stops being stable from the rebinding onward, and a local a
+ * stable. The guard's flow proof (`recv.field != null`) supplies neither
+ * condition by itself: a `var` property is never smart-castable, a local
+ * this body rebinds stops being stable from the rebinding onward, and a local a
  * capturing closure writes is unstable for the whole body.
  *
  * The driver asserts the *compiled* result: kotlinc must accept the

@@ -6,14 +6,14 @@ import * as path from "node:path";
  * GuardTernaryArgNonNull is a behavior pin verified through VIII
  * negative-control experiments beyond the original r2.log check:
  *
- *   Mutation discrimination — four hand-authored fixture
+ *   Mutation discrimination: four hand-authored fixture
  *   mutations under .tq-logs/viii/dart-pin-controls/
  *   negative-fixtures/ (old_shape, null_coalesce_variant,
  *   ternary_plus_coalesce, no_space_coalesce) are each correctly
  *   rejected by the full four-clause assertion set, proving the
  *   pin discriminates and is not tautological.
  *
- *   Historical backport —
+ *   Historical backport:
  *   .tq-logs/viii/historical-dart-control/ holds archived
  *   controlled before/after artifacts showing the corresponding
  *   byte difference: 515b00c3~1 output (old shape with r! + !))
@@ -27,7 +27,7 @@ import * as path from "node:path";
  * discrimination and, from the archived artifacts, the byte
  * difference across 515b00c3 for this specific fixture. No claim
  * is made that this would catch any future regression, and no
- * mechanism-level historical causal chain is asserted beyond the
+ * historical causal chain for the mechanism is asserted beyond the
  * recorded runs.
  */
 

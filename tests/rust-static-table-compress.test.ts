@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
 /**
- * Rust static-table compression contract (Emit-StaticTableCompress).
+ * Rust static-table compression requirement (Emit-StaticTableCompress).
  *
  * A large `static final Array<String>` lowers to one joined `&str` plus a
  * split+map; the element-wise form would be thousands of `UString::from`

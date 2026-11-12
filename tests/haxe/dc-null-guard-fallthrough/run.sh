@@ -12,7 +12,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 WS="$(cd "$ROOT/../../.." && pwd)"   # .../tq-workspace
-# Evidence lands outside the worktree. Default is the workspace dc-warn layout
+# Evidence is written outside the worktree. Default is the workspace dc-warn layout
 # this probe was authored in, but any checkout must be able to redirect it:
 # set DC_DART_FIX2_EVIDENCE to a writable directory that exists (or whose
 # parent exists) or the run stops here, so nothing is written into a path that

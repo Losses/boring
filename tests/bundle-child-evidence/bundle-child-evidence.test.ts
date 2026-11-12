@@ -785,11 +785,11 @@ describe("child execution evidence", () => {
       // test, with no piggy-backing on stdout's retention.
       expect(record.stdoutBytes).toBe(0);
 
-      // The host's *stop* is opportunistic, and all three of its landings were
+      // The host's *stop* is opportunistic, and all three of its outcomes were
       // measured on this shape (60 runs through the probe, maxBuffer 4096,
       // 204800 bytes written): 41 where the child had already written its last
-      // byte and exited 0, 18 where the stop landed mid-write, and 1 where it
-      // landed after the last byte. So `signal === "SIGTERM"` and
+      // byte and exited 0, 18 where the stop arrived mid-write, and 1 where it
+      // arrived after the last byte. So `signal === "SIGTERM"` and
       // `exitStatus === null` held in only 19 of those 60 runs and neither is
       // asserted. What is determined is that a capture the host reported as
       // over the limit is never recorded as a normal exit, even in the 41 runs

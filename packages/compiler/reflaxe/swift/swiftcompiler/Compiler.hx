@@ -87,7 +87,7 @@ class Compiler extends PluginCompiler<Compiler> {
         //
         // Force the WHOLE resident set: a consumer build whose entry list omits the
         // `runtime.*` roots still reaches these through the std extern
-        // surface, and `keep` cannot substitute because it only protects an
+        // interface, and `keep` cannot substitute because it only protects an
         // already-typed module from DCE. Forcing only StringTools left
         // `runtime.UString` / `runtime.Graphemes` / `runtime.SortedTable`
         // absent, so such a consumer emitted references to files that were

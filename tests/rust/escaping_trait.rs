@@ -1,6 +1,6 @@
 //! Trait-object parity for the EscapingTraitIdentityOps fixture: a call
 //! dispatched through the @:sharedHandle slot reaches the gated
-//! implementor's C__HandleAdapter, which delegates on the stored handle —
+//! implementor's C__HandleAdapter, which delegates on the stored handle,
 //! so the trait-object path reads exactly what the concrete-handle path
 //! reads. (TraitIdentityAdapter)
 

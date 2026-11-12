@@ -84,7 +84,7 @@ class Compiler extends PluginCompiler<Compiler> {
             Context.getType("runtime.StringTools");
             // Force the WHOLE resident set: a consumer build whose entry list omits
             // the `runtime.*` roots still reaches these through the std extern
-            // surface. Forcing only TestCore and StringTools left
+            // interface. Forcing only TestCore and StringTools left
             // `runtime.UString` / `runtime.Graphemes` / `runtime.SortedTable`
             // absent, so such a consumer emitted references to declarations
             // that were never typed (tests/haxe/resident-consumer-closure,

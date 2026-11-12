@@ -6,7 +6,7 @@ package rustcompiler;
     (renderValueForType) and the coalescing-default wrap so the two sites
     can never drift apart.
 
-    Contract, by rendered text:
+    Rules, by rendered text:
     - "Rc::clone(&x)"              -> false: a handle clone shares the cell.
     - "X::new()" (handle-ABI ctor) -> false: the constructor returns the
       Rc<RefCell<Self>> handle itself.
@@ -29,8 +29,8 @@ class GatedValueCopy {
             || rendered.indexOf("::new(") >= 0;
     }
 
-    /** The named judgment. `gated` is the caller's class-level ABI
-        verdict (RustDecl.usesHandleIdentity): only gated classes can
+    /** The named judgment. `gated` is the caller's ABI verdict for the
+        class (RustDecl.usesHandleIdentity): only gated classes can
         produce a value copy, and only when the text is not already a
         handle form. Empty/unknown text fails closed. */
     public static function isValueCopy(gated:Bool, rendered:String):Bool {

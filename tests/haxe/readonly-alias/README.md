@@ -7,7 +7,7 @@ ordinary shared-container ruling of
 an `Array<T> -> ReadOnlyArray<T>` conversion retains the shared container,
 later slot writes and length changes remain visible through the view, and
 the view outlives the producer frame. The decode-boundary protection of the
-same spec is a separate contract and is out of scope here.
+same spec is a separate requirement and is out of scope here.
 
 ## Shapes (five)
 
@@ -38,22 +38,22 @@ view exists).
 
 ## Authored sources
 
-- `roalias/ReadOnlyAliasOracle.hx` — the five shape functions plus the
+- `roalias/ReadOnlyAliasOracle.hx`: the five shape functions plus the
   `passThrough` / `makeView` / `boundaryProducer` helpers and a `main()`
   that logs the labeled lines on the Haxe JS oracle only (native harnesses
   print the same lines; native generated trees keep an empty `main` so the
   fixture adds no target-specific console dependency).
-- `roalias/AliasHolder.hx`, `roalias/BoundaryResult.hx` — holder and result
+- `roalias/AliasHolder.hx`, `roalias/BoundaryResult.hx`: holder and result
   records mirroring the accepted pattern of `tests/haxe/view-lifetime`.
-- `oracle.hxml` — Haxe JS oracle (Intercept + `-main ReadOnlyAliasOracle`).
-- `gen/{ts,kotlin,rust,swift,dart}.hxml` — per-target generation input; the
+- `oracle.hxml`: Haxe JS oracle (Intercept + `-main ReadOnlyAliasOracle`).
+- `gen/{ts,kotlin,rust,swift,dart}.hxml`: per-target generation input; the
   runner passes `-D <target>-output` and `-D <target>-test-output`.
-- `native/{main.js,Main.kt,harness.rs,native-main.swift,main.dart}` — the
+- `native/{main.js,Main.kt,harness.rs,native-main.swift,main.dart}`: the
   five native harnesses copied into the generated trees by the runner.
 
 ## Provenance and revision identity of the consolidated probes
 
-### S — ordinary alias on the then-known targets
+### S: ordinary alias on the then-known targets
 
 - Report: `/tmp/boring-architecture-round1/reports/s-alias-targets.md`
   (read-only provenance input; the worktree out tree
@@ -71,7 +71,7 @@ view exists).
 - This fixture re-uses S's exact scalar encoding as `alias` and re-observes
   all five targets at the current compiler revision.
 
-### D — Swift readonly boundary probe
+### D: Swift readonly boundary probe
 
 - Reports: `/tmp/boring-architecture-round1/reports/d.md` and
   `/tmp/boring-architecture-round1/reports/d-v2.md` (read-only provenance
@@ -87,7 +87,7 @@ view exists).
 - This fixture supplies the call-boundary position D left open (`passed`)
   and re-observes Swift under the current integrated revision.
 
-### X — view-lifetime exercise
+### X: view-lifetime exercise
 
 - Design reports: `/tmp/boring-architecture-round1/reports/x-goose-design.md`,
   `x-goose-design-v2.md`, and `x-native-design.md` (read-only provenance
@@ -103,7 +103,7 @@ view exists).
   discriminating shapes into the five-shape oracle and executes them on all
   five targets.
 
-## Evidence layout and contract
+## Evidence layout and guarantees
 
 `run.sh` allocates one fresh `out/readonly-alias/runs/ro-XXXXXXXX` per
 invocation and records, per stage, the shell-quoted argv, cwd, separated
@@ -159,7 +159,7 @@ target toolchain limitation, never as a semantic difference.
 ## Out of scope
 
 - The A3 integrated-tree production emitter and the decode-boundary
-  protection of feature 18 (separate contract; this fixture only exercises
+  protection of feature 18 (separate requirement; this fixture only exercises
   the ordinary conversion).
 - The R1–R6 writable-place fixtures and `tests/swift-readonly-boundary/`.
 - Interpreting the Rust clone positions as "all readonly conversions fail";

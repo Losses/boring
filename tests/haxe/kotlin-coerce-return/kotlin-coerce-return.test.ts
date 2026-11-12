@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 
 // Kotlin Return coercion (P2.7): a returned value that must satisfy a
-// non-null return-type contract is hardened with !!. The destination
+// non-null return type is hardened with !!. The destination
 // admitsAbsence follows the current function/lambda return type (the P1
 // rebound type), so inside a Null<String>-returning lambda the return stays
-// bare while the enclosing non-null String return extracts with !! (contract 1):
+// bare while the enclosing non-null String return extracts with !! (Requirement 1):
 //
 //   * inside the lambda "fun(): String?" the body emits a bare
 //     "return _gthis.nullableString()" (the lambda's own nullable return
@@ -59,7 +59,7 @@ test("a nullable value returned through a Null<String> lambda stays bare while t
 
   const normal = await Bun.file(`${generated}/returning/ReturnCases.kt`).text();
   const body = functionBody(normal, "lambdaReturn");
-  // contract 1: conversion inside the lambda uses the lambda's own nullable
+  // Requirement 1: conversion inside the lambda uses the lambda's own nullable
   // return type, so the body stays bare ...
   expect(body, "lambda body must keep its bare nullable return").toContain("return _gthis.nullableString()");
   expect(body, "lambda body must NOT harden with !!").not.toContain("_gthis.nullableString()!!");

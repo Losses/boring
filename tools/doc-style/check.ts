@@ -350,7 +350,7 @@ function escapeRegex(term: string): string {
 
 function compileTerm(term: BannedTerm): RegExp {
   if (term.match.includes(" ")) {
-    return new RegExp(escapeRegex(term.match), "i");
+    return new RegExp(`\\b${escapeRegex(term.match)}\\b`, "i");
   }
   return new RegExp(`\\b${escapeRegex(term.match)}(?:s|es|ed|ing)?\\b`, "i");
 }
@@ -590,7 +590,7 @@ export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
 // is not fixable: rewriting the text to satisfy a style rule would break the
 // manifest the copy is pinned by. The checker already excludes the out/
 // directory these copies come from (EXCLUDED_PARTS); scanning the copies while
-// excluding the originals measures nothing about authored prose, and it leaves
+// excluding the originals measures nothing about authored text, and it leaves
 // the gate permanently red on content no commit can repair.
 //
 // The rule is keyed on the manifest, so it stays

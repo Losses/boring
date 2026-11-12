@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 
 /**
- * Emit-UnitClosure contract: a main data class with no @:test that only test
+ * Emit-UnitClosure requirement: a main data class with no @:test that only test
  * code references is reclassified to the tests unit, so a release build stops
  * shipping it while the test tree still carries it. The classification lives in
  * the shared CompilationUnits layer, so the same golden fixture must route the

@@ -54,7 +54,7 @@ class RustImports {
     /**
         Registers a glob import plus the symbol the emitter renders for it,
         so renderFiltered can intersect the module exports with the body
-        (Contract 6).
+        (Requirement 6).
     **/
     public function requireGlob(importPath:String, symbol:String):Void {
         require(importPath);
@@ -150,7 +150,7 @@ class RustImports {
             // alias, never the aliased path tail. (AliasedGlobImportGrounding)
             // A glob import uses this module's exported symbols: it stays
             // only when the body names one of the symbols recorded at the
-            // require site. Contract 6 keeps the require site as the single
+            // require site. Requirement 6 keeps the require site as the single
             // source. (GlobSymbolIntersection)
             final glob = StringTools.endsWith(imp, "::*");
             if (glob) {

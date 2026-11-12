@@ -16,7 +16,7 @@ package boring;
  *
  * Haxe ACCEPTS this body without error.  `Null<Atom>` (where `Atom` is
  * a plain class) is permissively unifiable with the non-null element
- * type — Haxe does NOT narrow `atom` at this call site.  Haxe's own
+ * type: Haxe does NOT narrow `atom` at this call site.  Haxe's own
  * -js backend emits `[atom]` without any guard (the bare `[atom]` in
  * probe-out.js).
  *

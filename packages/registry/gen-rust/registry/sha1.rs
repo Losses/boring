@@ -85,7 +85,7 @@ impl Sha1 {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += Sha1::sha1_word(h0).as_ustr(); __s += Sha1::sha1_word(h1).as_ustr(); __s += Sha1::sha1_word(h2).as_ustr(); __s += Sha1::sha1_word(h3).as_ustr(); __s += Sha1::sha1_word(h4).as_ustr(); __s }).as_str());
     }
 
-    pub(crate) fn sha1_utf8(text: &UStr) -> Vec<u32> {
+    pub fn sha1_utf8(text: &UStr) -> Vec<u32> {
     let __units = text.as_slice();
     let __count = u_string::unit_count(&text);
         let mut out: Vec<u32> = vec![];
@@ -119,11 +119,11 @@ impl Sha1 {
         return out;
     }
 
-    pub(crate) fn sha1_rol(x: u32, n: u32) -> u32 {
+    pub fn sha1_rol(x: u32, n: u32) -> u32 {
         return (x) << (n) | x >> u32::wrapping_sub(32, n);
     }
 
-    pub(crate) fn sha1_word(x: u32) -> UString {
+    pub fn sha1_word(x: u32) -> UString {
         let digits = UString::from("0123456789abcdef").to_ustring();
         let mut out = UString::new();
         let mut s = 28;

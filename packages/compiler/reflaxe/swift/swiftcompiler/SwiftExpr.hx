@@ -896,7 +896,7 @@ class SwiftExpr {
                 final inner = stripWrap(ret);
                 switch (inner.expr) {
                     case TSwitch(_, _, _):
-                        // The return contract being satisfied is the actual
+                        // The return type being satisfied is the actual
                         // destination. (DestinationRequirementCarried)
                         return switchReturn(inner, depth, false, currentReturnType);
                     case _:
@@ -1370,7 +1370,7 @@ class SwiftExpr {
         // types.of(stmts[last].t) the closure header above declares. This block is
         // an inline helper's body (blockExpression is reached only from argument
         // position), so its value is not the enclosing member's or lambda's return
-        // contract; reading currentReturnType here converted it to that contract's
+        // type; reading currentReturnType here converted it to that return type's
         // read-only array whenever one was present. Consumers that need a read-only
         // boundary already apply it around the whole IIFE.
         out.push(indent(1) + "return " + expr(value));
@@ -2606,9 +2606,9 @@ class SwiftExpr {
         final previousOptional = currentFuncReturnsOptional;
         final previousReturn = currentReturnType;
         currentFuncReturnsOptional = isNullLeafType(f.t);
-        // TFunc.t is the lambda's own return contract; return-position sites read
+        // TFunc.t is the lambda's own return type; return-position sites read
         // currentReturnType, which without this seeding holds the enclosing
-        // MEMBER's return type. Sites whose destination is NOT this contract
+        // MEMBER's return type. Sites whose destination is NOT this return type
         // (blockExpression: an inline helper's block) must not read it.
         currentReturnType = Context.follow(f.t);
         final result = functionLiteralInner(f);
@@ -2632,7 +2632,7 @@ class SwiftExpr {
                 case TReturn(r) if (r != null):
                     // The fast path must apply the same destination handling
                     // as the multi-statement path below: the lambda's own
-                    // contract is the destination, so a ReadOnlyArray return
+                    // return type is the destination, so a ReadOnlyArray return
                     // (or an Int-into-Float widening) has to convert the
                     // returned value too. A switch subject keeps the
                     // multi-statement rendering, which routes through
@@ -2880,7 +2880,7 @@ class SwiftExpr {
     /**
         A value-producing route's arm value, lowered against the route's ACTUAL
         destination requirement -- the binding, the assignment place, the
-        parameter, or the return contract being satisfied. The arm value
+        parameter, or the return type being satisfied. The arm value
         converts against that requirement; an unconverted emission or a
         borrow from the unrelated return type cannot occur. `fallbackText` is
         returned unchanged when the destination does not sit on the array
@@ -3635,7 +3635,7 @@ class SwiftExpr {
 
     /**
         A switch expression used as a call argument lowers its closure against
-        the callee parameter (the owning contract for the argument route);
+        the callee parameter (the destination that owns the argument route);
         the switch's own AST type stays out of the decision. Every other
         argument renders exactly as before. A cast-wrapped switch keeps its
         `castText` rendering. (DestinationRequirementCarried)
@@ -5860,7 +5860,7 @@ class SwiftExpr {
         for (l in body.lines)
             out.push(l);
         final bodyTry = containsThrowingCall(stripToValue(parts.body)) ? "try " : "";
-        // The return contract being satisfied (currentReturnType) is this
+        // The return type being satisfied (currentReturnType) is this
         // route's actual destination requirement. (DestinationRequirementCarried)
         final bodyValueExpr = PolicyQueries.blockValueParts(parts.body).value;
         if (!armPrefixThrows(parts.body)) {
@@ -6098,7 +6098,7 @@ class SwiftExpr {
         // discarded, as in the Haxe source), and an arm's explicit `return`
         // is preserved: it returns from the enclosing function. The
         // value-mode renderer's `return ` prefix must not be spliced out of
-        // the line text: that splice swallowed an explicit arm return and
+        // the line text: that splice dropped an explicit arm return and
         // turned it into an unused expression, so every choice fell through
         // to the function's trailing return (W1).
         return switchReturn(sw, depth, true, null, true);
@@ -6119,15 +6119,15 @@ class SwiftExpr {
     /**
         Expression-position variant switches use an immediately-invoked
         closure so the native switch remains in Swift's permitted return
-        position. `destination` is the owning contract the caller carries —
+        position. `destination` is the destination the caller carries:
         the declared binding type on the binding route, the callee parameter
         on the argument route. Callers in expression positions that carry no
-        contract keep the switch's own AST type as the fallback.
+        destination keep the switch's own AST type as the fallback.
         (DestinationRequirementCarried)
     **/
     function switchExpression(sw:TypedExpr, destination:Null<Type> = null):String {
         // The closure this emits declares `types.of(dest)` as its result; that
-        // type is the arms' actual destination requirement. A contract the
+        // type is the arms' actual destination requirement. A return type the
         // backend cannot render (an uninstantiated generic parameter, Dynamic)
         // is not usable and falls back to the switch's own AST type.
         // (DestinationRequirementCarried)

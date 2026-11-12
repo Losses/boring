@@ -988,7 +988,7 @@ recurse into child packages. A discovery directory must contain a matching
 module. The driver rejects unknown source-set names, duplicate entries,
 invalid module paths, and absolute or parent discovery roots.
 
-A configuration's `rootsFile` replaces the project-level `rootsFile` when
+A configuration's `rootsFile` replaces the project-wide `rootsFile` when
 present. The driver includes the selected HXML, then appends the named
 `sourceSet`'s package macros and module roots. Either field also works alone.
 The `roots` command writes a source set to an HXML file for direct Haxe
@@ -1146,7 +1146,7 @@ Every target writes its test records as JSON Lines to
 environment variable `BORING_TEST_RESULTS` first and falls back to
 `out/test-results/<target>.jsonl` when the variable is unset. The
 driver always sets the variable, so all six targets collect their
-results through one contract; the fallback exists for a configuration run by
+results through one interface; the fallback exists for a configuration run by
 hand outside the driver.
 
 ### `compare`, the baseline, and mechanism coverage

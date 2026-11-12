@@ -6,8 +6,8 @@ matching the module name in the target's source text. That proof accepts a dead
 reference (a wrapper nobody calls) and says nothing about a target that ships
 its own copy.
 
-This corpus proves consumption behaviorally. Each target compiles the standard
-Haxe behavior corpus with `-D shared-module-trace=<path>`; every public entry
+This test set proves consumption behaviorally. Each target compiles the standard
+Haxe behavior test set with `-D shared-module-trace=<path>`; every public entry
 point of a registered module records the class that called it, and the
 after-generate flush writes one `module<TAB>caller` line per pair. The runner
 asserts that each `(module, target)` row in the registry appears in that
@@ -42,10 +42,10 @@ them under `transitive-only` so a dead direct wrapper stays visible.
    available here: Haxe rejects a build macro on a type used from macro code
    ("You cannot use @:build inside a macro"), and every shared module is used by
    the target compiler macros.
-3. Add a corpus or an `examples/*.hxml` feature that reaches the module on the
-   targets the row expects. The trace only proves what the corpus exercises.
+3. Add a test or an `examples/*.hxml` feature that reaches the module on the
+   targets the row expects. The trace only proves what the test set exercises.
 
-## The trace corpus
+## The trace test set
 
 The runner derives `out/shared-module-trace/<target>/trace.hxml` from
 `examples/<target>.hxml` and drops `tests.DriverPlanTests`. That test pulls in
@@ -53,4 +53,4 @@ The runner derives `out/shared-module-trace/<target>/trace.hxml` from
 reject on the current baseline (verified on unmodified compiler sources).
 Keeping it would make the settled targets and the unsettled ones incomparable.
 Drop the exclusion in `trace-check.ts` once both emitters accept the literal.
-Deriving the hxml keeps the corpus from drifting from the generation entries.
+Deriving the hxml keeps the test set from drifting from the generation entries.

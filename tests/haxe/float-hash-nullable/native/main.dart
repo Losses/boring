@@ -1,14 +1,14 @@
 // Native assertion harness for the Dart generated tree of the nullable-float
-// hashCode regression contract (board t-mvzn8ckw-vh3s). The runner copies this
+// hashCode regression test (board t-mvzn8ckw-vh3s). The runner copies this
 // file into its run directory next to the generated tree, so the relative
-// import reaches <run>/dart-gen/lib/floathashnullable/float_hash_nullable_contract.dart.
+// import reaches <run>/dart-gen/lib/floathashnullable/float_hash_nullable_requirements.dart.
 // The harness instantiates the generated NullableFloatRecord and asserts, in
 // the target language, that hashCode is stable for null / signed zero / NaN
 // and that equals semantics are unchanged. It exits nonzero on any failure.
 import 'dart:io';
 
-import '../dart-gen/lib/floathashnullable/float_hash_nullable_contract.dart'
-    as contract;
+import '../dart-gen/lib/floathashnullable/float_hash_nullable_requirements.dart'
+    as requirements;
 
 void main(List<String> arguments) {
   var failures = 0;
@@ -19,10 +19,10 @@ void main(List<String> arguments) {
     }
   }
 
-  final hashNull = contract.NullableFloatRecord(null).hashCode;
-  final hashPosZero = contract.NullableFloatRecord(0.0).hashCode;
-  final hashNegZero = contract.NullableFloatRecord(-0.0).hashCode;
-  final hashNaN = contract.NullableFloatRecord(double.nan).hashCode;
+  final hashNull = requirements.NullableFloatRecord(null).hashCode;
+  final hashPosZero = requirements.NullableFloatRecord(0.0).hashCode;
+  final hashNegZero = requirements.NullableFloatRecord(-0.0).hashCode;
+  final hashNaN = requirements.NullableFloatRecord(double.nan).hashCode;
 
   // null hashes to 0 and a signed zero hashes to zero bits, so a single-field
   // record hashes null, +0.0, and -0.0 all equal (P-13 float canonical).
@@ -34,11 +34,11 @@ void main(List<String> arguments) {
   check(hashNaN == hashNaN, 'hashCode(NaN) is stable');
 
   // equals semantics unchanged.
-  check(contract.NullableFloatRecord(null) == contract.NullableFloatRecord(null),
+  check(requirements.NullableFloatRecord(null) == requirements.NullableFloatRecord(null),
       'null == null');
-  check(contract.NullableFloatRecord(null) != contract.NullableFloatRecord(0.0),
+  check(requirements.NullableFloatRecord(null) != requirements.NullableFloatRecord(0.0),
       'null != +0.0');
-  check(contract.NullableFloatRecord(0.0) == contract.NullableFloatRecord(-0.0),
+  check(requirements.NullableFloatRecord(0.0) == requirements.NullableFloatRecord(-0.0),
       '+0.0 == -0.0');
 
   if (failures > 0) {

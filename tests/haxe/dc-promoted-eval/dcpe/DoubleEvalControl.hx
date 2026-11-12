@@ -1,7 +1,7 @@
 package dcpe;
 
 /**
-    Source-level negative control: the same side-effecting subject is written at
+    Negative control at the source: the same side-effecting subject is written at
     two source positions, so any faithful lowering evaluates `nextKind()` twice
     and `callCount` ends at 2 after one call to `doubleOnce()`.
 

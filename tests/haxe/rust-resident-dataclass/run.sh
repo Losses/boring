@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Minimal-consumer guard for the Rust resident emission bridge.
 #
-# Why this fixture exists at all, and why it is not a corpus test:
+# Why this fixture exists at all, and why it is not a test over the full set:
 # the resident emission gate (Compiler.hx:862) is a GLOBAL UNION over one
 # shared `shimsUsed` map -- it emits a resident if ANY of that module's
-# business externs is lit anywhere in the program. On the full corpus some
+# business externs is lit anywhere in the program. On the full example set some
 # unrelated module always lights the std.SortedMap* keys, so sorted_table.rs
 # is emitted no matter what the RustImports requireType bridge does. Ablating
-# the bridge over the full corpus therefore produces a byte-identical tree
+# the bridge over the full example set therefore produces a byte-identical tree
 # and proves nothing; the same ablation over a single @:dataClass root
 # produces a dangling `use` and a cargo E0432. (PIT-390, TCN-172)
 #
 # What is checked, in order:
 #   1. generation succeeds;
-#   2. the consumer .rs really does import the resident;
+#   2. the consumer .rs imports the resident;
 #   3. runtime/mod.rs declares that resident (the bridge's job);
 #   4. the generated crate compiles, which is the end-to-end statement:
 #      a dangling import is what a missing bridge actually costs.

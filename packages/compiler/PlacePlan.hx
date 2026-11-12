@@ -2,7 +2,7 @@
 import haxe.macro.Type.TypedExpr;
 
 /**
-    The single access-intent contract for a mutation or value read.
+    The single access-intent record for a mutation or value read.
 
     The three axes of a write are kept separate: storage representation
     (RepresentationPlan), receiver ABI, and place/access intent. PlacePlan is

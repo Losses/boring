@@ -3,7 +3,7 @@ package dcguard;
 /**
 	Minimal discriminator for local non-null promotion after a
 	fall-through `if (x == null) { ... }` guard (observation only; no
-	Haxe `trace` — the harness prints, mirroring the readonly-alias
+	Haxe `trace`: the harness prints, mirroring the readonly-alias
 	fixture discipline).
 
 	p2 is the discriminator: the guard body does NOT exit, so `s` may
@@ -24,13 +24,13 @@ package dcguard;
 	leaking past `functionLiteral` would emit `s.length` there and
 	the analyzer rejects the file.
 
-	p10 isolates the render-time re-assignment surface on top of a
+	p10 isolates the re-assignment at render time on top of a
 	TERMINATING guard: the promotion at the guard is legitimate, but
 	`s` is re-assigned to a nullable ternary afterwards, so the use
 	must be `s!.length` again. A promotion that never observes the
 	render-time write emits bare `s.length` (analyzer error).
 
-	p11 isolates the closure-leak surface on top of a TERMINATING
+	p11 isolates the closure leak on top of a TERMINATING
 	guard: the promotion is legitimate in straight-line code, but a
 	closure body must start from a clean promotion slate, so the
 	read inside `f` must be `s!.length` too.
@@ -78,7 +78,7 @@ class DcGuard {
 	public static function p11TerminateGuardThenClosure(flag:Bool):Int {
 		// The backend emits the captured local as final (never
 		// reassigned), so the leak shows up as a redundant `!` emit here;
-		// p10 covers the error-level case.
+		// p10 covers the case where the leak is an error.
 		var s:Null<String> = flag ? "abcd" : null;
 		if (s == null) {
 			return -1;

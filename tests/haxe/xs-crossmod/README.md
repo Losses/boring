@@ -28,7 +28,7 @@ and cargo rc separately, uses a FRESH CARGO_TARGET_DIR per run, and logs a
 | earlier fix + reverse of this work's PATCH.diff | 0 | 101 | {E0609} again |
 
 Key generated-Rust signature (pre, `xsxm/cross_probe.rs`): `rethrow_e1` keeps
-raw `e.fault` while `rethrow_e2` is rewritten — the surviving "last scanned
+raw `e.fault` while `rethrow_e2` is rewritten: the surviving "last scanned
 wins" mirror. Post, both are rewritten:
 `Err(F1Fault::E1Fault(Box::new(E1::new(e))))` under `Result<u32, F1Fault>`.
 

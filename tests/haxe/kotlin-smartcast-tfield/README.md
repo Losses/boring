@@ -1,19 +1,19 @@
 # Kotlin TField smart-cast receiver stability fixture
 
-PIT-388. Kotlin smart-casts a read `recv.field` only when **both** halves hold:
-the field renders as a `val`, and the receiver chain's root local is a value
-Kotlin treats as stable. The flow proof an emitter derives from the guard
-`recv.field != null` supplies neither half on its own. An emitter that answered
-the question from the guard alone therefore emitted a plain dot and let kotlinc
-reject the tree.
+PIT-388. Kotlin smart-casts a read `recv.field` only when **both** conditions
+hold: the field renders as a `val`, and the receiver chain's root local is a
+value Kotlin treats as stable. The flow proof an emitter derives from the
+guard `recv.field != null` supplies neither condition on its own. An emitter
+that answered the question from the guard alone therefore emitted a plain dot
+and let kotlinc reject the tree.
 
 ## Shapes
 
-`casee.CaseEOps` holds five functions. The Kotlin field half is `final` in
-`casee.Holder` and a Kotlin `var` in `casee.MutableHolder`, so the two halves
-are separable.
+`casee.CaseEOps` holds five functions. The field is `final` in
+`casee.Holder` and a Kotlin `var` in `casee.MutableHolder`, so the two
+conditions can be tested separately.
 
-| Function | Halves | Expected |
+| Function | Conditions | Expected |
 | --- | --- | --- |
 | `betweenWrite` | final field, root local rebound between guard and use | negative control |
 | `closureWrite` | final field, root local written from a capturing closure | negative control |

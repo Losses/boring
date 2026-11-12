@@ -90,7 +90,7 @@ class SwiftDecl {
 
     /**
         Visibility for a below-public member. @:allow members and members of
-        a class named by a class-level @:access grant (or by a cross-module
+        a class named by an @:access grant on the class (or by a cross-module
         synthesized default) widen to public: the guest class can be
         reclassified into the test module, where Swift internal is invisible
         across the module boundary. A member whose signature names a
@@ -521,7 +521,7 @@ class SwiftDecl {
         zeroes hash to zero bits, every NaN to the width's quiet-NaN token,
         and any other value to its IEEE bitPattern (Infinity included).
         Swift's bitPattern keeps raw NaN payloads, so the explicit isNaN
-        branch collapses them. (P-13 float canonical) */
+        branch maps them to that token. (P-13 float canonical) */
     function floatHashBits(value:String):String {
         final nanToken = FloatPrecision.isF32() ? "0x7fc00000" : "0x7ff8000000000000";
         return "(" + value + " == 0.0 ? 0 : (" + value + ".isNaN ? " + nanToken + " : " + value + ".bitPattern))";

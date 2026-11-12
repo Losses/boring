@@ -2,7 +2,7 @@ package rusthandlefixtures;
 
 // multi-field chained expression: one owned handle param is borrowed for many
 // field reads inside a single result-construction expression, mimicking the
-// tiqian line_adjustment_stage.rs:899 LayoutResult::new giant call where the
+// tiqian line_adjustment_stage.rs:899 LayoutResult::new call where the
 // handle is implicitly copied across borrow().field.clone() chains.
 class Source {
     public final a:Int;

@@ -359,7 +359,7 @@ class EmitSink {
         // Coercion events carry their own Haxe source file. A coercion with
         // no source position cannot be attributed to any file, so it is
         // dropped here, so every sidecar stays free of it. Refer
-        // events never land here: written once via writeReferEvents().
+        // events never arrive here: written once via writeReferEvents().
         final fileCoerceEvents:Array<EmitCoerceEvent> = [];
         for (ce in coerceEvents) {
             final sf = ce.sourceFile;

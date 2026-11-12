@@ -10,11 +10,11 @@ Status: **v1.0.0 draft**
 
 ## Purpose
 
-This document is the single cross-target float-precision contract. It maps
-"known source numeric semantics + target/lane + operation context" onto a
-verifiable representation and conversion plan. It does **not** decide Haxe
-source semantics; source numeric facts are inputs, produced upstream, the same
-way SemanticFacts feeds SemanticPolicy.decide.
+This document is the single cross-target float-precision specification. It maps
+"known source numeric semantics + target and precision mode + operation
+context" onto a verifiable representation and conversion plan. It does **not**
+decide Haxe source semantics; source numeric facts are inputs, produced
+upstream, the same way SemanticFacts feeds SemanticPolicy.decide.
 
 The executable encoding lives in packages/compiler/FloatPrecisionPolicy.hx
 (types + decide/explain) and packages/compiler/FloatPrecisionValidator.hx
@@ -22,17 +22,17 @@ The executable encoding lives in packages/compiler/FloatPrecisionPolicy.hx
 docs/specs/target-semantic-policy.md, with its own ids: FP-n and P-n are
 independent namespaces and never mix ids.
 
-## Precision lane (v1 mixed)
+## Precision modes (v1 mixed)
 
 v1 declares the compilation as **mixed precision**:
 
-- Value floats take the precision lane (F32 or F64).
-- Accumulator state is always binary64, regardless of lane, and must be
+- Value floats take the declared precision mode (F32 or F64).
+- Accumulator state is always binary64, regardless of the mode, and must be
   narrowed exactly once when it crosses back into a Value slot.
-- Wire and NumericHelper widths do not follow the lane.
+- Wire and NumericHelper widths do not follow the precision mode.
 
 If the team later switches to strict f32, the Accumulator rule changes to
-ValuePrecision (accumulator width follows the lane). That change is an
+ValuePrecision (accumulator width follows the precision mode). That change is an
 explicit, versioned edit of this document and of FloatPrecisionPolicy.decide
 -- it is **never a silent default**, and Accumulator never inherits Value
 behavior by omission.
@@ -50,30 +50,30 @@ and target restrictions.
 ### FP-1 Value
 
 - **Cross-target semantics**: a Haxe Float value, field, parameter, return
-  value, or container element. The lane decides the width: F32 lane ->
-  binary32 storage, F64 lane -> binary64 storage. Computation happens at
+  value, or container element. The precision mode decides the width: F32 ->
+  binary32 storage, F64 -> binary64 storage. Computation happens at
   storage width; no hidden intermediate widening.
 - **Precision role**: PrecisionRole.Value.
 - **Allowed / forbidden**: arithmetic, comparison, assignment, parameter and
-  return passing, container storage -- all allowed at lane width. Forbidden:
-  implicit widening to f64 mid-expression; implicit narrowing on store;
-  mixing widths in one expression without an explicit conversion edge.
+  return passing, container storage -- all allowed at the mode's width.
+  Forbidden: implicit widening to f64 mid-expression; implicit narrowing on
+  store; mixing widths in one expression without an explicit conversion edge.
 - **Explicit conversions / rounding**: a Widen (Value f32 -> Accumulator) or
   Narrow (Accumulator -> Value f32) conversion edge at the exact boundary
   node; the rounding point is the narrowing store.
-- **Plan fields**: role=Value, storageType=f32/f64 per lane, computeType=
-  storageType, bitsType=u32/u64, literalSuffix per target profile, no
-  conversionEdges unless an operand crosses an accumulator boundary.
+- **Plan fields**: role=Value, storageType=f32/f64 per precision mode,
+  computeType=storageType, bitsType=u32/u64, literalSuffix per target profile,
+  no conversionEdges unless an operand crosses an accumulator boundary.
 - **Validator criteria**: every Value node has a resolved plan whose
-  storageType matches the lane; every conversion edge in/out is a registered
-  Narrow/Widen; no Value node computes at a width other than its storage
-  width.
+  storageType matches the precision mode; every conversion edge in/out is a
+  registered Narrow/Widen; no Value node computes at a width other than its
+  storage width.
 - **Fixtures**: positive -- `var x:Float = 1.5; x = x * 2.0;` under the F32
-  lane resolves to Value/f32 with no conversion edges. Negative -- the same
+  mode resolves to Value/f32 with no conversion edges. Negative -- the same
   expression where the plan emits computeType=f64 while storageType=f32 is a
   validator failure (width mismatch).
 - **Target restrictions**: Rust f32/f64; Kotlin Float/Double; TypeScript only
-  under the F64 lane (`number` is binary64, the F32 lane is rejected at
+  under the F64 mode (`number` is binary64, F32 is rejected at
   compilation start, consistent with FloatPrecision.hx).
 
 ### FP-2 Accumulator
@@ -81,11 +81,11 @@ and target restrictions.
 - **Cross-target semantics**: accumulation state a policy table lists by name
   or that semantic analysis identifies as such (summing variables, running
   totals, reduction temporaries). Under v1 mixed it is always binary64,
-  independent of the lane.
+  independent of the precision mode.
 - **Precision role**: PrecisionRole.Accumulator.
 - **Allowed / forbidden**: repeated binary64 arithmetic and intra-accumulator
   reads are allowed. Forbidden: binary32 accumulation; more than one narrowing
-  on the way out; inheriting Value behavior by default (see "Precision lane").
+  on the way out; inheriting Value behavior by default (see "Precision modes").
 - **Explicit conversions / rounding**: entering the accumulator is a Widen
   (Value -> Accumulator, exact); leaving is exactly one Narrow (Accumulator ->
   Value, round-to-nearest at the store). The accumulator-to-accumulator path
@@ -123,21 +123,21 @@ and target restrictions.
   conversionEdges, roundingPoint=none.
 - **Validator criteria**: every bitcast edge pairs equal widths; a Bits node
   never carries a float arithmetic allowance.
-- **Fixtures**: positive -- a f32 bit pattern round-trip under the F32 lane:
+- **Fixtures**: positive -- a f32 bit pattern round-trip under F32:
   Bits/u32 with one bitcast edge. Negative -- a u32 <-> f64 bitcast plan
   fails (width mismatch).
 - **Target restrictions**: Rust u32/u64 via to_bits/from_bits; Kotlin width
   helpers per stdlib; TypeScript needs a DataView-backed helper and is
-  F64-lane only.
+  F64 only.
 
 ### FP-4 Wire
 
 - **Cross-target semantics**: protocol-fixed-width fields (wire format). The
-  width is declared by the protocol and never follows the lane.
+  width is declared by the protocol and never follows the precision mode.
 - **Precision role**: PrecisionRole.Wire.
 - **Allowed / forbidden**: encode/decode at the declared width are allowed.
-  Forbidden: using the lane to change wire width; arithmetic on Wire values
-  without first converting to Value; implicit lane-driven re-encodings.
+  Forbidden: using the precision mode to change wire width; arithmetic on Wire
+  values without first converting to Value; implicit mode-driven re-encodings.
 - **Explicit conversions / rounding**: encode (Value -> Wire) and decode
   (Wire -> Value) edges; each names its rounding behavior in the edge (a
   decode is exact, an f32 encode rounds once).
@@ -149,7 +149,7 @@ and target restrictions.
   edges, never a bare cast.
 - **Fixtures**: positive -- a protocol field declared f32 encodes once with
   one rounding point on both targets. Negative -- a Wire slot that follows
-  the F32 lane to f64 on one target and f32 on another fails (lane leaked
+  the F32 mode to f64 on one target and f32 on another fails (mode leaked
   into wire).
 - **Target restrictions**: identical logical width on Rust/Kotlin/TypeScript/
   Swift/Dart; byte order and storage form are target realizations, not
@@ -159,12 +159,12 @@ and target restrictions.
 
 - **Cross-target semantics**: parsing, formatting, and protocol helper
   functions. Each helper has its own explicit signature and never changes its
-  types because a caller lane changed.
+  types because the caller's precision mode changed.
 - **Precision role**: PrecisionRole.NumericHelper.
 - **Allowed / forbidden**: the helper declared parse/format/encode/decode
-  operations are allowed. Forbidden: retyping a helper per caller lane; a
-  helper converting through the caller width implicitly; hiding a rounding
-  point inside a helper without declaring it.
+  operations are allowed. Forbidden: retyping a helper per caller precision
+  mode; a helper converting through the caller width implicitly; hiding a
+  rounding point inside a helper without declaring it.
 - **Explicit conversions / rounding**: edges are declared in the helper own
   signature; the plan records the helper declared widths and the rounding
   points it names.
@@ -172,37 +172,37 @@ and target restrictions.
   helper explicit signature, bitsType where the signature declares one,
   ruleIds=[FP-5].
 - **Validator criteria**: the plan widths equal the helper declared signature;
-  a caller lane never alters the helper plan.
+  the caller's precision mode never alters the helper plan.
 - **Fixtures**: positive -- a parse helper declared (String) -> f64 returns
-  f64 under both lanes with the same plan. Negative -- a helper whose plan
-  flips storage from f64 to f32 because the caller is F32-lane fails
-  (lane-sensitive helper signature).
+  f64 under both modes with the same plan. Negative -- a helper whose plan
+  flips storage from f64 to f32 because the caller is in F32 mode fails
+  (mode-sensitive helper signature).
 - **Target restrictions**: helper realizations are per-target, but their
   declared widths are not.
 
 ### FP-6 IntToFloat
 
 - **Cross-target semantics**: the Haxe Int -> Float conversion. The result is
-  a Value at lane width; it is not an implicit f64 intermediate and does not
-  confer any f64 semantics on the surrounding expression.
+  a Value at the mode's width; it is not an implicit f64 intermediate and does
+  not confer any f64 semantics on the surrounding expression.
 - **Precision role**: PrecisionRole.IntToFloat (the resulting node plan role
   is Value with IntToFloat provenance).
 - **Allowed / forbidden**: the conversion itself is always allowed. Forbidden:
   reusing IntToFloat to justify f64 intermediates; folding Int arithmetic
   into the float plan.
 - **Explicit conversions / rounding**: one IntToFloat edge; exact for 32-bit
-  ints at both lane widths, so roundingPoint=none.
-- **Plan fields**: role=Value, storageType per lane,
+  ints at both precision widths, so roundingPoint=none.
+- **Plan fields**: role=Value, storageType per precision mode,
   conversionEdges=[IntToFloat], provenance names FP-6.
 - **Validator criteria**: the edge exists exactly once per conversion site
   and the result plan role is Value; the surrounding expression widths stay
-  lane-bound.
-- **Fixtures**: positive -- `var f:Float = i;` under the F32 lane: IntToFloat
+  bound to the precision mode.
+- **Fixtures**: positive -- `var f:Float = i;` under F32: IntToFloat
   edge, result Value/f32. Negative -- a plan claiming the result is a
   binary64 intermediate that then widens a binary32 neighbor fails (phantom
   f64).
 - **Target restrictions**: TypeScript `i` is already `number` (the edge is a
-  no-op annotation); Kotlin i.toDouble()/i.toFloat() per lane; Rust
+  no-op annotation); Kotlin i.toDouble()/i.toFloat() per precision mode; Rust
   `i as f32` / `i as f64`.
 
 ## Conversion plans

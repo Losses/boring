@@ -24,7 +24,7 @@
 #     pipeline (-lib reflaxe -lib boring + Intercept) to record that
 #     the pipeline accepts it as well.
 #   - The Haxe JS oracle (boring pipeline) anchors the expected values;
-#     a broken oracle anchor is the only source-level failure.
+#     a broken oracle anchor is the only failure in the source.
 #   - Per target (ts kotlin rust swift dart): gen, lowering excerpt,
 #     native compile, native run, compare. A generation or native
 #     compile failure, a native crash (trap, exception, platform type

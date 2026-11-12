@@ -4,7 +4,7 @@
 //! a file, a regular file used as a directory, and a directory with mode 000
 //! for the permission-denied kind), calls the generated observation body, and
 //! then calls the uncaught path. The uncaught failure is handled as the
-//! generated Result error and surfaces as a deterministic nonzero exit status
+//! generated Result error and appears as a deterministic nonzero exit status
 //! with no panic (docs/specs/stdlib/17-platform-modules.md).
 
 use std::os::unix::fs::PermissionsExt;

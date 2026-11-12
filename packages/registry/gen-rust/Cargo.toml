@@ -12,4 +12,8 @@ as-conversions = "deny"
 [lib]
 path = "lib.rs"
 
+[features]
+default = []
+f32 = []
+
 [workspace]

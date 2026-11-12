@@ -1,4 +1,4 @@
-// Cross-target driver probe — the assertion half of the run.
+// Cross-target driver probe: the assertion half of the run.
 //
 // Boundary (packages/test/README.md): this file decides pass/fail; the
 // execution (boring gen/test per target, probe project materialization) is

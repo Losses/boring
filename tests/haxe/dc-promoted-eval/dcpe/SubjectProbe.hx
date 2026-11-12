@@ -27,8 +27,8 @@ import haxe.macro.Type.TypedExprDef;
         (`BLOCK-PROBE ... initCalls=N`).
 
     `calls=1` with `initCalls=1` is the structural form of the runtime claim the
-    runner measures: the subject call appears once in the typed AST and lands in
-    the synthetic local's initializer.
+    runner measures: the subject call appears once in the typed AST and is
+    emitted into the synthetic local's initializer.
 **/
 class SubjectProbe {
 	public static function run():Void {

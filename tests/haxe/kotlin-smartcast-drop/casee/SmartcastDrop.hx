@@ -6,9 +6,9 @@ package casee;
 
     `smartCastableSubject` is a conjunction of clauses, each gated by
     `-D kotlin_smartcast_drop=<clause>`. Dropping a clause re-emits the
-    unhardened spelling -- the bare dot -- and kotlinc surfaces the exact
-    error that clause prevents, so the fixture asserts error-text fragments,
-    not just rc (see the driver).
+    unhardened spelling -- the bare dot -- and kotlinc reports the exact
+    error that clause prevents, so the fixture asserts error-text fragments as
+    well as rc (see the driver).
 
     Clause tally:
 

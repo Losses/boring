@@ -774,8 +774,8 @@ class RustType {
         owned/place float expression; isRef marks a &f32/&f64 binding that must
         dereference before the comparison. */
     public static function canonicalFloatHashBits(access:String, isRef:Bool):String {
-        // Canonical float hash bits (P-13 / Astra ruling): +-0.0 collapse to
-        // 0, every NaN collapses to the quiet-NaN token (so any NaN key finds
+        // Canonical float hash bits (P-13 / Astra ruling): +-0.0 map to
+        // 0, every NaN maps to the quiet-NaN token (so any NaN key finds
         // the same bucket while Eq still treats NaN as unequal), and any other
         // value keeps its IEEE bits (Infinity included). f32 uses the u32 token
         // and never widens to f64 first.

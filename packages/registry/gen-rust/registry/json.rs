@@ -68,7 +68,7 @@ impl Json {
         };
     }
 
-    pub(crate) fn json_find_field(fields: &Vec<JsonField>, name: &UStr) -> JsonValue {
+    pub fn json_find_field(fields: &Vec<JsonField>, name: &UStr) -> JsonValue {
         for i in 0..match u32::try_from(fields.len()) { Ok(value) => value, Err(_) => u32::MAX } {
             if fields[usize::try_from(i).unwrap_or(0)].clone().name.to_ustring() == name {
                 return (((fields[usize::try_from(i).unwrap_or(0)]).clone().value).clone()).clone();
@@ -86,7 +86,7 @@ impl Json {
         return Json::json_render_compact((value).clone());
     }
 
-    pub(crate) fn json_render_compact(v: JsonValue) -> UString {
+    pub fn json_render_compact(v: JsonValue) -> UString {
         return match v {
             JsonValue::JObject { fields: _p0 } => Json::json_compact_object(&_p0),
             JsonValue::JArray { values: _p0 } => Json::json_compact_array(&_p0),
@@ -97,7 +97,7 @@ impl Json {
         };
     }
 
-    pub(crate) fn json_compact_array(a: &Vec<JsonValue>) -> UString {
+    pub fn json_compact_array(a: &Vec<JsonValue>) -> UString {
         let capacity = a.len();
         let mut parts = Vec::with_capacity(capacity);
         for i in 0..match u32::try_from(a.len()) { Ok(value) => value, Err(_) => u32::MAX } {
@@ -106,7 +106,7 @@ impl Json {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("[")); __s += UString::from(format!("{}", { let joined = parts; let mut out = String::new(); let n = joined.len(); let mut index = 0usize; while index < n { if index > 0 { out.push_str(","); } let _ = write!(out, "{}", joined[index]); index += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s += &(UString::from("]")); __s }).as_str());
     }
 
-    pub(crate) fn json_compact_object(fs: &Vec<JsonField>) -> UString {
+    pub fn json_compact_object(fs: &Vec<JsonField>) -> UString {
         let capacity = fs.len();
         let mut parts = Vec::with_capacity(capacity);
         for i in 0..match u32::try_from(fs.len()) { Ok(value) => value, Err(_) => u32::MAX } {
@@ -115,7 +115,7 @@ impl Json {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("{")); __s += UString::from(format!("{}", { let joined1 = parts; let mut out = String::new(); let n = joined1.len(); let mut index1 = 0usize; while index1 < n { if index1 > 0 { out.push_str(","); } let _ = write!(out, "{}", joined1[index1]); index1 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s += &(UString::from("}")); __s }).as_str());
     }
 
-    pub(crate) fn json_indent(n: u32) -> UString {
+    pub fn json_indent(n: u32) -> UString {
         let mut s = UString::new();
         for _ in 0..n {
             s += &(UString::from("  "));
@@ -123,15 +123,15 @@ impl Json {
         return s;
     }
 
-    pub(crate) fn json_hex_digit(v: u32) -> UString {
+    pub fn json_hex_digit(v: u32) -> UString {
         return if (if i32::from_ne_bytes(((v) as i32).to_ne_bytes()) < (10) { u32::wrapping_add(48, v) } else { u32::wrapping_add(87, v) }) > 0xFFFF { u_string::from_units(&[0xD800 + (((if i32::from_ne_bytes(((v) as i32).to_ne_bytes()) < (10) { u32::wrapping_add(48, v) } else { u32::wrapping_add(87, v) }) - 0x10000) >> 10) as u16, 0xDC00 + (((if i32::from_ne_bytes(((v) as i32).to_ne_bytes()) < (10) { u32::wrapping_add(48, v) } else { u32::wrapping_add(87, v) }) - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[(if i32::from_ne_bytes(((v) as i32).to_ne_bytes()) < (10) { u32::wrapping_add(48, v) } else { u32::wrapping_add(87, v) }) as u16]) };
     }
 
-    pub(crate) fn json_hex4(v: u32) -> UString {
+    pub fn json_hex4(v: u32) -> UString {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += Json::json_hex_digit(v >> 12 & 15).as_ustr(); __s += Json::json_hex_digit(v >> 8 & 15).as_ustr(); __s += Json::json_hex_digit(v >> 4 & 15).as_ustr(); __s += Json::json_hex_digit(v & 15).as_ustr(); __s }).as_str());
     }
 
-    pub(crate) fn json_quote(s: &UStr) -> UString {
+    pub fn json_quote(s: &UStr) -> UString {
     let __units = s.as_slice();
     let __count = u_string::unit_count(&s);
         let mut out = UString::from("\"").to_ustring();
@@ -141,7 +141,7 @@ impl Json {
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += out.as_ustr(); __s += &(UString::from("\"")); __s }).as_str());
     }
 
-    pub(crate) fn json_escape_of(c: u32) -> UString {
+    pub fn json_escape_of(c: u32) -> UString {
         if c == 8 {
             return UString::from("\\b").to_ustring();
         }
@@ -169,7 +169,7 @@ impl Json {
         return if c > 0xFFFF { u_string::from_units(&[0xD800 + (((c) - 0x10000) >> 10) as u16, 0xDC00 + (((c) - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[(c) as u16]) };
     }
 
-    pub(crate) fn json_render(v: JsonValue, level: u32) -> UString {
+    pub fn json_render(v: JsonValue, level: u32) -> UString {
         return match v {
             JsonValue::JObject { fields: _p0 } => Json::json_render_object(&_p0, level),
             JsonValue::JArray { values: _p0 } => Json::json_render_array(&_p0, level),
@@ -180,7 +180,7 @@ impl Json {
         };
     }
 
-    pub(crate) fn json_render_array(a: &Vec<JsonValue>, level: u32) -> UString {
+    pub fn json_render_array(a: &Vec<JsonValue>, level: u32) -> UString {
         if u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
             return UString::from("[]").to_ustring();
         }
@@ -195,7 +195,7 @@ impl Json {
 ""))); __s += Json::json_indent(level).as_ustr(); __s += &(UString::from("]")); __s }).as_str());
     }
 
-    pub(crate) fn json_render_object(fs: &Vec<JsonField>, level: u32) -> UString {
+    pub fn json_render_object(fs: &Vec<JsonField>, level: u32) -> UString {
         if u32::try_from((fs.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
             return UString::from("{}").to_ustring();
         }
@@ -213,8 +213,8 @@ impl Json {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Reader {
-    pub(crate) text: UString,
-    pub(crate) p: u32,
+    pub text: UString,
+    pub p: u32,
 }
 
 impl Reader {
@@ -379,7 +379,7 @@ impl Reader {
         while (i32::from_ne_bytes(((self.p) as i32).to_ne_bytes())) < (i32::from_ne_bytes(((u_string::unit_count(&((self.text).to_ustring()))) as i32).to_ne_bytes())) && Reader::reader_is_term(*(u_string::unit_at(&(self.text).to_ustring(), self.p)).as_ref().unwrap()) == false {
             self.p = u32::wrapping_add(self.p, 1);
         }
-        let n = u_string::parse_f64(&(u_string::substring(&(self.text).to_ustring(), i32::from_ne_bytes(((start) as i32).to_ne_bytes()), i32::from_ne_bytes(((self.p) as i32).to_ne_bytes()))));
+        let n = u_string::parse_f64(&(u_string::substring(&(self.text).to_ustring(), i32::from_ne_bytes(((start) as i32).to_ne_bytes()), i32::from_ne_bytes(((self.p) as i32).to_ne_bytes())))) as crate::TiqianFloat;
         if n.is_nan() {
             let _ = self.fail()?;
         }
@@ -414,11 +414,11 @@ impl Reader {
         return Err(JsonFault::InvalidJson);
     }
 
-    pub(crate) fn reader_is_term(k: u32) -> bool {
+    pub fn reader_is_term(k: u32) -> bool {
         return k == 44 || k == 93 || k == 125 || k == 32 || k == 9 || k == 10 || k == 13;
     }
 
-    pub(crate) fn reader_is_space(k: u32) -> bool {
+    pub fn reader_is_space(k: u32) -> bool {
         return k == 32 || k == 9 || k == 10 || k == 13;
     }
 }
@@ -428,7 +428,7 @@ pub enum JsonValue {
     JObject { fields: Vec<JsonField> },
     JArray { values: Vec<JsonValue> },
     JString { value: UString },
-    JNumber { value: f64 },
+    JNumber { value: crate::TiqianFloat },
     JBool { value: bool },
     JNull,
 }
@@ -445,7 +445,7 @@ impl core::hash::Hash for JsonValue {
                 value.hash(state);
             }
             JsonValue::JNumber { value } => {
-                core::hash::Hash::hash(&(if *value == 0.0 { 0u64 } else if value.is_nan() { 0x7ff8000000000000u64 } else { value.to_bits() }), state);
+                core::hash::Hash::hash(&(if *value == 0.0 { crate::TIQIAN_ZERO_BITS } else if value.is_nan() { crate::TIQIAN_NAN_BITS } else { value.to_bits() }), state);
             }
             JsonValue::JBool { value } => {
                 value.hash(state);

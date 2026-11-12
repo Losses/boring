@@ -23,7 +23,7 @@ class NullableFloatRecord {
     }
 }
 
-class FloatHashNullableContract {
+class FloatHashNullableRequirements {
     /** Constructs an instance with a null field (references the data class). */
     public static function makeNull():NullableFloatRecord {
         return new NullableFloatRecord(null);

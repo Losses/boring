@@ -36,7 +36,7 @@ fi
 mkdir -p "$RUN/stages" || exit 1
 
 # Every arm resolves the probe's relative paths against $ROOT; the existing
-# directory is created once here so "missing" really names no path.
+# directory is created once here so "missing" names no path.
 EXISTING_REL="out/fs-missing-isdirectory/probe/existing-directory"
 rm -rf "$ROOT/$EXISTING_REL"
 mkdir -p "$ROOT/$EXISTING_REL"

@@ -5,7 +5,7 @@ Ablation fixture for the smart-cast clause table in
 
 `smartCastableSubject` is a conjunction of six clauses. Each is gated by
 `-D kotlin_smartcast_drop=<clause>`, so dropping one re-emits the unhardened
-spelling and kotlinc surfaces the exact error the clause prevents. The driver
+spelling and kotlinc reports the exact error the clause prevents. The driver
 `tests/kotlin/smartcast-drop.test.ts` asserts both directions of each clause
 with error-text fragments, and writes `rc-table.md` into the scratch output.
 

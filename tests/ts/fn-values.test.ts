@@ -145,7 +145,7 @@ describe("static function field capture validation", () => {
     } finally {
       fs.rmSync(mutationRoot, { recursive: true, force: true });
     }
-    // One full haxe macro-compiler run (rust lane) measured at 23.7 s
+    // One full haxe macro-compiler run (rust target) measured at 23.7 s
     // (baseline machine, quiet window); 60_000 keeps ≥2× margin. The explicit
     // timeout raises only the harness patience for that subprocess, never
     // the asserted behavior.

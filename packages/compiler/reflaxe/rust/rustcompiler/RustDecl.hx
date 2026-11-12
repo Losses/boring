@@ -106,7 +106,7 @@ class RustDecl {
 
     public function enumOperand(t:Type, value:String, depth:Int = 0, deref:Bool = false):String {
         // (RustNullOperand) A Null payload is emitted as Option<T> (types.of),
-        // but Context.follow collapses Null<T> to T here, so the bare inner form
+        // but Context.follow unwraps Null<T> to T here, so the bare inner form
         // printed an Option and failed E0277. Haxe EnumText routes a nullable
         // enum argument through Std.string: None reads "null" and Some(v) falls
         // through to the inner operand form (feature spec 31 "null on every
@@ -1637,7 +1637,7 @@ class RustDecl {
         that lowers to an Rc<RefCell<T>> handle. (ClassParamHandle)
         Shared-interface implementors are excluded by default and opt in
         per class through usesHandleIdentity, so only implementors whose
-        bodies genuinely need handle identity switch ABI. */
+        bodies need handle identity switch ABI. */
     public static function isPlainClassHandleClass(cls:ClassType):Bool {
         return isHandleAbiEligible(cls) && !implementsSharedInterface(cls);
     }
@@ -1645,7 +1645,7 @@ class RustDecl {
     /** Whether the class may lower to the Rc<RefCell<T>> handle ABI at all.
         Value classes (@:dataClass), exceptions, and the std/runtime shadow
         modules keep their value representation; the escaping scan must not
-        switch them to a handle just because a body returns or stores this.
+        switch them to a handle because a body returns or stores this.
         (P-4a) */
     public static function isHandleAbiEligible(cls:ClassType):Bool {
         // Only business modules use the
@@ -1678,7 +1678,7 @@ class RustDecl {
         return RustEmissionState.escapingHandleClassKeys.exists(cls.module + "::" + cls.name);
     }
 
-    /** The type-level counterpart of isTraitAdapterClass. */
+    /** The counterpart of isTraitAdapterClass for a type. */
     public static function isTraitAdapterType(t:Null<Type>):Bool {
         return switch (Context.follow(t)) {
             case TInst(c, _): isTraitAdapterClass(c.get());
@@ -2046,7 +2046,7 @@ class RustDecl {
             // inner value stays assignable. (RcContainerStatic)
             // Final non-container statics take the same Mutex lowering:
             // the SingleThread deref guard only hands ownership between
-            // threads sequentially, while a parallel test harness really
+            // threads sequentially, while a parallel test harness
             // reads the static from live threads at once, which races the
             // Rc refcount. Every read serializes through the Mutex.
             imports.require("std::sync::Mutex");

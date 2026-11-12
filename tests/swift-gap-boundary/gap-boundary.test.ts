@@ -50,7 +50,7 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   //
   // What this driver asserts, precisely: zero type errors, and the two `[#no-usage]` warnings
   // of the W1 defect are GONE. That pin has been discharged, so it was removed -- it existed
-  // to make the recording rot-proof, and it fired exactly as designed: when W1's fix landed the
+  // to make the recording rot-proof, and it fired exactly as designed: when W1's fix was merged the
   // warnings disappeared, the pin failed, and the count was re-read as zero. W1 is on the line
   // and three independent sessions measured 0 errors / 0 warnings on this fixture.
   //
@@ -117,7 +117,7 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // was re-read as 0, and the pin was inverted to assert the new fact. The -typecheck step
   // above is NOT this criterion: -typecheck never reported this diagnostic at all.
   // BOUNDARY (2026-10-01): passing this test does NOT discharge P08 criterion 2.
-  // The sole path to discharge is to freeze the successor candidate and obtain two
+  // The sole path to discharge is to pin the successor candidate and obtain two
   // independent reviews. The pin direction is correct (zero diagnostics is the
   // standard), and zero diagnostics does not by itself discharge criterion 2.
   expect(

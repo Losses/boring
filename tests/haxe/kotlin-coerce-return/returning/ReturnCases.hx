@@ -3,7 +3,7 @@ package returning;
 /**
     Return coercion probe for P2.7.
 
-    A returned value that must satisfy a non-null return-type contract is
+    A returned value that must satisfy a non-null return type is
     hardened with !!. The destination admitsAbsence follows the current
     function/lambda return type (the P1 rebound type), so:
 

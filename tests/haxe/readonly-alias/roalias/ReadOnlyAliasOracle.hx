@@ -4,7 +4,7 @@ import std.ReadOnlyArray;
 
 /**
     Authored Haxe oracle for the ordinary `Array<T> -> ReadOnlyArray<T>`
-    shared-container contract (feature 18 ruling). It consolidates the
+    shared-container requirement (feature 18 ruling). It consolidates the
     historical S, D, and X probes into one source that is generated and
     executed on all five targets by `tests/haxe/readonly-alias/run.sh`.
 

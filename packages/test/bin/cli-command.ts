@@ -1,6 +1,6 @@
 // CLI command executor for the driver probes.
 //
-// Boundary (packages/test/README.md): bin/ drives one test run — this module
+// Boundary (packages/test/README.md): bin/ drives one test run; this module
 // only spawns a program and returns/raises its observable outcome. It decides
 // no verdict; the callers assert on the returned output.
 export type CommandResult = { code: number; output: string };

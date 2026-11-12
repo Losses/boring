@@ -21,7 +21,7 @@
 # while_local_dot_count 1, for_range_dot_count 1, for_range_local_dot_count 0,
 # file total 7. After: 1, 1, 1, 1, 1, total 5. The two functions whose count did
 # not move (while_local_dot_count, for_range_dot_count) are kept on purpose:
-# they prove the scan really is counting the emitted hoists, so a "1" elsewhere
+# they prove the scan is counting the emitted hoists, so a "1" elsewhere
 # is not a vacuous zero.
 #
 # A missing toolchain is environment-not-reached and is reported as such, never
@@ -90,14 +90,14 @@ check_fn() { # <function> <expected units count> <expected unit_count count>
 # The measured Tiqian shape: one vector for the whole function, reused by the
 # outer walk and by the nested walk inside the '.' branch.
 check_fn per_char_units_probe_strip_whole_fraction 1 1
-# A single while walk of a parameter: the function-level hoist is reused rather
+# A single while walk of a parameter: the hoist for the function is reused rather
 # than duplicated at the loop.
 check_fn per_char_units_probe_while_dot_count 1 1
-# A while walk of a local String: no function-level hoist applies, so the loop
+# A while walk of a local String: no hoist for a parameter applies, so the loop
 # must still materialize exactly one vector (vacuity control).
 check_fn per_char_units_probe_while_local_dot_count 1 1
-# The interval form of a parameter walk: the loop reuses the function-level
-# hoist and its bound reads the hoisted count (vacuity control for the count).
+# The interval form of a parameter walk: the loop reuses the function's hoist
+# and its bound reads the hoisted count (vacuity control for the count).
 check_fn per_char_units_probe_for_range_dot_count 1 1
 # The interval form of a local String walk: the shape that had no hoist at all.
 check_fn per_char_units_probe_for_range_local_dot_count 1 1

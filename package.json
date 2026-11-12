@@ -8,9 +8,9 @@
   "scripts": {
     "gen:all": "haxe examples/ts.hxml && haxe examples/kotlin.hxml && haxe examples/kotlin-f32.hxml && haxe examples/swift.hxml && haxe examples/swift-f32.hxml && haxe examples/dart.hxml && haxe examples/rust.hxml && haxe examples/rust-f32.hxml",
     "test": "bun test tests/ packages/registry/tests/",
-    "test:compiler": "haxe tests/haxe/semantic-policy/contract.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions && bun tests/rust-handle-fixtures/harness.ts run",
+    "test:compiler": "haxe tests/haxe/semantic-policy/requirements.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions && bun tests/rust-handle-fixtures/harness.ts run",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
-    "test:contract": "haxe tests/haxe/semantic-policy/contract.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions",
+    "test:requirements": "haxe tests/haxe/semantic-policy/requirements.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions",
     "test:handle-fixtures": "bun tests/rust-handle-fixtures/harness.ts run",
     "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test && cargo test --manifest-path reference/rust/gen/Cargo.toml",

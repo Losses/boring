@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Five-target resident-closure GATE (t-mum0mp8l-m0a6) — assertion build.
+# Five-target resident-closure GATE (t-mum0mp8l-m0a6): assertion build.
 #
 # Consumer entry: tests/haxe/resident-consumer-closure/Consumer.hx calls
 # StringTools, std.UStringRT, std.Graphemes, std.SortedMap/SortedSet
@@ -17,7 +17,7 @@
 # asserted (one line per row in logs/assertions.tsv) and a failed
 # assertion makes the script exit 1; a clean run exits 0:
 #   * generation must succeed on all ten inputs (rc=0);
-#   * every generated tree must compile natively (rc=0) — the central
+#   * every generated tree must compile natively (rc=0), the central
 #     claim: a consumer entry that omits the runtime.* roots must still
 #     pull in the resident modules, so every (a) row must pass, and the
 #     (b) rows are the explicit-roots positive control;
@@ -28,7 +28,7 @@
 # measured on base 1ae6de72) is cited per row; the forced-typing gap it
 # described was closed by 756c0c8a, so the (a) rows must pass from that
 # commit on. Rows whose measurement drifts from the asserted expectation
-# fail loudly until re-measured — that is the point.
+# fail loudly until re-measured: that is the point.
 set -u
 
 root=$(cd "$(dirname "$0")/../../.." && pwd)
@@ -108,11 +108,11 @@ printf '== manifests written to %s ==\n' "$L/manifests.txt"
 
 # ------------------------------------------------------------------
 # Stage 3: native compile of every generated tree. Expectation per row:
-# (a) rows: rc=0 — the central claim (no runtime.* root, residents still
-# pulled in). (b) rows: rc=0 — explicit-roots positive control. Measured
+# (a) rows: rc=0, the central claim (no runtime.* root, residents still
+# pulled in). (b) rows: rc=0, explicit-roots positive control. Measured
 # pre-fix baselines are cited; the known kotlin test-host FPHelper
 # emission-gate defect (REPORT.md §4) makes the kotlin full-tree rows
-# red until it is fixed — asserting rc=0 there is deliberate.
+# red until it is fixed: asserting rc=0 there is deliberate.
 # ------------------------------------------------------------------
 : > "$L/native-rc.tsv"
 

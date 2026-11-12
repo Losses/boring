@@ -12,7 +12,7 @@ import FloatPrecisionPolicy.FloatPrecisionPolicy;
     Float Precision Validator: enforcement of docs/specs/float-precision-policy.md
     (FP-n) against emission-time IR + resolved plans.
 
-    Contract (Astra design, frozen):
+    Rules (Astra design, frozen):
       - every float node carries a source role, a destination role, and a
         resolved plan; a missing plan is a failure, never a default.
       - def-use walks check widening, narrowing, and accumulator escape
@@ -81,7 +81,7 @@ class FloatPrecisionValidator {
     public static final FP_V_2_MISSING_ROLES:String = "FP-V-2";
     /** plan role disagrees with the node's source/destination role facts. */
     public static final FP_V_3_ROLE_MISMATCH:String = "FP-V-3";
-    /** Value node storage/compute width disagrees with the lane. */
+    /** Value node storage/compute width disagrees with the precision mode. */
     public static final FP_V_4_LANE_WIDTH:String = "FP-V-4";
     /** accumulator performs binary32 arithmetic or exits through more/fewer than one Narrow. */
     public static final FP_V_5_ACCUMULATOR_ESCAPE:String = "FP-V-5";
@@ -89,7 +89,7 @@ class FloatPrecisionValidator {
     public static final FP_V_6_UNREGISTERED_CONVERSION:String = "FP-V-6";
     /** a bitcast edge pairs mismatched widths (u32 vs f64). */
     public static final FP_V_7_BITCAST_WIDTH:String = "FP-V-7";
-    /** wire/helper storage width drifted from its declared width under lane pressure. */
+    /** wire/helper storage width changed from its declared width under pressure from the precision mode. */
     public static final FP_V_8_DECLARED_WIDTH:String = "FP-V-8";
     /** supplementary generated-token lint (never the primary authority). */
     public static final FP_V_9_TOKEN_LINT:String = "FP-V-9";
@@ -143,7 +143,7 @@ class FloatPrecisionValidator {
                     + " disagrees with destination role "
                     + FloatPrecisionPolicy.roleToString(node.roles.destinationRole));
             }
-            // FP-V-4: a Value node stores and computes at lane width only.
+            // FP-V-4: a Value node stores and computes at the mode's width only.
             if (plan.role == PrecisionRole.RoleValue && widthOf(plan.storageType) != laneWidth) {
                 push(issues, FP_V_4_LANE_WIDTH, node.id,
                     "Value storageType=" + plan.storageType + " disagrees with lane width " + laneWidth);
@@ -166,7 +166,7 @@ class FloatPrecisionValidator {
                     }
                 }
             }
-            // FP-V-8: wire/helper widths are declared, never lane-derived or empty.
+            // FP-V-8: wire/helper widths are declared, never mode-derived or empty.
             if (plan.role == PrecisionRole.RoleWire || plan.role == PrecisionRole.RoleNumericHelper) {
                 if (plan.storageType == null || plan.storageType == "") {
                     push(issues, FP_V_8_DECLARED_WIDTH, node.id,
@@ -256,14 +256,14 @@ class FloatPrecisionValidator {
         Findings carry FP-V-9 with node_id "gen:<fileIndex>:<line>" and name
         the offending token class in the message:
           - bare-float-literal: a float literal with no f32/f64 suffix (the
-            lane cannot be read off the token).
+            precision mode cannot be read off the token).
           - unknown-literal: a float literal with an unrecognized suffix.
           - int-to-float-cast: '<int> as fN' (FP-6 provenance: the edge is
             real, but a cast token means the emitter bypassed the plan).
           - value-cast: a non-integer operand 'as fN', a bare Narrow/Widen
             the plan never registered.
           - cfg-cast-combination: a cfg attribute gating a width decision
-            (the lane leaking into a conditional-compilation axis).
+            (the precision mode leaking into a conditional-compilation axis).
 
         String literals and comments are stripped before scanning so that
         diagnostics, byte arrays and version strings do not produce noise.

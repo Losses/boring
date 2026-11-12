@@ -1,5 +1,5 @@
 # Focused Dart generation of the nullable-float hashCode regression
-# contract (board t-mvzn8ckw-vh3s). Run from the repository root; the caller
+# test (board t-mvzn8ckw-vh3s). Run from the repository root; the caller
 # supplies the output tree so every attempt writes into its own run directory:
 #   nix develop -c haxe tests/haxe/float-hash-nullable/hxml/dart.hxml \
 #     -D float-precision=f64 -D dart-output=out/float-hash-nullable/runs/<run>/dart-gen
@@ -18,4 +18,4 @@
 -D dart-test-runner=native
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
-floathashnullable.FloatHashNullableContract
+floathashnullable.FloatHashNullableRequirements

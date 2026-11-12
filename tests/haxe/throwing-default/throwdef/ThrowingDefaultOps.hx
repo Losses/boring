@@ -19,13 +19,13 @@ package throwdef;
 	  (Rust Result / Swift throws) and call markers (`?` / `try`) are read from
 	  the generated tree; the harness does not call them directly.
 	- probe layer (probeOmittedSafe / probeOmittedThrowing / probeExplicit):
-	  a unified String-returning try-region absorption surface. The region catches
+	  a unified String-returning try-region absorption. The region catches
 	  exactly this fixture's exception class; after absorption the probe itself does
 	  not throw; the harness calls only this layer.
 
 	Two call shapes:
 	- omit the argument: `resolve(5)` / `resolve(20)`: the default expression is
-	  evaluated and the throwable call really executes (5 does not throw, 20 throws).
+	  evaluated and the throwable call executes (5 does not throw, 20 throws).
 	- explicit argument: `resolve(5, 9)`: the default expression is not evaluated
 	  and the throwable call does not execute.
 
@@ -89,7 +89,7 @@ class ThrowingDefaultOps {
 		return resolve(5, 9);
 	}
 
-	// ------------------------------------------- probe layer (region absorption surface)
+	// ------------------------------------------- probe layer (region absorption)
 
 	static function faultToken(fault:ThrowingDefaultFault):String {
 		return switch (fault) {

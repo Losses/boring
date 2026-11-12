@@ -42,7 +42,7 @@ test("Rust borrows input Bytes fields and owns allocated Bytes fields", async ()
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  // One full haxe macro-compiler run (rust lane) measured at 22.6 s (baseline
+  // One full haxe macro-compiler run (rust target) measured at 22.6 s (baseline
   // machine, quiet window); 60_000 keeps ≥2× margin. The explicit timeout
   // raises only the harness patience for that subprocess, never the asserted
   // behavior.

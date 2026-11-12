@@ -3,7 +3,7 @@
 // native string type. UString is the owned form, UStr is the borrowed
 // slice form, matching the String/&str relationship. Both Deref to
 // [u16], so s[i] reads a u16 unit, s.len() returns the unit count,
-// and s[a..b] yields a &[u16] slice — extra Index impls are not needed.
+// and s[a..b] yields a &[u16] slice; extra Index impls are not needed.
 //
 // Conversions to Rust String (UTF-8) are explicit and named:
 //   to_utf8_lossy() -> String     (always succeeds, replaces unpaired surrogates)
@@ -20,9 +20,26 @@ pub struct UString(Vec<u16>);
 pub struct UStr([u16]);
 
 impl UStr {
+    /// The single unsafe core of the UTF-16 string view: reinterpret a
+    /// &[u16] slice as &UStr with no copy, no allocation, no validity
+    /// check. Every other &UStr construction funnels through here.
+    ///
+    /// # Safety
+    /// UStr is #[repr(transparent)] over [u16], so both types share the
+    /// same layout (a slice fat pointer: data address + unit count).
+    /// The cast changes no bytes, the returned borrow has exactly the
+    /// the lifetime of the input slice, and it aliases the same units. [u16]
+    /// imposes no UTF-16 validity requirement, so empty slices, non-empty
+    /// slices, and slices holding unpaired surrogate code units are all valid.
+    /// This is the same layout argument std relies on for &str over [u8].
+    #[inline]
+    pub const fn from_slice(units: &[u16]) -> &UStr {
+        unsafe { &*(units as *const [u16] as *const UStr) }
+    }
+
     #[inline]
     pub fn new<S: AsRef<[u16]> + ?Sized>(s: &S) -> &UStr {
-        unsafe { &*(s.as_ref() as *const [u16] as *const UStr) }
+        Self::from_slice(s.as_ref())
     }
 
     #[inline]
@@ -43,7 +60,7 @@ impl UStr {
     }
 
     /// Unicode lowercase of the text (String.toLowerCase). Borrowed
-    /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+    /// receivers (`&UStr`) and owned `UString` (through Deref) both reach
     /// here; the result is an owned Haxe String.
     pub fn to_lowercase(&self) -> UString {
         UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
@@ -51,7 +68,7 @@ impl UStr {
 
     /// Unicode uppercase of the text (String.toUpperCase). Mirrors
     /// to_lowercase: borrowed receivers and owned UString (through
-    /// Deref) both land here; the result is an owned Haxe String.
+    /// Deref) both reach here; the result is an owned Haxe String.
     pub fn to_uppercase(&self) -> UString {
         UString(self.to_utf8_lossy().to_uppercase().encode_utf16().collect())
     }
@@ -64,9 +81,9 @@ impl UStr {
     }
 
     /// Trim Unicode whitespace from both ends (String.trim). Borrowed
-    /// receivers and owned UString (through Deref) both land here; the
+    /// receivers and owned UString (through Deref) both reach here; the
     /// result is an owned Haxe String. The u16 domain needs its own
-    /// whitespace table because char::from_u32 rejects surrogate halves.
+    /// whitespace table because char::from_u32 rejects surrogate code units.
     pub fn trim(&self) -> UString {
         let units = self.as_slice();
         let is_ws = |u: u16| -> bool {
@@ -285,7 +302,7 @@ impl UString {
 
 impl UString {
     /// The UTF-16 code units of this string. UString stores units natively,
-    /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
+    /// so this is the slice itself, with no re-encoding. (String.encodeUtf16)
     /// Items are owned `u16`, matching the std String encode_utf16 item type.
     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
         self.0.iter().copied()
@@ -376,7 +393,7 @@ pub fn count(s: &UStr) -> u32 {
 }
 
 // The String.length member counts UTF-16 code units on every target
-// (stdlib/15). With UStr storage in units, this is just the slice length.
+// (stdlib/15). With UStr storage in units, this is the slice length.
 pub fn unit_count(s: &UStr) -> u32 {
     u32::try_from(s.as_slice().len()).unwrap_or(0)
 }
@@ -628,6 +645,8 @@ pub fn parse_f64(s: &UStr) -> f64 {
     if !valid_decimal_token(t2.as_bytes()) {
         return f64::NAN;
     }
+    // parse_f64 keeps the protocol f64 width even under the f32 build;
+    // parse_f32 is the separate TiqianFloat-width edge.
     t2.parse::<f64>().unwrap_or(f64::NAN)
 }
 
@@ -753,5 +772,54 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
         }
     }
     -1
+}
+
+#[cfg(test)]
+mod ustr_safety_tests {
+    use super::*;
+    use std::mem::{align_of, size_of};
+
+    #[test]
+    fn from_slice_is_zero_copy() {
+        let units = [0x68u16, 0x69u16, 0x21u16];
+        let slice: &[u16] = &units;
+        let view = UStr::from_slice(slice);
+        assert_eq!(view.as_slice().as_ptr(), slice.as_ptr());
+        assert_eq!(view.as_slice().len(), slice.len());
+    }
+
+    #[test]
+    fn layout_matches_u16_slice_fat_pointer() {
+        assert_eq!(size_of::<&UStr>(), size_of::<&[u16]>());
+        assert_eq!(align_of::<&UStr>(), align_of::<&[u16]>());
+    }
+
+    #[test]
+    fn empty_slice_roundtrips() {
+        let empty = UStr::from_slice(&[]);
+        assert!(empty.as_slice().is_empty());
+        assert_eq!(empty.to_ustring(), UString::new());
+    }
+
+    #[test]
+    fn surrogate_pair_roundtrips_through_utf8() {
+        // U+1F600 GRINNING FACE = surrogate pair D83D DE00 (UTF-8 F0 9F 98 80).
+        let units = [0xD83Du16, 0xDE00u16];
+        let view = UStr::from_slice(&units);
+        assert_eq!(view.as_slice(), &units[..]);
+        assert_eq!(view.to_utf8(), Some(String::from_utf8(vec![0xF0, 0x9F, 0x98, 0x80]).unwrap()));
+    }
+
+    #[test]
+    fn const_static_survives_the_whole_program() {
+        const KEY: &UStr = UStr::from_slice(&[0x41u16, 0x42u16]);
+        assert_eq!(KEY.as_slice(), &[0x41, 0x42]);
+    }
+
+    #[test]
+    fn new_and_from_slice_agree() {
+        let units = [0x66u16, 0x69u16, 0x6cu16, 0x65u16];
+        assert_eq!(UStr::new(&units), UStr::from_slice(&units));
+    }
 }
 

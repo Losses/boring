@@ -56,7 +56,7 @@ class PlatformModulesTests {
 
     @:test("std.Fs isDirectory reports a missing path as false")
     public static function fsIsDirectoryMissing():Void {
-        // The guard pins that the path really is missing, so the assertion
+        // The guard pins that the path is missing, so the assertion
         // below measures the missing-path ruling and not a stray directory.
         final missing = PlatformModulesTestSupport.DIR + "/definitely-missing-directory";
         Test.equals(false, Fs.exists(missing));

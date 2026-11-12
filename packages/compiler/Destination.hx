@@ -22,7 +22,7 @@ enum DestinationRole {
     Argument(param:String);
     /** Right-hand side of an assignment. */
     Assignment(target:String);
-    /** Return value that must satisfy the return-type contract. */
+    /** Return value that must satisfy the declared return type. */
     Return(contract:String);
     /** Argument to string concatenation (may propagate null). */
     StringConcatArgument;

@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
  * tests/rust/vector_gen.rs to use the UString API and the data-class
  * comparator, while reference/rust/gen on disk was still the older output.
  * `cargo test` then failed with four errors that look like compiler breakage
- * and are really staleness:
+ * but are staleness:
  *
  *   error[E0432]: unresolved imports `boring_codec_gen::BufferHolder`,
  *                 `boring_codec_gen::BytesFrame`
@@ -33,7 +33,7 @@ import { join, resolve } from "node:path";
  * collected suite.
  */
 
-// This file sits directly in tests/, so the repository root is one level up.
+// This file sits directly in tests/, so the repository root is one directory above.
 // (Files under tests/<fixture>/ need "../.."; getting this wrong is silent --
 // an earlier version of this check returned early on a nonexistent path and
 // passed on a tree that was in fact stale. Hence the assertion below.)

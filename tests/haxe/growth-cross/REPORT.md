@@ -9,7 +9,7 @@ growth table is keyed by the BARE enum name, so it cannot tell them apart.
 
 Both `cma.CrossA.run` and `cmb.CrossB.run` rethrow `B` by value from a function whose
 Result error enum has settled to the LOCAL `EFault`. Each therefore registers a growth
-variant named `BFault` on the growth key `"EFault"`; the two land in the same bucket and
+variant named `BFault` on the growth key `"EFault"`; the two share the same bucket and
 the calleeName dedup drops the second.
 
 ## Verdict: reachable defect

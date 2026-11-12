@@ -6,6 +6,7 @@ use crate::runtime::u_string::UString;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Release {
     pub owner: UString,
+    pub repository: Option<UString>,
     pub repo: UString,
     pub version: UString,
     pub name: UString,
@@ -26,6 +27,7 @@ impl Release {
     pub fn new(o: &UStr, r: &UStr, v: &UStr, p: &UStr, n: &UStr, l: Option<UString>, read: &UStr) -> Self {
         Self {
             owner: o.to_ustring(),
+            repository: None,
             repo: r.to_ustring(),
             version: v.to_ustring(),
             name: n.to_ustring(),

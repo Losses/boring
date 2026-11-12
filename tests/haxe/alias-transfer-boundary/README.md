@@ -1,4 +1,4 @@
-# REPORT — alias-transfer-boundary (container alias across nullable field and call boundary)
+# REPORT: alias-transfer-boundary (container alias across nullable field and call boundary)
 
 Task: `t-mum17vl5-9rty` (branch `audit/container-alias-nullable`).
 This report distinguishes **what I measured myself** (the run I ran in this round `out/alias-transfer-boundary/runs/atb-Wn4rY37a`) from **what I cite** (the previous run `out/alias-transfer-boundary/runs/atb-whb18ccE`, used only for cross-checking; this round's own measurements match its per-stage readings).
@@ -60,8 +60,8 @@ After the view is established, `holder.values = [9,8,7]` rebinds the field. ts/k
 
 ## 4. Probe discriminating power: can this fixture fail
 
-- **The semantic probes are discriminating**: each shape carries discriminating readings — the shared-read vs copy-read (702/101, 3301/1201) and view-retains vs follows-rebinding (123/987) take different values; and the three controls `fieldNull`, `relayFresh`, `fieldRebind` prove each probe is not pinned to a constant. If some target lowers the shared read into a copy (or the view follows the rebinding), the corresponding `compare-<target>` diff becomes nonzero, `compare-notes.txt` records the difference, and the summary verdict becomes `observed-differences`.
-- **But run.sh itself is an observation fixture**: the script's last statement is `cat "$RUN/summary.txt"`, with no `exit` statement after it and no `set -e`; the file header claims "Only failed and harness-defect exit nonzero", but stage-level failure only lands in the `VERDICT=failed` string — **in this round the measured verdict is failed while the directly read rc is still 0**. The script's only nonzero exit paths are the opening setup/fixture-missing case (`exit 1`) and the missing `.haxelib` dev pointer (`exit 2`). Therefore treating rc as a gate would always pass green; a gate consumer must read the `verdict` field in `summary.txt`.
+- **The semantic probes are discriminating**: each shape carries discriminating readings: the shared-read vs copy-read (702/101, 3301/1201) and view-retains vs follows-rebinding (123/987) take different values; and the three controls `fieldNull`, `relayFresh`, `fieldRebind` prove each probe is not pinned to a constant. If some target lowers the shared read into a copy (or the view follows the rebinding), the corresponding `compare-<target>` diff becomes nonzero, `compare-notes.txt` records the difference, and the summary verdict becomes `observed-differences`.
+- **But run.sh itself is an observation fixture**: the script's last statement is `cat "$RUN/summary.txt"`, with no `exit` statement after it and no `set -e`; the file header claims "Only failed and harness-defect exit nonzero", but a failure at the stage only shows up in the `VERDICT=failed` string: **in this round the measured verdict is failed while the directly read rc is still 0**. The script's only nonzero exit paths are the opening setup/fixture-missing case (`exit 1`) and the missing `.haxelib` dev pointer (`exit 2`). Therefore treating rc as a gate would always pass green; a gate consumer must read the `verdict` field in `summary.txt`.
 
 ## 5. rust / swift readings (measured in this round, consistent with the cited run)
 
@@ -70,7 +70,7 @@ Reproduced in this round's own run (measured by me, source `atb-Wn4rY37a`):
 - **rust `compile-rust` = 101**: `error[E0308]: mismatched types`, at `atb/container_alias_oracle.rs:14:122` (expected u32, found usize; `v.len()` and the `map_or` default value `0` are inferred as u32 and mixed); diagnostic shape count `grep -cE '^error(\[E[0-9]+\])?:'` = 2 (1 E0308 + 1 "could not compile" summary line). **Fix filed as separate row `t-muovfs5q-5ht7`, out of scope for this task.**
 - **swift `gen-swift` = 1**: `atb/ContainerAliasOracle.hx:44: characters 41-54 : swift target: array boundary has no prepared storage decision` (diagnostic shape count = 1). The emitter rejects loudly and produces no compilable tree. **Fix filed as a separate row, out of scope for this task.**
 
-Cited cross-check: the previous run `atb-whb18ccE` (`out/alias-transfer-boundary/runs/atb-whb18ccE`) under the same fixture hashes gives exactly matching per-stage readings (ts/kotlin/dart matched, rust 101, swift gen 1, verdict failed) — this report does not re-cite its artifacts as evidence, using it only as a consistency corroboration.
+Cited cross-check: the previous run `atb-whb18ccE` (`out/alias-transfer-boundary/runs/atb-whb18ccE`) under the same fixture hashes gives exactly matching per-stage readings (ts/kotlin/dart matched, rust 101, swift gen 1, verdict failed): this report does not re-cite its artifacts as evidence, using it only as a consistency corroboration.
 
 ## 6. How to reproduce
 

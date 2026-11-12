@@ -7,13 +7,13 @@ import std.Fs;
  * (docs/specs/stdlib/17-platform-modules.md). A fallible read and a
  * rename force the host-edge failure classifier (boringFsError) and the
  * rename helper into the generated file, which is where the failure
- * classifier's NSError / NSPOSIXErrorDomain references land. The
+ * classifier's NSError / NSPOSIXErrorDomain references appear. The
  * FoundationEssentials module the pinned Swift 6.2.4 toolchain ships
  * does not export either symbol, so the generated file must also import
  * Foundation.
  */
 class FsFoundationOps {
-    /** A missing path must surface as std.FsError.notFound at run time. */
+    /** A missing path must appear as std.FsError.notFound at run time. */
     public static function readText(path:String):String {
         return Fs.readText(path);
     }

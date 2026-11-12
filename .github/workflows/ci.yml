@@ -304,7 +304,7 @@ jobs:
           EOF
           (cd envprobe && CC="${CC:-clang}" swift build) && PROBE_FROM_BASH=bashvalue LD_LIBRARY_PATH="$BORING_SWIFT_LIBDISPATCH:${LD_LIBRARY_PATH:-}" envprobe/.build/debug/EnvProbe.exe
 
-  # Contract 3 (docs/architecture/ARCHITECTURAL-CONTRACTS.md) makes the warning
+  # Requirement 3 (docs/architecture/INTERFACE-REQUIREMENTS.md) makes the warning
   # count an acceptance criterion: docs/specs/style/02-translator-implementation-standard.md:80
   # requires counting the warning lines in the target suite output that name
   # files under the generated trees, and requires that count to be zero. A
@@ -384,7 +384,7 @@ jobs:
       # 2026-10-03: the cited in-repo ledgers (BASELINE-FAILURES.md, architecture-work-plan.md)
       # were retired to the wb system (task t-musjpp6r-k39m); the baseline record survives
       # in git history and the wb task notes. The gate behaviour is unchanged.
-      - name: Collected suite (contract 3 count)
+      - name: Collected suite (requirement 3 count)
         run: |
           set -o pipefail
           mkdir -p out
@@ -423,7 +423,7 @@ jobs:
             ''|*[!0-9]*) echo "::error::warning count is not a parseable integer (got '$WARN_COUNT') - the gate cannot be evaluated"; exit 1 ;;
           esac
           {
-            echo '## Collected suite - contract 3 count'
+            echo '## Collected suite - requirement 3 count'
             echo
             echo 'Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the'
             echo 'warning lines naming files under the generated trees and requires the count to be zero.'

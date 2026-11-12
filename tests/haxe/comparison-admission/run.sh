@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Focused finite source admission contract for the A3 source phase. Each run
-# keeps a fresh output tree under out/comparison-admission-contract, records a
+# Focused finite source admission check for the A3 source phase. Each run
+# keeps a fresh output tree under out/comparison-admission, records a
 # status per attempt, and verifies that every excluded input kept its bytes.
 set -u
 
@@ -8,12 +8,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 cd "$ROOT" || exit 2
 if [ "${IN_NIX_SHELL:-}" = "" ]; then
-	printf 'run this fixture through: nix develop -c bash tests/haxe/comparison-admission-contract/run.sh\n' >&2
+	printf 'run this fixture through: nix develop -c bash tests/haxe/comparison-admission/run.sh\n' >&2
 	exit 2
 fi
 
-FIXTURE=tests/haxe/comparison-admission-contract
-OUT=out/comparison-admission-contract
+FIXTURE=tests/haxe/comparison-admission
+OUT=out/comparison-admission
 mkdir -p "$OUT" || exit 2
 RUN="$(mktemp -d "$OUT/run-XXXXXXXX")" || exit 2
 

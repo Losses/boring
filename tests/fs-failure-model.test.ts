@@ -9,7 +9,7 @@ import { join, resolve } from "node:path";
  * The model spans four layers that a future edit can break independently:
  * the Haxe identity (std.FsError variant-per-kind / std.FsException), the Rust runtime that
  * must carry the failure as a Result and never panic, the emitter that
- * must recognize the fallible surface and map it into std.FsError, and the
+ * must recognize the fallible members and map them into std.FsError, and the
  * spec text that names the identity. This file reads each layer as text, so
  * it stays hermetic -- it never runs haxe, rustc, or nix. The live readings
  * (rc/stdout/stderr) are the fixture run recorded in the task evidence.
@@ -48,7 +48,7 @@ describe("std.Fs failure model", () => {
     const shim = runtime.slice(start, end);
     expect(shim).not.toContain("panic!");
     expect(shim).toContain("pub struct FsError");
-    // The frozen canonical contract names the raw host text native_detail
+    // The frozen canonical model names the raw host text native_detail
     // and leaves it empty for the synthesized Unavailable kind.
     expect(shim).toContain("pub native_detail: UString");
     expect(shim).toContain("FsErrorKind::Unavailable => String::new()");
@@ -62,7 +62,7 @@ describe("std.Fs failure model", () => {
     expect(shim).toContain("pub fn is_directory(path: &UStr) -> bool");
   });
 
-  test("the emitter recognizes the surface and maps into std.FsError", () => {
+  test("the emitter recognizes the fallible members and maps them into std.FsError", () => {
     const state = read("packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx");
     expect(state).toContain("public static function stdFsFallibleMember");
     expect(state).toContain('if (module != "std.Fs")');
@@ -93,8 +93,8 @@ describe("std.Fs failure model", () => {
     // the Haxe-facing payload alone does not provide.
     expect(compiler).toContain('runtimePackage + "::fs::FsError> for "');
 
-    // The reference corpus names the identity so the payload enum has a
-    // declaration site even when no corpus class catches it.
+    // The reference example set names the identity so the payload enum has a
+    // declaration site even when no example class catches it.
     expect(read("examples/rust.hxml")).toContain("std.FsException");
   });
 

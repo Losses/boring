@@ -3,10 +3,10 @@ import { expect, test } from "bun:test";
 // Kotlin cannot smart-cast through a mutable *receiver*: a read of a final
 // (val) field through a nullable var property keeps its force extraction on
 // the receiver and hardens the final read, even after a null guard proves the
-// chain present. This is a two-level chain -- `o.current` (var, nullable)
-// then `.fin` (final, nullable) -- which the single-level
-// kotlin-var-field-smartcast fixture deliberately does not cover: that
-// fixture pins a direct property read (holder.value).
+// chain present. This chain needs two reads -- `o.current` (var, nullable)
+// then `.fin` (final, nullable) -- and the kotlin-var-field-smartcast
+// fixture deliberately does not cover it: that fixture pins a direct
+// property read (holder.value).
 //
 // Dev-time commits 40820371/57b1beb8 introduced this probe for the Kotlin
 // mutable-chain fix; until this test existed the directory was collected by

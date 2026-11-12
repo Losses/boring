@@ -26,8 +26,8 @@ rows `[4,4,2,0,1]`, `[-4,-4,nan,0,1]`, and `[0,0,0,0,1]`.
 > Note (added 2026-10-01, R1 residual cleanup; pointer updated 2026-10-03):
 > that `/tmp` path was volatile scratch storage outside the repository, and
 > the file no longer exists on this machine (checked `/tmp/dispatch-state/`,
-> the then-in-repo `audit-reports/` — since moved to the workspace archive
-> `boring-docs-archive/audit-reports/` — and `dc-warn/out/`; no copy was
+> the then-in-repo `audit-reports/`, since moved to the workspace archive
+> `boring-docs-archive/audit-reports/`, and `dc-warn/out/`; no copy was
 > archived). The
 > observations quoted above are the retained record; the `/tmp` source itself
 > is not openable.
