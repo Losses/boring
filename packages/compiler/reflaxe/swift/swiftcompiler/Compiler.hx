@@ -85,8 +85,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
         //
-        // Force the WHOLE resident set, not just the module some corpus entry
-        // happened to reach: a consumer build whose entry list omits the
+        // Force the WHOLE resident set: a consumer build whose entry list omits the
         // `runtime.*` roots still reaches these through the std extern
         // surface, and `keep` cannot substitute because it only protects an
         // already-typed module from DCE. Forcing only StringTools left

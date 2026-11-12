@@ -9,7 +9,7 @@ import * as path from "node:path";
  * `-D kotlin_smartcast_drop=<clause>`: dropping a clause re-emits the
  * unhardened spelling -- the bare dot on a nullable field read -- and kotlinc
  * surfaces the exact error that clause prevents. This driver asserts the
- * *compiled* result, not just rc, and requires the error-text fragment, so it
+ * *compiled* result and requires the error-text fragment, so it
  * detects both directions of every clause.
  *
  * Clause tally (see KotlinExpr.hx smartCastableSubject doc table):

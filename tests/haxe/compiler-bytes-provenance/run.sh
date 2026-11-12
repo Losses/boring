@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Focused evidence fixture: bind generated outputs to the compiler modules that
-# Haxe actually parsed, not merely to the repository revision.
+# Haxe actually parsed.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"

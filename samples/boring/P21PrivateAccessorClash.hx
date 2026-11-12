@@ -3,7 +3,7 @@ package boring;
 // P-21 collision-resolution fixture (Kotlin realization): a private field
 // that arrives as a constructor property parameter next to an explicit
 // setValue method. Kotlin forbids @JvmField on a private property, so the
-// private field needs renamed JVM accessors instead of a JVM field.
+// private field needs renamed JVM accessors.
 class P21PrivateAccessorClash {
     public function new(value:Int) {
         this.value = value;

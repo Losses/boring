@@ -13,8 +13,7 @@ import { expect, test } from "bun:test";
 //
 // The positive tree compiles. The ablation arm (-D kotlin_coerce_ablate=Return)
 // drops the outer !!, leaving "return f()" so kotlinc rejects it with a type
-// mismatch (GP-ABLATE). Assertions name the emitted forms, not merely "it
-// compiles" (LAYERED-VERIFICATION).
+// mismatch (GP-ABLATE). Assertions name the emitted forms (LAYERED-VERIFICATION).
 const root = `${import.meta.dir}/../../..`;
 const out =
   Bun.env.BORING_COERCE_RETURN_OUT ??

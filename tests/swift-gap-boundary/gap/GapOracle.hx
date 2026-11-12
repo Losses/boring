@@ -11,7 +11,7 @@ import gap.Gap.GapPaths2;
 /** Independent Haxe oracle for the gap fixture runtime comparison. Calls
     every fixture function and prints the observed result, including the
     actual value of tryLocal(true) (the catch path returns sourceSecond(),
-    so the length is 1), not just "no-throw". The Swift harness prints the
+    so the length is 1). The Swift harness prints the
     same lines; byte-identical output proves unchanged runtime behavior. */
 class GapOracle {
     static function arr(a:ReadOnlyArray<Int>):String {
