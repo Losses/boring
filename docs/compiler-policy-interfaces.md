@@ -32,9 +32,9 @@ worktrees `ts-comparison-consumer` (tracked diff `5adb5f00` — uncommitted,
 not an object id),
 `policy-kotlin-comparison-consumer` (`907c53e9` — tracked diff, uncommitted,
 not an object id), `boring-wt-rust-comparison`
-(`a7b60a81` — tracked diff, uncommitted, not an object id), and
+(`a7b60a81` — tracked diff, uncommitted, and therefore no object id), and
 `policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
-diff `74c58a3c` — uncommitted, not an object id). It distinguishes a typed
+diff `74c58a3c` — uncommitted, and therefore no object id). It distinguishes a typed
 result that exists in the tree
 from a target consumer that uses it. Refresh the inventory when a candidate
 is integrated.
@@ -48,7 +48,7 @@ has no object id, so any lookup of the form `git show 5adb5f00` fails:
 | `ae73c11e` (marked as HEAD) | **commit** | The only one retrievable |
 | The four `tracked diff` values | all four **ABSENT** | Also **not in** their respective worktrees — they should not be there in the first place |
 
-**This is a notation problem, not a stale reference**: the author wrote "HEAD" and "tracked diff" separately, which shows they **know**
+**This is a notation problem**: the author wrote "HEAD" and "tracked diff" separately, which shows they **know**
 the two are different; but writing the diff state as a bare hex value makes it read the same as a commit hash.
 **Rule (supplement)**: when citing **uncommitted** state, do not write a bare hash — write **worktree name + file name + recheck date**,
 or the `git diff --stat` summary from that time. A bare hash promises "retrievable via `cat-file`",
@@ -370,16 +370,16 @@ canonical) cannot run the same body from &mut Self; it fails closed with a
 diagnostic panic that names the method, states that handle identity is required,
 and points at the concrete Rc<RefCell<Struct>> receiver. No dyn dispatch
 reaches this path in the current Tiqian engine (the engine is never stored as
-Rc<RefCell<dyn Trait>>), so the panic is a documented dead path, not a live
+Rc<RefCell<dyn Trait>>), so the panic is a documented dead path, and no live
 failure.
 
 Future direction. A generic adapter mechanism (tracked as a backlog task) will
 thread the handle through the trait-method boundary explicitly, so the direct
 impl can run the shared semantic helper with a caller-supplied handle context
-instead of failing closed. Until then the fail-closed body is the accepted
+Until then the fail-closed body is the accepted
 intermediate state and its panic text is part of the contract.
 
 Verification. A three-way fixture asserts (1) the concrete handle path returns
 the expected layout, (2) the struct trait path reaches the fail-closed panic
-(the expected error, not a void branch), and (3) the unsized dyn path is absent
+(the expected error, which is what the branch returns), and (3) the unsized dyn path is absent
 from the engine and therefore not wired.

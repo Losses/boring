@@ -41,7 +41,7 @@ Five targets per stage (each cell is the **directly read rc**; source `stages/<s
 | compare | identical(0) | identical(0) | **not-reached** (compile=101) | **not-reached** (gen=1) | identical(0) |
 
 - oracle: `haxe-oracle-compile`=0, `haxe-oracle-run`=0 (5 shape rows), `haxe-oracle-expect` identical(0).
-- Unreached stages are marked faithfully: rust's run/compare are unreached because `compile-rust=101`; swift's compile/run/compare are unreached because `gen-swift=1`. The script records them explicitly as `not_reached` rather than passing them off as semantic differences.
+- Unreached stages are marked faithfully: rust's run/compare are unreached because `compile-rust=101`; swift's compile/run/compare are unreached because `gen-swift=1`. The script records them explicitly as `not_reached`, so they are never passed off as semantic differences.
 - `membership` (stage-check)=0, every declared stage has a record.
 
 ## 3. The three findings written separately
@@ -61,7 +61,7 @@ After the view is established, `holder.values = [9,8,7]` rebinds the field. ts/k
 ## 4. Probe discriminating power: can this fixture fail
 
 - **The semantic probes are discriminating**: each shape carries discriminating readings — the shared-read vs copy-read (702/101, 3301/1201) and view-retains vs follows-rebinding (123/987) take different values; and the three controls `fieldNull`, `relayFresh`, `fieldRebind` prove each probe is not pinned to a constant. If some target lowers the shared read into a copy (or the view follows the rebinding), the corresponding `compare-<target>` diff becomes nonzero, `compare-notes.txt` records the difference, and the summary verdict becomes `observed-differences`.
-- **But run.sh itself is an observation fixture, not a gate**: the script's last statement is `cat "$RUN/summary.txt"`, with no `exit` statement after it and no `set -e`; the file header claims "Only failed and harness-defect exit nonzero", but stage-level failure only lands in the `VERDICT=failed` string — **in this round the measured verdict is failed while the directly read rc is still 0**. The script's only nonzero exit paths are the opening setup/fixture-missing case (`exit 1`) and the missing `.haxelib` dev pointer (`exit 2`). Therefore treating rc as a gate would always pass green; a gate consumer must read the `verdict` field in `summary.txt`.
+- **But run.sh itself is an observation fixture**: the script's last statement is `cat "$RUN/summary.txt"`, with no `exit` statement after it and no `set -e`; the file header claims "Only failed and harness-defect exit nonzero", but stage-level failure only lands in the `VERDICT=failed` string — **in this round the measured verdict is failed while the directly read rc is still 0**. The script's only nonzero exit paths are the opening setup/fixture-missing case (`exit 1`) and the missing `.haxelib` dev pointer (`exit 2`). Therefore treating rc as a gate would always pass green; a gate consumer must read the `verdict` field in `summary.txt`.
 
 ## 5. rust / swift readings (measured in this round, consistent with the cited run)
 

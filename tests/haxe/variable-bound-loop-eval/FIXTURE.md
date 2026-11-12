@@ -2,8 +2,8 @@
 
 ## Scope and source admission
 
-The two measured inputs are hand-written `while` loops, not typer-promoted
-`range-for`: `localBound` reads a local bound expression on every condition
+The two measured inputs are hand-written `while` loops. `localBound` reads a
+local bound expression on every condition
 check and performs a local reassignment; `growingLength` reads `values.length`
 and grows the array once during the loop. `doubleControl` has two source
 bound reads and is the instrument sensitivity control.
@@ -188,7 +188,7 @@ that were `not-reached` in the pre-fix run are genuine compilations now:
 "variable 'bound' was never mutated; consider 'let'" warning, no error).
 
 The two not-reached rows were resolved by `1e0d8169`, which changed the
-emitters (and the runner's pinned paths), not the frozen source:
+emitters (and the runner's pinned paths); the frozen source is unchanged:
 
 - **rust** (`RustExpr.hx`): the `++`/`--` post-increments on the guard-static
   counters were emitted with `expr(subj)` on the left of the compound
@@ -221,8 +221,8 @@ recorded `dart-run` stage alone (status 0, stdout
 The triple `(local, length, control) = (4, 3, 4)` is jointly discriminating:
 
 - If the local bound were hoisted above the loop (evaluated once), `local`
-  would read 1 instead of 4, and `control` would read 2 instead of 4 (one
-  read per loop). No single lowering change keeps the measured triple.
+  would read 1 where 4 is measured, and `control` would read 2 where 4 is
+  measured (one read per loop). No single lowering change keeps the measured triple.
 - If the array growth were lost while the length stayed per-iteration,
   `length` would read 2 (checks see 1, then 1); if the length were hoisted,
   it would read 1. Either change is falsified by the measured 3.
@@ -238,7 +238,7 @@ The triple `(local, length, control) = (4, 3, 4)` is jointly discriminating:
   counters produce 4 and 3 for the two different shapes, so the instrument
   resolves per-shape read counts.
 
-The runner is an observation fixture, not a gate. The last statement of the
+The runner is an observation fixture. The last statement of the
 current `run.sh` is `printf 'evidence root %s\n' "$RUN"` followed by
 `exit 0`; the only non-zero exit path is the `exit 1` reserved for harness
 defects (oracle re-run mismatch, input-tree drift, a declared stage with no

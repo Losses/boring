@@ -59,7 +59,7 @@ test("a nullable var property read keeps its force extraction; a val property sm
   // The measured subject: a mutable property that Kotlin will not smart-cast.
   expect(/holder\.value!!\./.test(varBody), `var read must extract:\n${varBody}`).toBe(true);
   // The control: the same shape as a final property may smart-cast. If this
-  // ever extracts too, the distinction has been flattened rather than kept.
+  // ever extracts too, the distinction has been flattened.
   expect(/holder\.value\./.test(valBody) && !/holder\.value!!\./.test(valBody), `val read must smart-cast:\n${valBody}`).toBe(true);
   // Neither may degrade into a safe call, which would change the value's type.
   expect(/\?\./.test(varBody), `var read must not safe-call:\n${varBody}`).toBe(false);
@@ -68,8 +68,8 @@ test("a nullable var property read keeps its force extraction; a val property sm
   // The emitted Kotlin must actually compile under the real compiler. A
   // missing kotlinc is recorded as environment-not-reached, the convention
   // tests/haxe/dc-promoted-eval/run.sh states ("recorded as
-  // environment-not-reached and never silently skipped"), rather than
-  // returning quietly -- a silent skip would make the number of assertions
+  // environment-not-reached and never silently skipped"), with no quiet
+  // return path -- a silent skip would make the number of assertions
   // depend on the machine and would let the strongest check here not run.
   const kotlinc = Bun.which("kotlinc");
   if (kotlinc === null) {

@@ -65,7 +65,7 @@ here; this repository needs none of them.
 
 The two commands below are the documented path and should be used when they work.
 In a sandboxed environment they may not, and the failure is **not** obvious, so
-what still works is recorded here rather than left to be rediscovered:
+what still works is recorded here, so it need not be rediscovered:
 
     $ nix develop -c echo ok
     error: ... attempt to write a readonly database
@@ -82,7 +82,7 @@ run. Of the tools the flake provides, only what is already on `PATH` is usable:
 | `haxe`, `cargo`, `kotlinc`, `swiftc`, `boring` | **no** |
 
 **All four sandbox limits, in one place** (each re-checked; the
-underlying measurements are recorded in `docs/architecture/ARCHITECTURAL-CONTRACTS.md`, `docs/architecture/LAYERED-VERIFICATION.md`, and the CI baseline wiring in `.github/workflows/ci.yml`, not duplicated here):
+underlying measurements are recorded in `docs/architecture/ARCHITECTURAL-CONTRACTS.md`, `docs/architecture/LAYERED-VERIFICATION.md`, and the CI baseline wiring in `.github/workflows/ci.yml`):
 
 | # | Limit | Blocks |
 |---|---|---|
@@ -99,7 +99,7 @@ revision. That conflated two questions: *"can that existing checkout be updated"
 It said writes to the Tiqian checkout's `.git` blocked obtaining the pinned
 which is writable). The probe verified `8504d230` and
 `engine-haxe/tests/compile.hxml` in the clone before the entry was deleted. The superseded reasoning is retained in the wb record (task t-musjpp6r-k39m
-migration notes) rather than quietly replaced.
+migration notes), with the replacement recorded openly.
 
 **What still works without the flake** ; the tests invoke `haxe`/`cargo`/`kotlinc`
 by name and do not locate them themselves, so the toolchains must be on `PATH`
@@ -112,8 +112,8 @@ however you arrange that (the flake normally does it):
 
 - `bun test tests/` **without** `haxe` on `PATH` reports **61 failures (1000
   pass)**; with it on `PATH`, **5 failures (1075 pass)**. Those 56 are
-  toolchain-absent, not defects ; the CI baseline step in `.github/workflows/ci.yml`
-  measures the class by running both ways rather than inferring it from a marker;
+  the cause is a missing toolchain; no defect is involved. The CI baseline step in `.github/workflows/ci.yml`
+  measures the class by running both ways, with no inference from a marker;
 - the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
   its wrapper needs user namespaces the sandbox denies), which is why the
   residual 5 also cannot be cleared;

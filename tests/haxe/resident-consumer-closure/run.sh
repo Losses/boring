@@ -13,7 +13,7 @@
 #   3. Native compile           tsc / cargo / swiftc / kotlinc / dart
 #   4. Mutation negative        delete one resident file, recompile
 #
-# This is a gate, not an observation fixture. Every measured row is
+# This is a gate. Every measured row is
 # asserted (one line per row in logs/assertions.tsv) and a failed
 # assertion makes the script exit 1; a clean run exits 0:
 #   * generation must succeed on all ten inputs (rc=0);
@@ -42,8 +42,8 @@ mkdir -p "$L"
 # ------------------------------------------------------------------
 # Toolchains. Environment-overridable (tools/warning-gate/check.sh
 # convention); defaults are the store paths measured in this
-# environment. The swiftc default is the SDK-injecting shim, not the
-# store binary: the store swiftc is bwrap-wrapped and dies here with
+# environment. The swiftc default is the SDK-injecting shim: the
+# store binary is bwrap-wrapped and dies here with
 # `bwrap: setting up uid map: Permission denied` (PIT-250, bypass
 # wrapper). There is no `swift` or `swift build` in this environment.
 # ------------------------------------------------------------------
@@ -187,7 +187,7 @@ printf '== native compile rc ==\n'; cat "$L/native-rc.tsv"
 # Stage 4: mutation negative control. One resident file deleted from a
 # copy of the tree, then the same native command re-run. Every row must
 # fail (rc!=0): the compile stage must not pass vacuously. A row that
-# started passing here is a broken compile stage, not a win.
+# started passing here is a broken compile stage.
 # ------------------------------------------------------------------
 : > "$L/mut-rc.tsv"
 

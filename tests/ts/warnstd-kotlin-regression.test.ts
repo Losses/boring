@@ -32,9 +32,8 @@ describe("warnstd kotlin regression samples", () => {
   test("CharCodeNoToString: the fromCharCode template drops the redundant toString on its String branch", () => {
     const out = gen("FromCharCodeToString.kt");
     // The template binds the scalar once, so the String branch renders
-    // "_c.toChar().toString()" rather than the inline "(code).toChar()
-    // .toString()" form. The property under test is that the branch carries
-    // exactly one toString, not the spelling of the receiver.
+    // "_c.toChar().toString()". The property under test is that the branch
+    // carries exactly one toString; the receiver's spelling is free.
     expect(out).toContain(".toChar().toString()");
     expect(out).not.toContain(".toString().toString()");
     expect(out).not.toContain("toChars((code))).toString()");

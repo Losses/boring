@@ -15,12 +15,12 @@ describe("record collection printed members", () => {
     // per-target strings name the builder opening and the element read.
     //
     // The two Rust entries name the HOISTED form deliberately. The Rust emitter
-    // (RustExpr.hx:10046) binds the receiver once and reads `arr[i]` rather than
-    // repeating the clone at the index expression. An earlier revision pinned
+    // (RustExpr.hx:10046) binds the receiver once and reads `arr[i]`, which keeps
+    // the clone out of the index expression. An earlier revision pinned
     // `(self.points).clone()[i]`, the pre-hoist text; it stayed red until the
     // reference tree was regenerated and the emitter's current shape became
     // visible. The hoisted binding is the stronger assertion: it also shows the
-    // receiver is cloned once rather than per element.
+    // receiver is cloned once for the whole read.
     const trees = [
       ["ts", "reference/ts/gen/boring/PrintedCollection.ts", "(() => { let out = \"[\"", "this.points[i]!.toString()"],
       ["swift", "reference/swift/gen/boring/PrintedCollection.swift", "{ () -> String in var out = \"[\"", "self.points[i].toString()"],

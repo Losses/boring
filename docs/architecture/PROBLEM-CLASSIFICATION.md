@@ -1,12 +1,12 @@
 # Cross-Target Problem Classification (A–F = Compiler Responsibilities)
 
 This document maps recurring failures across Boring targets (TypeScript, Kotlin, Rust, Swift, Dart)
-to a finite set of **compiler responsibilities**. The purpose of classification is not statistics, but to answer one question:
+to a finite set of **compiler responsibilities**. The purpose of classification is to answer one question:
 **Which layer should own a new failure, and therefore where it should be fixed and where it should be verified.**
 
 ## Basis of Classification
 
-The classification is drawn from existing records of this programme, not newly invented:
+The classification is drawn from existing records of this programme:
 the investigation in `docs/investigations/architecture-round-1/` (2026-10-03 clearance migration, fact extraction noted in wb task t-muso22y0-5hn2 note), the two-seat architecture consultation
 (`dc-warn/out/sol-architecture-consult/{SOL2-ARCH-ANSWER.md,ASTRA-ANSWER.md}`),
 `CODEX-AUDIT.md` (now located in the archive `boring-docs-archive/evidence/ledger-cited-reports/p12-programme-review-evidence/evidence/consult/`), and the mechanisms of four defects already fixed in this session.
@@ -33,18 +33,18 @@ so every "return site" reads the type of the **outer function**.
 **This is neither a Category B (representation choice) error nor a Category C (missing conversion) error:**
 the conversion code itself is correct; what is wrong is **the destination it references**.
 
-⇒ **The owner of Category D is "the composition that surrounds the position"**, not the surrounded expression,
-nor the outer function. Sol's formulation: *"Composition owns intermediate requirements"*
+⇒ **The owner of Category D is "the composition that surrounds the position"**; the surrounded expression
+and the outer function both sit outside that ownership. Sol's formulation: *"Composition owns intermediate requirements"*
 (`docs/compiler-policy-interfaces.md:191`).
 
 ⇒ **Criterion**: if placing the same expression in different compositions yields different (but each correct) outputs,
 then at that position the destination **must** be passed in by the composition and **must not** be inferred from global state.
 
-## Known Instances Across Targets (Mapping, Not an Inventory)
+## Known Instances Across Targets (Mapping)
 
 | Category | Instance | Record Location |
 |---|---|---|
-| A | Kotlin: consumer reads inferred facts instead of declared facts | ~~`out/kotlin-local-presence-facts`~~ worktree no longer present; **evidence needed** |
+| A | Kotlin: consumer reads inferred facts where declared facts are intended | ~~`out/kotlin-local-presence-facts`~~ worktree no longer present; **evidence needed** |
 | B | Rust: `String` vs `UString` host string representation | commit `40cf0ad0` |
 | B | Swift: `[Int32] = Array(...)` vs `ReadOnlyArray<Int32> = ReadOnlyArray(...)` | commit `9c9548ef` |
 | C | Swift: read-only array boundary wrapping (SW04) | ~~`out/sw04-fix-wt`~~ worktree no longer present; **evidence needed** |

@@ -6,7 +6,7 @@ package;
 
     This module is the single source of truth for the typed-IR vocabulary a
     Haxe type and expression must resolve into before any target renderer runs.
-    It is a *policy* contract, not a Rust implementation detail: Rc<RefCell<T>>,
+    It is a *policy* contract: Rc<RefCell<T>>,
     SingleThread<T>, and every other concrete type are the Rust *realization*
     declared in the mapping table (docs/specs/target-semantic-policy.md), never
     the policy itself.
@@ -75,13 +75,13 @@ enum ReprType {
 
     /**
         plain-class or interface reference. Object identity is shared, so the
-        value is a handle, not a T.
+        value is a handle.
 
         - class_id   : the Haxe class/interface identity (module-qualified).
         - nullability: whether the slot admits Null.
         - shared     : true when the interface is @:sharedHandle. This marks an
                        alias obligation (the same implementor identity across
-                       slots), not thread safety; the realization stays
+                       slots); thread safety is a separate question, and the realization stays
                        Rc<RefCell<dyn Trait>>.
     **/
     Handle(class_id:String, nullability:Nullability, shared:Bool);
@@ -228,7 +228,7 @@ enum ReceiverAbi {
     method body runs against self.object (the canonical handle) through a
     shared handle-aware helper.
 
-    v1.4.0 adopts this variant verbatim instead of re-defining it. The
+    v1.4.0 adopts this variant verbatim. The
     RepresentationPlan decides which variant applies, and the adapter edge it
     emits must be registered in the target capability table (P-25).
 **/
@@ -357,9 +357,9 @@ typedef SemanticFacts = {
                             NOT the same as AdapterHandle; it is the decision that
                             routes coerce through the AdapterHandle(C,I) transient.
 
-    identitySensitive is an input fact (SemanticFacts.identitySensitive), not a
-    role: an identity-sensitive non-receiver handle resolves to ClassHandle or
-    TraitHandle with its identity preserved by Rc clone, never a distinct role.
+    identitySensitive is an input fact (SemanticFacts.identitySensitive), with no
+    role of its own: an identity-sensitive non-receiver handle resolves to
+    ClassHandle or TraitHandle, its identity preserved by Rc clone.
 **/
 enum RepresentationRole {
     /** a plain value with no object identity (Copy/ImmutableValue). */
@@ -424,14 +424,14 @@ typedef RepresentationPlan = {
     var requiresAdapterEdge:Bool;
     /** true when the handle is cross-thread shared and needs a Send + Sync bound (P-16). */
     var sendSync:Bool;
-    /** concrete spelling, filled by the target profile (RustAbiProfile.spell), NOT by decide(). */
+    /** concrete spelling, filled by the target profile (RustAbiProfile.spell); decide() leaves it empty. */
     var concreteRepr:String;
     /**
         Per-use-site ABI (P-4/P-8), decided by decide() from the calling site's
         destinationContract/useMode. CONSTRAINT (plan-cache read rule, P-24): the
         plan cache (RustEmissionState.representationPlans) is keyed by role only,
         first-caller-wins — on a cached plan these two fields hold whichever use
-        site computed the plan FIRST, not this site's ABI. Only the Receiver
+        site computed the plan FIRST. Only the Receiver
         position may read receiverAbi off a plan, and no renderer site may read
         paramAbi off a plan at all; reading either at any other site is a
         use-case error. Sites needing the per-use-site ABI must derive it
@@ -1026,8 +1026,8 @@ class SemanticPolicy {
 
     /** Declared cloneRelation: whether reading this container as a value is a
         detached copy. This is a separate axis from nullableProjection: it
-        answers "is the container itself a detached copy when read", not "how
-        to cross the Option". A value container (Collection) reads as a
+        answers "is the container itself a detached copy when read"; crossing
+        the Option is the other axis. A value container (Collection) reads as a
         detached copy; a handle reads as a shared referent. (PlacePolicy) */
     public static function cloneRelationFor(repr:ReprType):CloneRelation {
         return switch (repr) {

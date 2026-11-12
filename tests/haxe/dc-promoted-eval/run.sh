@@ -6,7 +6,7 @@
 # dc-enum-switch-gen (task t-mum05sop-cbtu): that fixture showed the promoted
 # shape generates on all five targets with the subject read once into a
 # synthetic local, but it never compiled or ran anything, so "single
-# evaluation" was a reading of the generated text, not a measurement.
+# evaluation" was a reading of the generated text.
 #
 # Observation only: this runner never edits the compiler. It generates the
 # fixture with the pinned Haxe, compiles each generated program with that
@@ -17,8 +17,8 @@
 # zero, and every dependent stage of a failed producer receives an explicit
 # not-reached row naming that producer.
 #
-# Mutating the *generated* tree is part of the measurement, not of the
-# deliverable: the negative control duplicates one evaluation of the subject
+# Mutating the *generated* tree is part of the measurement: the negative
+# control duplicates one evaluation of the subject
 # expression inside a single promoted switch, which is exactly the hazard the
 # positive assertion must be able to see. The mutation is written into the run
 # directory only and is reported with before/after digests.
@@ -220,8 +220,8 @@ mutate() {
 	local stage="mutate-$target"
 	STAGE_NO=$((STAGE_NO + 1))
 	declare_stage "$stage"
-	# A mutation is an in-runner transformation rather than a process, so its
-	# stage directory carries the recipe and the target path instead of argv.
+	# A mutation is an in-runner transformation, so its
+	# stage directory carries the recipe and the target path.
 	local dir="$ST/$(printf '%02d' "$STAGE_NO")-$stage"
 	mkdir -p "$dir"
 	printf '%s\n' "$expr" >"$dir/recipe.txt"
@@ -548,8 +548,8 @@ fi
 
 # --- Swift (expected to be blocked by the pinned toolchain wrapper) -------------
 if gs swift; then
-	# Package.swift is the emitted SwiftPM manifest, not a compilable library
-	# source, so the library invocation lists only the module sources.
+	# Package.swift is the emitted SwiftPM manifest, so the library invocation
+	# lists only the module sources.
 	# shellcheck disable=SC2046
 	run_stage swift-build swiftc -emit-library -emit-module \
 		$(find "$RUN/swift-gen" -name '*.swift' -not -name 'Package.swift' | LC_ALL=C sort) \
@@ -562,7 +562,7 @@ if gs swift; then
 	else
 		# The environment let swiftc run, which this environment was not
 		# expected to do; no Swift driver was authored or verified here, so the
-		# run stays explicitly not measured rather than silently claimed.
+		# run stays explicitly not measured.
 		note "swiftc ran, which this environment was not expected to allow; no Swift driver is authored for this fixture, so no Swift runtime observation exists"
 		mark_unreached swift-build "no-verified-driver" swift-run-promoted
 	fi

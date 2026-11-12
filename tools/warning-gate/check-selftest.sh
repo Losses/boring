@@ -14,7 +14,7 @@
 # adjudication functions are extracted by a documented awk range: everything
 # from `run() {` up to the line before the loose/strict invocation block. If
 # that structure changes the extraction is asserted below and the test aborts
-# loudly instead of silently checking nothing.
+# loudly, so it never checks nothing silently.
 #
 # Usage: tools/warning-gate/check-selftest.sh [path/to/check.sh]
 set -u
@@ -175,13 +175,13 @@ seed dart 0 0 46 loose
 case_run dart 46 "missing loose rc file -> FAIL (not measured)" FAIL \
   'loose rc is not numeric'
 
-# --- tier split: count regression flags tier 1, not tier 2 -----------------
+# --- tier split: a count regression flags tier 1 ---------------------------
 seed dart 0 0 47
 case_run dart 46 "count regression: aggregate FAIL" FAIL 'has 47 warning\(s\), baseline is 46'
 assert_flag "count regression sets FAIL_COUNT=1 (tier 1)" "$FAIL_COUNT" 1
 assert_flag "count regression leaves FAIL_RC=0 (tier 2 clean)" "$FAIL_RC" 0
 
-# --- tier split: compile rc failure flags tier 2, not tier 1 ----------------
+# --- tier split: a compile rc failure flags tier 2 --------------------------
 seed kotlin 1 1 0
 case_run kotlin 59 "compile rc failure: aggregate FAIL" FAIL 'kotlin loose compile FAILED \(rc=1'
 assert_flag "compile rc failure sets FAIL_RC=1 (tier 2)" "$FAIL_RC" 1

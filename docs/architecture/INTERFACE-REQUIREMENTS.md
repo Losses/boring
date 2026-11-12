@@ -31,7 +31,7 @@ Target-side Destination roles (complement, from report Section 4.2 item 1):
   - **StringConcatArgument** → one argument of a string interpolation or concatenation
   - **Discard**           → the result is computed for side effects; no consumer
 
-Destination is a value object (Destination), not a bare Haxe Type: it carries the target type plus the role that the position demands.
+Destination is a value object (Destination): it carries the target type plus the role that the position demands.
 ```
 **The last item is this session's lesson**: the `blockExpression` block has its own destination;
 treating it as the lambda's return contract **injects a wrong conversion** (the P4 regression of `lambda-fix-xcheck`,
@@ -50,8 +50,8 @@ result type 'TiqianArray<Int32>'`).
 - `override == true` ⇒ the composition declares "an optional intermediate result is accepted here" ⇒ that cell becomes a conversion
   (`MapOptionalMutableArrayView` `:200-202`, etc.)
 
-**Contract boundary**: `override` is **the composition's obligation**, not a property of the operand and not an exemption.
-The three REFUSED rows in `RECORD.md` (the session-record file of the Swift boundary planner seat, not in the product repo) are therefore qualified in the record as **PLANNER-CELL ONLY**
+**Contract boundary**: `override` is **the composition's obligation**; it belongs to the composition and grants no exemption.
+The three REFUSED rows in `RECORD.md` (the session-record file of the Swift boundary planner seat, which lives outside the product repo) are therefore qualified in the record as **PLANNER-CELL ONLY**
 (CORRECTION 13; the point is implemented in this contract).
 
 ## Contract 3: Warnings count toward acceptance (class F)
@@ -69,7 +69,7 @@ The three REFUSED rows in `RECORD.md` (the session-record file of the Swift boun
   only bypassed. **That gap has been wired up** (`9f26e1ef`): `ci.yml` adds a `collected-suite`
   job that runs the entry point `bun run test` each time and reports the collected domain (303 files, 249 of them from
   the generated tree `reference/ts/gen-tests`). The job blocks and has no `continue-on-error`;
-  baseline `1001 pass / 32 fail / 8 errors` (originally recorded in `BASELINE-FAILURES.md`, deleted 2026-10-03 with the cleanup; the current record is the baseline wiring in `.github/workflows/ci.yml`), not yet discharged.
+  baseline `1001 pass / 32 fail / 8 errors` (originally recorded in `BASELINE-FAILURES.md`, deleted 2026-10-03 with the cleanup; the current record is the baseline wiring in `.github/workflows/ci.yml`), and the discharge is still pending.
 - ⇒ the recorded form must be "**known baseline failures + explicit PIN**", and must **not** be named "zero-diagnostics met":
   the owner ruling at `tests/swift-gap-boundary/gap-boundary.test.ts:44` is this contract's implementation.
 
@@ -81,7 +81,7 @@ so for `Gap.swift:117`'s `will never be executed` it can **neither confirm nor f
 the only things that can actually see it are `-c` (including `-whole-module-optimization`) and `-o`.
 ⇒ **Ruling: build-phase diagnostics count toward `:78/:80`**. If we literally accept only "the type-checker", "zero warnings" degenerates into
 **an empty criterion** (real emitter defects all pass invisibly, while the downstream CI that compiles the binary still hits them).
-**Counting discipline**: count by the `file:line:col: severity` **shape**, not with `grep -c 'warning:'`
+**Counting discipline**: count by the `file:line:col: severity` **shape**; `grep -c 'warning:'` overcounts.
 — Swift also prints caret/context lines, which would count 1 as 2 (PIT-336).
 **Generalization to the same family**: for every target, ask "does the current command **fail to see** a diagnostic it can report" —
 one same-family example from this session is that `cargo check` and `cargo build` differ in their warning surface.
@@ -98,8 +98,8 @@ one same-family example from this session is that `cargo check` and `cargo build
 | splice-style fixes | the generated tree is byte-identical pre/post (cannot distinguish "unchanged" from "changed correctly") |
 
 **⇒ Implemented criteria** (`LAYERED-VERIFICATION.md` will expand):
-1. assertions must be stricter than "not broken": e.g. `1:1:present` rather than `1:present`
-2. **the shape that strips `return` must use `swiftc -c`, not `-typecheck`**
+1. assertions must be stricter than "not broken": e.g. `1:1:present` pins the position, while `1:present` matches any.
+2. **the shape that strips `return` must use `swiftc -c`; `-typecheck` misses the SILGen stage**
 3. splice-style changes must use a **discriminating backend** (deliberately take the wrong branch / deliberately return the wrong value) to prove it would FAIL
 
 ## Contract 5: A fix must not change other classes' behavior
@@ -189,7 +189,7 @@ the sample that was added together with that write site at `19ae7db6`):
 | `boring/data_class_string_compare.rs` | normal | still `use crate::runtime::sorted_table::SortedTable;` (:1), :26 still calls |
 | `cargo check` | **rc=0** | **rc=101, `error[E0432]: unresolved import`** |
 
-⇒ this write site is **load-bearing, not redundant**, and **must not be removed**. Contract 6 therefore has
+⇒ this write site is **load-bearing** and **must not be removed**. Contract 6 therefore has
 a far stronger implemented criterion: **judging "whether a write site is necessary" must be done by ablation on the minimal root set,
 not on the full corpus** — the passing state of the full corpus masks single-point defects, the same phenomenon as class G's
 "divergence is invisible in the passing state". Path: `RustDecl.hx:557` /
@@ -208,12 +208,12 @@ treat available/bytes consistency as an invariant assertion — it is a normal s
 Similarly, **mutation testing must be done before weakening an assertion**: after relaxing `stdout>0 && stderr>0` to
 `stdout+stderr>0`, a real regression that "silently drops stderr on the upper-limit path"
 had the entire test suite rc=0 all-green (restoring the old assertion captured it at rc=1). The basis for relaxation can only be
-"what does the subject under test guarantee", not "it no longer fails sporadically after the change".
+"what does the subject under test guarantee"; a change that stops the sporadic failure says nothing about the guarantee.
 
 
 ## Contract 7: Value object carries facts (NEW, from report Section 4.2 item 2)
 
-**Rule**: every lowering function must return a `Lowered` value object, not just a `String`.
+**Rule**: every lowering function must return a `Lowered` value object.
 A `Lowered` carries:
   - `text: String` -- the emitted target-language source fragment
   - `storage: Representation` -- the actual target-side storage shape (`TiqianArray`, `[T]`, etc.)

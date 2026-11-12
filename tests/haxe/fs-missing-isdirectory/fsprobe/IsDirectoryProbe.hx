@@ -12,11 +12,11 @@ import std.Fs;
 	One Haxe source, four target chains: an existing directory must read
 	`true` and a path that does not exist must read `false`. The probe
 	asserts nothing itself; the runner compares the printed lines, so a
-	target that raises instead of returning takes that arm's exit status.
+	target that raises, where a return was expected, takes that arm's exit status.
 
 	The Dart target gives `std.Console` no lowering, so this module
 	declares a module-local native `print` for it; that branch is a
-	fixture edge, not a production ruling.
+	fixture edge.
 **/
 class IsDirectoryProbe {
 	public static final EXISTING = "out/fs-missing-isdirectory/probe/existing-directory";

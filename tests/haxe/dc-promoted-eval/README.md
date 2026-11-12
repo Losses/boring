@@ -5,8 +5,8 @@ Runtime counterpart of `tests/haxe/dc-enum-switch-gen` (board task
 That fixture established, structurally, that a **statement-position** enum
 switch over a non-local subject generates on all five targets with the subject
 read once into the synthetic local `_g` — and that it never compiled or ran
-anything, so "single evaluation" was a reading of generated text rather than a
-measurement. This fixture closes that gap for the four targets whose toolchains
+anything, so "single evaluation" was a reading of generated text alone, with no
+measurement behind it. This fixture closes that gap for the four targets whose toolchains
 run in the pinned devShell.
 
 **Observation only.** Nothing here edits the compiler.
@@ -109,7 +109,7 @@ records its resolved path and digest.
   filesystem and copied into the run directory for retention.
 * The pinned `swiftc` wrapper needs user namespaces and fails immediately with
   `bwrap: setting up uid map: Permission denied`, so Swift is recorded as
-  environment-not-reached rather than measured.
+  environment-not-reached.
 * The emitted Kotlin tree does not compile as a whole: `runtime/test/Test.kt`
   references `boring.runtime.FPHelper`, which the tree does not carry. The
   library build excludes `runtime/test` and the whole-tree failure is recorded

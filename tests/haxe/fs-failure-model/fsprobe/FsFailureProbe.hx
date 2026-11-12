@@ -62,7 +62,7 @@ class FsFailureProbe {
         final permDirPath = rootPath() + "/perm-dir";
         final regularFile = rootPath() + "/regular-file";
 
-        // isDirectory stays total: a missing path is a returned false, not a failure.
+        // isDirectory stays total: a missing path returns false.
         say("m1", "isDirectory-missing|" + Std.string(Fs.isDirectory(missing)));
 
         try {
@@ -96,7 +96,7 @@ class FsFailureProbe {
 
     /**
      * The uncaught path: no catch names std.FsException, so the failure
-     * leaves this function as its Result error instead of a panic.
+     * leaves this function as its Result error.
      */
     public static function escaped():String {
         return Fs.readText(missingPath());

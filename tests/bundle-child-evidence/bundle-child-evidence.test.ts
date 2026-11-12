@@ -693,8 +693,8 @@ describe("child execution evidence", () => {
       //
       // No assertion here reads stderr, and that is deliberate. In THIS shape
       // (both streams written in lockstep) whether stderr has flushed when the
-      // host SIGTERMs the child is a scheduling race in the host, not a
-      // property of this record: measured on the raw spawn, stderr was
+      // host SIGTERMs the child is a scheduling race in the host, with no
+      // bearing on this record: measured on the raw spawn, stderr was
       // non-empty in 21 of 240 samples (8.8%) when idle and 85% under CPU
       // load, so asserting `stderrBytes > 0` here fails often enough to look
       // like a flake, and asserting it *sometimes* would need many runs for
@@ -722,7 +722,7 @@ describe("child execution evidence", () => {
      * is INERT: Haxe scopes that shadow to the block, so the record is
      * unchanged and its rc=0 proves nothing.)
      *
-     * Rather than document the hole, this drives a shape where the answer is
+     * This drives a shape where the answer is
      * determined: the child writes ONLY to stderr. stderr is then what
      * exhausts the buffer, and the retained stderr is non-empty on every run
      * -- the retention question has no race to lose.
@@ -782,7 +782,7 @@ describe("child execution evidence", () => {
       // capture that dropped stderr reports 0 here.
       expect(record.stderrBytes).toBeGreaterThan(0);
       // Nothing was written to stdout, so this case isolates the stream under
-      // test rather than piggy-backing on stdout's retention.
+      // test, with no piggy-backing on stdout's retention.
       expect(record.stdoutBytes).toBe(0);
 
       // The host's *stop* is opportunistic, and all three of its landings were
@@ -804,7 +804,7 @@ describe("child execution evidence", () => {
       // `captureComplete === false` with the capture-limit error, above.
 
       // The retained bytes must be the flood byte, which catches a capture that
-      // silently substituted or truncated content rather than just its length.
+      // silently substituted or truncated content; a length-only check would miss it.
       const stderr = readBytes(join(record.childDirectory, "stderr.bin"));
       expect(stderr.length).toBe(record.stderrBytes);
       expect(stderr.every((byte) => byte === 0x78)).toBe(true);

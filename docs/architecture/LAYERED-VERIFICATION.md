@@ -9,7 +9,7 @@ and **when each criterion deceives you**.
 |---|---|---|---|---|
 | **L1 Generation** | Compiler did not crash, artifacts complete | Generation process exit code + file list | `rc=0` and expected files exist | **rc=0 does not mean the artifact is correct**: the `fail()` at `:2609` also reaches rc=1, but an input that "does not reach the crash" returns rc=0 while outputting wrong results |
 | **L1.5 Generation-Time Invariants** (NEW, from report Section 4.3 item 1) | Generated text respects structural contracts | EmitSink records + emission plan lookup | All invariant checks pass | **Checking the wrong source**: if the invariant checker reads the same incomplete fact that the emitter used, it validates the same wrong decision (see Section 3.5 Kotlin row) |
-| **L2 Syntax/Types** | Artifact is valid in the target language | swiftc -typecheck / tsc / rustc --emit=metadata | 0 error | **-typecheck does not run SILGen**: a multi-statement closure with return stripped only reports a warning; only a real build fails. **This form must use swiftc -c**. **Build dependency graph masking** (NEW, from report Section 4.3 item 2): when an upstream compilation unit fails (e.g. the main source set), downstream units (test source sets, gen-tests) are never compiled; their defect counts are *unobservable*, not zero. Every verification report must list which units actually entered type-checking per bundle; units skipped by dependency failure must be reported as not measured, never as 0 errors |
+| **L2 Syntax/Types** | Artifact is valid in the target language | swiftc -typecheck / tsc / rustc --emit=metadata | 0 error | **-typecheck does not run SILGen**: a multi-statement closure with return stripped only reports a warning; only a real build fails. **This form must use swiftc -c**. **Build dependency graph masking** (NEW, from report Section 4.3 item 2): when an upstream compilation unit fails (e.g. the main source set), downstream units (test source sets, gen-tests) are never compiled; their defect counts are *unobservable*. Every verification report must list which units actually entered type-checking per bundle; units skipped by dependency failure must be reported as not measured, never as 0 errors |
 | **L3 Build** | Artifact links into an executable | `swiftc -c` / `swiftc -o` | 0 error | Build-phase diagnostics (`will never be executed`) **do not appear under `-typecheck`**. **Already ruled: counted into the acceptance criteria** — see the `t-muo92xms-s28t` ruling (`1a486ebd`; the original file `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` was deleted with the repo cleanup; the ruling content is in that row's note in the wb system). **The current fact for this entry is "not yet zeroed"**: that diagnostic count is still **1**, and it is an **unwaived, recorded baseline failure** — see the next section "This layer is not currently green" |
 | **L4 Behavior** | Runtime result is correct | Line-by-line comparison against the oracle | **Byte-for-byte identical** | If the oracle itself is wrong, everything is wrong; and "matches the oracle under the same input" **does not cover** properties the oracle does not express (laziness) |
 | **L5 Discrimination** | The check **can** find the target defect | Run against a deliberately wrong backend | Deliberate error ⇒ **FAIL** | Without this layer, L1–L4 all green may only mean **that property was never observed** |
@@ -59,7 +59,7 @@ class WhileNullableCond {
 ```
 
 Expected: Kotlin KotlinExpr.hx:1296 emits while (flag) { without == true; kotlinc rejects
-Boolean? as a while condition. (Fixture constructed by this report, not yet run against tiqian.)
+Boolean? as a while condition. (Fixture constructed by this report and still pending a run against tiqian.)
 
 **Cross-unit fixture standard**: any fix involving declaration visibility or symbol resolution must include
 a fixture where the declaration resides in the main compilation unit and the use site resides in a test
@@ -119,7 +119,7 @@ so it never executes; and the pre-existing red at `array-root.test.ts:18` means 
 
 ## Timeouts and failures must be distinguished
 
-**The criterion is "did the subject finish running", not "did it time out".**
+**The criterion is "did the subject finish running"; a timeout only proves the clock ran out.**
 
 **Instance**: the coupled run of `value-type` was **not killed** — `Bun.spawnSync` blocks bun's timers,
 taking 351 s ≈ 15 runs, and the temp directory disappeared in both replicas ⇒ the subject **did finish running**.
@@ -197,7 +197,7 @@ Measured (isolated one at a time, changing only one spot each run):
 
 **The two cannot both be true, and both sides are catching real kotlinc rejections.** The root cause is not that either side is wrong,
 but that **one judgment has two sources** (guard-side `smartCastableSubject`, read-side `fieldProven`),
-i.e. a violation of contract 6. The disposition is to **unify the predicate**, not to pick one — picking one just moves the regression elsewhere.
+i.e. a violation of contract 6. The disposition is to **unify the predicate**; picking one just moves the regression elsewhere.
 
 ### Instance two: collapsing three states into binary silently changes semantics
 
@@ -205,7 +205,7 @@ In the same unification, after tightening the read-side predicate to "value prov
 `holder.value!!.magnitude()` to `holder.value?.magnitude()`.
 
 **Both pass kotlinc**, but `!!.` is a forced extraction (throws on failure) and `?.` is a safe call (silently returns null).
-So the correct model here is **three states**, not binary:
+So the correct model here is **three states**:
 
 | Form | Condition |
 |---|---|
@@ -215,7 +215,7 @@ So the correct model here is **three states**, not binary:
 
 **`?.` almost always lets kotlinc pass**, so "compiles" is the weakest criterion in this family:
 it can only compress the three states into "not an error" and cannot distinguish that the semantics have been swapped. **This layer's criterion must be
-"which of the three forms appears in the output", not "does it compile".**
+"which of the three forms appears in the output"; "does it compile" cannot tell them apart.**
 
 ### Instance three: the same suppression mechanism "exists but with incomplete coverage"
 
@@ -241,7 +241,7 @@ The Rust emitter's per-char loop-units precomputation (`perCharLoopInfo` in `Rus
 But after measurement the execution seat gave a **more accurate mechanism** and corrected this preliminary finding: the main cause is not "a loop form lacks the optimization",
 but that **in a nested per-char loop, the inner layer re-materializes the unit vector the outer layer already holds** —
 that duplicate `let __units = u_string::units(&s);` lands inside the outer loop body, which is what makes it quadratic.
-Under this fix, **a nested `TWhile` benefits equally**, not just `TFor`.
+Under this fix, **a nested `TWhile` benefits equally**.
 
 **Implication for the criterion**: the entry point may ask "how many loop forms does this optimization cover", but it **must keep asking
 "how many times the same precomputation is re-materialized across nesting levels"**. Patching only the form misses the main cause.
@@ -251,7 +251,7 @@ appearing >1 time in a nested loop is that defect.
 **It shares the same structure as the previous three instances**: the criterion's observation domain (one loop form / one loop level) is **smaller than**
 the property it claims to cover (any per-char iteration / any nesting depth).
 
-### Instance five: audit-type guardrails define "covered" by location, not by reference
+### Instance five: audit-type guardrails define "covered" by location, while the real question is reference
 
 The previous four instances concern **product criteria** (emission / optimization / suppression). The fifth concerns the **audit-type guardrail itself**:
 its criterion is "has this fixture been collected", and it implements that sentence as "is there, **inside** the fixture directory, a
@@ -281,7 +281,7 @@ the number it produces looks concrete (37 uncollected fixtures), and concretenes
    otherwise the next person to merge will treat it as an ordinary regression.
 5. **An optimization/suppression/deduplication mechanism's criterion must expand along two dimensions, "form × nesting depth"**,
    not assert its existence at a single site. Instance three and instance four are both failures of this shape.
-6. **L5 extends to predicate clauses, not just whole fixtures**: a rule with a multi-clause predicate (e.g. `smartCastFor(property) -> true` requires `sameModule(decl,use)` AND `visibility != private` AND `!aliasedBetween(decl,use)`) must have a discriminating test that flips each clause independently; flipping the whole predicate only proves the rule is not a no-op. (NEW, from report Section 4.3 item 5)
+6. **L5 extends to predicate clauses**: a rule with a multi-clause predicate (e.g. `smartCastFor(property) -> true` requires `sameModule(decl,use)` AND `visibility != private` AND `!aliasedBetween(decl,use)`) must have a discriminating test that flips each clause independently; flipping the whole predicate only proves the rule is not a no-op. (NEW, from report Section 4.3 item 5)
 
 ## Unresolved
 

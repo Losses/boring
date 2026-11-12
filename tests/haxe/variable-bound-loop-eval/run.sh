@@ -18,7 +18,7 @@
 # Every stage records its argv, working directory, stdout, stderr, and raw
 # exit code under $RUN/stages/NN-<name>/ (no pipes around the measured
 # command). Target-level generation, compilation, or run failures are
-# observations, not defects: they are recorded with the failed producer and
+# observations: they are recorded with the failed producer and
 # the downstream stages are marked not-reached. The runner exits non-zero
 # only on harness defects (oracle mismatch, input drift, a declared stage
 # with no row, or a run that produced no parseable observation).
@@ -415,7 +415,7 @@ done
 
 # Target-level generation, compilation, and run failures are observations and
 # do not fail the runner. A target whose reading diverges from the oracle is
-# the audit's data, not a harness defect: it is noted in findings and the
+# the audit's data: it is noted in findings and the
 # runner exits 0 so the recorded evidence stays. Only harness defects
 # (oracle mismatch, input drift, missing stage, no parseable observation)
 # make this script exit non-zero.

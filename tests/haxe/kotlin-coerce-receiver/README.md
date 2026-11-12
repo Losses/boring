@@ -28,7 +28,6 @@ with -D kotlin_coerce_ablate=Receiver, which skips the Receiver coercion and
 drops the member-access operator; kotlinc must then exit nonzero. The two
 arms must differ (GP-ABLATE).
 
-kotlin.hxml names packages/compiler on the class path directly instead of
-depending on -lib boring, so the fixture always measures the tree it lives
-in rather than whatever the workspace haxelib projection points at
-(PIT-376).
+kotlin.hxml names packages/compiler on the class path directly, with no
+-lib boring dependency, so the fixture always measures the tree it lives
+in, independent of the workspace haxelib projection (PIT-376).

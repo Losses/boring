@@ -98,7 +98,7 @@ class RustExpr {
     // While rendering a guard-static array index whose index expression also
     // reads the same static (fivePowers[fivePowers.length - 1]), maps the
     // static's Rust item path to the bound guard local, so the nested length
-    // read reuses the held guard instead of locking the Mutex a second time.
+    // read reuses the held guard, so the Mutex is locked once.
     // (StaticGuardIndexScope)
     var activeStaticGuardIndexScope: Null<{path: String, varName: String, access: String}> = null;
     var inTryClosure:Bool = false;
@@ -165,7 +165,7 @@ class RustExpr {
     // While rendering a closure argument whose target function-typed
     // parameter is generic (its Fn signature borrows the type param as &T),
     // the closure parameter must render the same borrow (&u32, &UString) so
-    // the coercion matches instead of demanding an owned value.
+    // the coercion matches, so no owned value is demanded.
     // (GenericFnParamClosureBorrow)
     var closureBorrowGenericParams:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
@@ -305,8 +305,8 @@ class RustExpr {
     final hoistedStrParams:Map<Int, {unitsTemp:String, countTemp:String, receiverText:String}> = [];
     // Active statement-level static-read hoist: static path -> local name.
     // Set while stmtLines renders one statement so a second read of the same
-    // static in that statement resolves to the one cloned local instead of
-    // taking the Mutex again. (StaticReadStatementScope)
+    // static in that statement resolves to the one cloned local, so the
+    // Mutex is taken once. (StaticReadStatementScope)
     var activeStaticReadSubstitution:Map<String, String> = null;
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
@@ -697,7 +697,7 @@ class RustExpr {
             return "Some(" + rendered + ".to_ustring())";
         // An Int literal filling a Float slot arrives as `0 as f64` from the
         // global int-to-float text. Inside an Option the slot type is known, so
-        // the cast names the crate alias instead of the generation-time
+        // the cast names the crate alias, which leaves the generation-time
         // precision; the global helper stays untouched because it also serves
         // ternary arms and NaN branches whose other side fixes the type.
         if (isFloatType(inner) && !isNullType(inner)) {
@@ -1595,7 +1595,7 @@ class RustExpr {
                     return null;
                 final typeStr = types.of(field.type);
                 // TODO(StaticReadContainer): a container static read is the
-                // guard itself (*S).lock().unwrap(), not a clone; two reads
+                // guard itself (*S).lock().unwrap(); two reads
                 // of one container static in one statement still hold two
                 // guards and can deadlock. It is excluded here because the
                 // statement hoist binds a cloned value, while the container
@@ -1656,7 +1656,7 @@ class RustExpr {
         Render a while condition. A condition is re-evaluated on every
         iteration, so a duplicated static read is hoisted inside the
         condition block itself: the block runs each iteration, re-locking
-        and re-cloning, instead of hoisting before the loop. (StaticReadLoop)
+        and re-cloning. (StaticReadLoop)
 
         The block form is the semantically correct lowering for a body that
         reassigns the static to a new object; a body that only mutates the
@@ -1735,7 +1735,7 @@ class RustExpr {
                 // A local whose RUST type is exactly Rc<RefCell<T>> mutates
                 // through borrow_mut() or a UFCS &receiver, never through the
                 // binding, so `let mut` is dead weight and rustc flags it.
-                // The test is on the lowered type, not the Haxe type: a
+                // The test reads the lowered type: a
                 // nullable class lowers to Option<Rc<RefCell<T>>>, and
                 // Option::as_mut() takes &mut self, so that binding does need
                 // `mut`. A binding that is itself reassigned needs it too.
@@ -2711,8 +2711,8 @@ class RustExpr {
         // `EFault`).  Do not then manufacture the same name with a wrapper:
         // the declared constructor may have a different shape, and Rust
         // would reject the call with E0533.  This is an impossible lowering
-        // shape rather than a declared constructor to invoke; use a diverging
-        // error path instead of emitting a malformed constructor call.
+        // shape, so there is no declared constructor to invoke; take a diverging
+        // error path and skip the malformed constructor call.
         if (Compiler.enumDeclaresVariant(member.module, errorTypeName, member.name + "Fault"))
             return collisionPayloadExtract(inner, raw);
         return errorTypeName + "::" + member.name + "Fault(" + raw + ")";
@@ -2732,7 +2732,7 @@ class RustExpr {
         payload enum IS the current error enum (nameshape fixture: the
         rethrow `throw new E(e.fault)` under a `Result<_, EFault>`), which
         is checked here; anything else keeps the previous diverging path —
-        a strictly narrower residual than before, not a new one.
+        a strictly narrower residual than before.
     **/
     function collisionPayloadExtract(inner:TypedExpr, raw:String):String {
         final newExpr = switch (stripWrap(inner).expr) {
@@ -2840,8 +2840,8 @@ class RustExpr {
             // lowering feeds one UTF-16 unit per add), so only a part that
             // strands the lead faults.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-            // The trail gate is a match on the first encoded unit, not a
-            // closure pipeline: the loop-structure guard bans a lambda
+            // The trail gate is a match on the first encoded unit: the
+            // loop-structure guard bans a lambda
             // token inside a loop body, and this add check lowers inside
             // the caller's loops. The predicate is unchanged.
             out.push(indent(depth + 2) + "if !match (" + part + ").encode_utf16().next() { Some(head) => head >= 56320 && head <= 57343, None => false } {");
@@ -3162,15 +3162,15 @@ class RustExpr {
 
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
         // The node:fs extern shares std.Fs's Result-returning resident edge,
-        // so it is a host Fs failure too: a slot-less position diagnoses
-        // instead of dropping the Result.
+        // so it is a host Fs failure too: a slot-less position reports the
+        // failure and keeps the Result.
         final hostFsFailure = RustEmissionState.stdFsFallibleMember(c.get().module, cf.get().name)
             || RustEmissionState.nodeFsExternFallibleMember(c.get(), cf.get().name);
         if (!isFallible) {
             // A host failure the enclosing function cannot return is not
             // representable; features/06 bans the panic the old runtime
-            // raised, so the compilation stops with a diagnostic instead of
-            // emitting `.unwrap()` (docs/specs/stdlib/17-platform-modules.md).
+            // raised, so the compilation stops with a diagnostic and emits no
+            // `.unwrap()` (docs/specs/stdlib/17-platform-modules.md).
             if (hostFsFailure)
                 Context.error(hostFsOperationLabel(c, cf) + " can fail, but no error-carrying Result slot encloses this call; catch std.FsException around it or move it into a fallible function", cf.get().pos);
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
@@ -4495,7 +4495,7 @@ class RustExpr {
         // Re-render the bound after the body guards are substituted: a bound
         // that reads a body-guard array now renders through the guard (no
         // The interval form of the same walk: `for (i in 0...s.length)` lowers
-        // here, not through the `while` arm, so the per-character hoist above
+        // here on the interval arm, so the per-character hoist above
         // never reached it. Every read in the body lowered to
         // `u_string::unit_at(&s, i)`, which rescans the source once per unit --
         // quadratic in the string length for exactly the idiom Haxe users reach
@@ -5298,7 +5298,7 @@ class RustExpr {
                     else {
                         // A plain-class handle receiver opens its Rc borrow before
                         // the field path, matching the field() read path; otherwise
-                        // the path addresses the handle, not the object (E0609).
+                        // the path addresses the handle and rustc reports E0609.
                         final receiverText = expr(receiver);
                         receiverNeedsRcBorrow(receiver) ? receiverText + ".borrow()" : receiverText;
                     };
@@ -6073,7 +6073,7 @@ class RustExpr {
                     // Bind the Mutex guard to a named local inside a block so
                     // an index expression that also reads the same static
                     // (fivePowers[fivePowers.length - 1]) reuses the held
-                    // guard instead of locking the Mutex a second time.
+                    // guard, so the Mutex is locked once.
                     // (StaticGuardIndexScope)
                     final guardPath = staticGuardPathOf(arr);
                     final mutexGuard = staticGuardMutexOf(arr);
@@ -6630,7 +6630,7 @@ class RustExpr {
         }
         // An exception value is erased to its payload enum, so a read of the
         // class's enum-typed payload field is the value itself wherever the
-        // value sits, not only in a catch-variable position. A helper that
+        // value sits, including outside a catch-variable position. A helper that
         // takes the exception and reads its payload field would otherwise
         // emit `value.field` against the enum and fail E0609.
         switch (Context.follow(subj.t)) {
@@ -7780,8 +7780,8 @@ class RustExpr {
         if (cls == null)
             return left + " == " + right;
         // A plain-class handle opens its Rc borrow before the field read, so
-        // the field-wise comparison addresses the object, not the handle
-        // (E0609). Non-handle record structs keep the bare field path.
+        // the field-wise comparison addresses the object; addressing the
+        // handle would fail E0609. Non-handle record structs keep the bare field path.
         final handleBorrow = requirePlan(t, "structEqText").role == RepresentationRole.ClassHandle ? ".borrow()" : "";
         final parts = [];
         for (f in cls.fields.get()) {
@@ -9512,13 +9512,13 @@ class RustExpr {
                     return isConst ? item : item + "()";
                 }
                 // A static method referenced as a value (a function reference) is
-                // a function item, not a LazyLock static field; its rendered
+                // a function item; its rendered
                 // type still says Rc<RefCell<dyn FnMut>>, so skip the
                 // handle-static read and let staticRef name the function item.
                 // (StaticMethodValueReference)
                 if (cf.get().kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
                     // A container static mutates its contents in place; the
-                    // read is the mutable guard, not a clone. (RcContainerStatic)
+                    // read yields the mutable guard itself. (RcContainerStatic)
                     if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
                         return "(*" + staticItemPath(cls, name) + ").lock().unwrap()";
                     // The Mutex lowering serializes every read: the
@@ -9543,7 +9543,7 @@ class RustExpr {
                     }
                     // A null guard narrows a nullable static to its inner
                     // value: the read resolves to the match binding of the
-                    // unwrapped value instead of the Option clone, so a
+                    // unwrapped value, so a
                     // guarded arm never formats the Option. (NarrowedStaticRead)
                     final narrowed = narrowedText(staticGuardClone(cls, name));
                     if (narrowed != null) {
@@ -10230,7 +10230,7 @@ class RustExpr {
         already in lexical scope, and its snapshot is sound here precisely
         because the receiver is never written inside the enclosing loop -- the
         condition that allowed that hoist in the first place. The inner loop
-        therefore reuses it instead of re-materializing it.
+        therefore reuses the hoisted value.
         (PerCharLoopUnitsReuse)
     **/
     function perCharHoistReuse(receiverLocalId:Int, wantCount:Bool):Null<{unitsTemp:String, countTemp:Null<String>}> {
@@ -11269,9 +11269,9 @@ class RustExpr {
                 // Display text has no propagation path, so a text read that
                 // emits a Result unwraps at the read site. A plain-class
                 // handle's toString is an associated function (explicit-handle
-                // ABI: to_string(this: &Rc<RefCell<Self>>)), not a Display
-                // method, so render Cls::to_string(&handle) instead of a
-                // .borrow().to_string() that has no Display. (HandleToStringOperand)
+                // ABI: to_string(this: &Rc<RefCell<Self>>)), so render
+                // Cls::to_string(&handle); a .borrow().to_string() has no Display.
+                // (HandleToStringOperand)
                 if (requirePlan(t, "stdStringOperandToString", false, DestinationContract.StringConcatArgument, UseMode.SharedRef).role == RepresentationRole.ClassHandle) {
                     final clsName = switch (Context.follow(t)) { case TInst(c, _): c.get().name; case _: ""; };
                     final bare = StringTools.endsWith(value, ".clone()") ? value.substr(0, value.length - 8) : value;
@@ -11554,9 +11554,9 @@ class RustExpr {
     function mutableReceiver(subj:TypedExpr):String {
         // A field write through a mutable plain-class-handle static
         // (h.data[i] = v where h is a static var of Null<Holder>) must
-        // render the lock-guard place, not the handle clone read out of the
-        // static: the clone read out of the Mutex is a value the
-        // DegradedLvalueGuard rightly refuses, and writing through it would
+        // render the lock-guard place. A clone read out of the static
+        // is a value the DegradedLvalueGuard rightly refuses, and writing
+        // through it would
         // not reach the shared object either. The guard derefs MutexGuard
         // and SingleThread to &mut Option<Rc<RefCell<T>>>, unwraps the
         // nullable slot, and borrows the handle so the field subscript is a
@@ -11564,7 +11564,7 @@ class RustExpr {
         final handleStaticPlace = staticHandleFieldWritePlace(subj);
         if (handleStaticPlace != null)
             return handleStaticPlace;
-        // Render the receiver as a write target, not as a value read: every
+        // Render the receiver as a write target: every
         // element and field read inside the receiver chain must stay a place,
         // otherwise a nested index write (arr[i][j][k] = v) puts a clone of
         // the element between the target and the storage. Same pattern as the
@@ -11581,8 +11581,8 @@ class RustExpr {
         // copy that unwrap yields a mutable view of the copy (what the old
         // value read did), on the bare field it needs `&mut self`. Keep the
         // copy so a nullable handle field does not turn into E0596, and so a
-        // nullable plain container keeps its previous behaviour rather than
-        // silently changing meaning. (NullableWriteTargetCopy)
+        // nullable plain container keeps its previous behaviour, so the
+        // meaning stays the same. (NullableWriteTargetCopy)
         if (isNullType(subj.t))
             return text;
         return switch (stripWrap(subj).expr) {
@@ -11600,13 +11600,13 @@ class RustExpr {
             case TField(_, FInstance(_, _, _)) | TField(_, FAnon(_)): bare;
             // A static field is not a writable place (a final array or a
             // LazyLock has no IndexMut); the pre-existing value copy is kept
-            // rather than turned into a compile error. (StaticFieldWriteTarget)
+            // so the write compiles as before. (StaticFieldWriteTarget)
             case _: text;
         };
     }
 
     /** True when the emitted Rust type is a shared handle wrapper, whose
-        clone is a handle copy rather than a deep copy of the storage. */
+        clone copies the handle and shares the storage. */
     function isHandleFieldType(t:Null<Type>):Bool {
         if (t == null)
             return false;
@@ -12377,12 +12377,12 @@ class RustExpr {
                     // the Vec (E0507/E0277 on a non-Copy element like String).
                     // A nullable receiver unwraps to its inner Vec first.
                     //
-                    // The search is an INDEXED SCAN, not `.iter().position(..)`:
+                    // The search is an INDEXED SCAN:
                     // a closure here is fine at top level but illegal inside a
                     // loop body, which the loop-structure invariant bans. The
                     // scan form is legal in both positions, so one lowering
-                    // serves every call site rather than a special case for
-                    // loops. (LoopLambdaFromIndexOf)
+                    // serves every call site, including loops.
+                    // (LoopLambdaFromIndexOf)
                     var recv = nullableMethodReceiver(subj, false);
                     return "{ let __hay = &(" + recv + "); let __n = __hay.len(); "
                         + "let mut __i = 0usize; let mut __found: i32 = -1; "
@@ -12576,8 +12576,8 @@ class RustExpr {
                     imports.requireType(c.get().module, c.get().name);
                     // An inner-helper body calling another method of this same
                     // class routes through its own inner helper (the shared
-                    // logic), not the thin concrete delegation that expects
-                    // the handle. (InnerHelperCallRedirect)
+                    // logic); the thin concrete delegation that expects the handle is
+                    // bypassed. (InnerHelperCallRedirect)
                     final isInnerCall = currentIsInnerHelper
                         && c.get().module == currentClass.module
                         && c.get().name == currentClass.name
@@ -12828,7 +12828,7 @@ class RustExpr {
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
                     // binary after its name (stdlib/17). The collection is a
-                    // runtime index loop, not a callback pipeline: the
+                    // runtime index loop: the
                     // loop-structure guard bans callback-driven iteration
                     // call sites in the generated trees.
                     imports.require("crate::runtime::u_string");
@@ -13114,7 +13114,7 @@ class RustExpr {
         };
         // A closure slot (Rc<RefCell<dyn Fn...>>) carries the parameter types
         // in its target signature; annotate them so the closure body infers
-        // instead of demanding explicit types. isParam=true renders reference
+        // from that signature and needs no explicit types. isParam=true renders
         // params (&UStr, &Vec<T>) exactly as the Fn signature expects.
         // (ClosureParamAnnotation)
         final params = [for (i in 0...f.args.length) {
@@ -16234,7 +16234,7 @@ class RustExpr {
 
     function quoteString(s:String):String {
         // Asset modules externalize large literals to a data file read back
-        // via include_str!, instead of inlining per-line string literals.
+        // via include_str!, so per-line string literals stay out of the source.
         if (AssetModules.shouldExternalize(imports.selfModule, s)) {
             final parts = AssetModules.externalize(imports.selfModule, s);
             if (parts.length == 1)
@@ -16283,7 +16283,7 @@ class RustExpr {
 
     /** A literal evaluates every element inside ONE statement, so a RefCell or
         Mutex guard taken by one element is still alive while the next element
-        runs: two such elements panic (RefCell) or deadlock (Mutex) instead of
+        runs: two such elements panic (RefCell) or deadlock (Mutex) before
         producing a value. Hoist each guard-taking element into its own `let`
         so that element's statement ends -- and its guard drops -- before the
         next one starts. Elements that take no guard keep their inline text.
@@ -16675,11 +16675,11 @@ class RustExpr {
 
         The inputs are syntactic (the same predicates the emitters used
         before), so the plan cannot disagree with the previous behaviour: this
-        is the wiring, not a policy change. What it buys is one place where a
+        is the wiring for an unchanged policy. What it buys is one place where a
         representation is decided, a cache keyed by planKey, and a plan a
-        renderer can read instead of re-deriving a type predicate.
+        renderer can read without re-deriving a type predicate.
 
-        The cache lives on the emission state, not on this class: a static map
+        The cache lives on the emission state: a static map
         would outlive one compilation and let the next one read a plan decided
         by the previous one.
 
@@ -16761,7 +16761,7 @@ class RustExpr {
         // (TraitIdentityAdapter): a local clones its handle so the source
         // binding stays alive, and a fresh constructor call already owns
         // the handle, so the slot binds it with one explicit unsizing
-        // instead of wrapping a second Rc<RefCell> around it.
+        // and no second Rc<RefCell> wrapper around it.
         // (ClassHandleShare)
         final isLocal = switch (stripWrap(actual).expr) {
             case TLocal(_): true;
@@ -18412,8 +18412,8 @@ class RustExpr {
         // The receiver of a nested subscript write is planned recursively:
         // every intermediate index stays a place so the write reaches the
         // innermost storage. The recursive planner passes the AssignSlot
-        // intent down the chain instead of relying on the WriteTargetPlaceChain
-        // switch. (PlacePlan)
+        // intent down the chain, so the WriteTargetPlaceChain switch stays
+        // out of it. (PlacePlan)
         final receiver = mutable ? planPlaceChain(arr, AssignSlot).root : expr(arr);
         return applyIndex(receiver, arr, idx, mutable);
     }
@@ -18558,7 +18558,7 @@ class RustExpr {
     function rootReprType(t:Null<Type>):ReprType {
         if (t == null)
             return ReprType.ImmutableValue;
-        // Check nullability on the original type, not the followed type:
+        // Check nullability on the original type:
         // Context.follow strips a Null wrapper, so isNullType(followed) is
         // false for a nullable slot and the Nullable repr is lost.
         // (NullableReprPreserve)
@@ -18722,8 +18722,8 @@ class RustExpr {
     **/
     function mutableArrayReceiver(arr:TypedExpr):String {
         // The growth guard and the write itself must target the container
-        // place, not the value-read clone of a non-Copy field: writing an
-        // element of a temporary Vec looks like a store and stores nothing.
+        // place. A value-read clone of a non-Copy field is a temporary:
+        // writing an element of a temporary Vec looks like a store and stores nothing.
         // (MutableIndexTargetPlace)
         // The growth-guard receiver is planned recursively: every
         // intermediate index stays a place so the guard and the write target
@@ -18888,8 +18888,8 @@ class RustExpr {
             return intToFloatText(text);
         // A u32-domain expression reinterprets to i32 so a wrapped
         // negative reads as its signed Float. The u32 form can sit behind a
-        // grouping or a byte round-trip, so match it anywhere in the text
-        // rather than only at the start: a wrapped negative such as -4
+        // grouping or a byte round-trip, so match it anywhere in the text:
+        // a wrapped negative such as -4
         // otherwise converts as 4294967292. (FlooredSign)
         if (StringTools.startsWith(text, "u32::") || StringTools.startsWith(text, "(u32::")
             || text.indexOf("u32::from_ne_bytes") >= 0)
@@ -19264,8 +19264,8 @@ class RustExpr {
                     imports.require("std::cell::RefCell");
                     // A handle-ABI implementor constructor already returns
                     // the Rc<RefCell<Self>> handle: the slot binds it with one
-                    // explicit unsize instead of wrapping a second Rc<RefCell>
-                    // around it. (TraitIdentityAdapter)
+                    // explicit unsize and no second Rc<RefCell> wrapper around it.
+                    // (TraitIdentityAdapter)
                     if (isConcreteConstructor(branch) && RustDecl.isPlainClassHandle(branch.t))
                         return "Some({ let __shared_handle: Rc<RefCell<dyn " + ifaceName + ">> = "
                             + normalizeConstructorResult(branch, coerced) + "; __shared_handle })";

@@ -28,7 +28,7 @@ import EmitOriginMap.EmitReferEvent;
     records, plus the 1-based source line and column derived from the
     recorded Haxe Position. The call stack is what lets one generated
     line be traced back through every emitting function to the Haxe
-    source, not just to the nearest handwritten tag.
+    source, beyond the nearest handwritten tag.
 **/
 class EmitSink {
     public static var enabled(default, null):Bool = false;
@@ -264,8 +264,8 @@ class EmitSink {
     /**
         Registers a Rust symbol reference as a deferred event. The resolve
         thunk runs only at writeReferEvents() time (after RustSymbols.checkAll),
-        so resolved reflects the final definition state rather than the
-        pre-scan state. A passing build guarantees every thunk resolves true.
+        so resolved reflects the final definition state. A passing build
+        guarantees every thunk resolves true.
     **/
     public static function recordRefer(symbol:String, fromUnit:String, resolve:Void->Bool):Void {
         if (!enabled)
@@ -358,7 +358,7 @@ class EmitSink {
 
         // Coercion events carry their own Haxe source file. A coercion with
         // no source position cannot be attributed to any file, so it is
-        // dropped here rather than duplicated into every sidecar. Refer
+        // dropped here, so every sidecar stays free of it. Refer
         // events never land here: written once via writeReferEvents().
         final fileCoerceEvents:Array<EmitCoerceEvent> = [];
         for (ce in coerceEvents) {
@@ -493,7 +493,7 @@ class EmitSink {
         positional per file: conversion events are recorded in left-to-right
         emission order, so the k-th conversion event of an operation maps to
         the k-th such token scanned here. Tokens with no event (the bypass
-        probe is recorded via record(), not recordCoerce()) stay unmatched,
+        probe is recorded via record() alone) stay unmatched,
         which is what lets direction 2 flag them.
     **/
     static function assignGeneratedPositions(filePath:String, originalContent:String,
@@ -688,7 +688,7 @@ class EmitSink {
                 // carry absolute build-environment paths. Recording them into
                 // the per-file header makes two generations of identical inputs
                 // byte-different, so drop absolute-path values: they encode
-                // build location, not generator identity.
+                // build location, which carries no generator identity.
                 if (value != null && haxe.io.Path.isAbsolute(value))
                     continue;
                 capturedDefines.set(key, value);

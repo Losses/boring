@@ -9,14 +9,14 @@
 #
 #   1. a per-character loop nested inside another per-character loop over the
 #      same receiver re-materialized the vector on every entry into the inner
-#      loop -- once per separator found, not once per loop
+#      loop -- once per separator found, so the separators set the rate
 #      (TestTraceRender.stripWholeFraction, the measured report);
 #   2. `for (i in 0...s.length)`, the idiom Haxe users reach for first, lowers
 #      through the interval path, which had no per-character hoist at all, so
 #      every step called `u_string::unit_at(&s, i)`.
 #
 # The assertions are per-function `u_string::units(` counts, which is what makes
-# them discriminating rather than decorative. Measured on this fixture before
+# them discriminating. Measured on this fixture before
 # the fix (RustExpr.hx @ 45743ba4): strip_whole_fraction 3, while_dot_count 2,
 # while_local_dot_count 1, for_range_dot_count 1, for_range_local_dot_count 0,
 # file total 7. After: 1, 1, 1, 1, 1, total 5. The two functions whose count did
@@ -102,7 +102,7 @@ check_fn per_char_units_probe_for_range_dot_count 1 1
 # The interval form of a local String walk: the shape that had no hoist at all.
 check_fn per_char_units_probe_for_range_local_dot_count 1 1
 
-# The interval walk must read through the hoisted vector, not rescan the source.
+# The interval walk must read through the hoisted vector.
 RANGE_LOCAL="$(fn_block per_char_units_probe_for_range_local_dot_count)"
 if printf '%s\n' "$RANGE_LOCAL" | grep -q 'u_string::unit_at(&'; then
     echo "FAIL: the interval walk still rescans the source with u_string::unit_at(&s, i)"

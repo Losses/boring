@@ -593,7 +593,7 @@ export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
 // excluding the originals measures nothing about authored prose, and it leaves
 // the gate permanently red on content no commit can repair.
 //
-// The rule is keyed on the manifest, not on a directory name, so it stays
+// The rule is keyed on the manifest, so it stays
 // correct as evidence is ingested: a subtree that declares a manifest is a
 // mirror, and a directory holding authored reports beside a mirror (for example
 // docs/architecture/evidence/layered-verification-review/, which has no

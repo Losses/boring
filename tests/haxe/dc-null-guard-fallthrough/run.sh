@@ -15,7 +15,7 @@ WS="$(cd "$ROOT/../../.." && pwd)"   # .../tq-workspace
 # Evidence lands outside the worktree. Default is the workspace dc-warn layout
 # this probe was authored in, but any checkout must be able to redirect it:
 # set DC_DART_FIX2_EVIDENCE to a writable directory that exists (or whose
-# parent exists) or the run stops here instead of writing into a path that
+# parent exists) or the run stops here, so nothing is written into a path that
 # may not be there.
 EV_PARENT="${DC_DART_FIX2_EVIDENCE:-$WS/dc-warn/out/dart-fix2}"
 if [ ! -d "$EV_PARENT" ]; then
@@ -69,8 +69,8 @@ INPUTS=(
 # --- identity + input hashes (before)
 # The identity capture shells out to git. A collected regression test must not
 # depend on native VCS (the board owns version control), so
-# DC_DART_FIX2_SKIP_VCS=1 records the identity step as skipped instead of
-# running git; the default (unset) keeps the observation runner's behaviour.
+# DC_DART_FIX2_SKIP_VCS=1 records the identity step as skipped, and git
+# does not run; the default (unset) keeps the observation runner's behaviour.
 if [ "${DC_DART_FIX2_SKIP_VCS:-}" = "" ]; then
 	{ git -C "$ROOT" rev-parse HEAD; git -C "$ROOT" status --porcelain; } >"$RUN/identity.txt" 2>&1
 else
@@ -98,7 +98,7 @@ if [ -f "$RUN/generated-dart-probe.dart" ]; then
 	stage dart-analyze timeout 900 dart analyze --fatal-infos .
 	stage dart-compile timeout 1800 dart compile exe lib/dcguard/zz_run.dart -o run.exe
 	if [ -f "$RUN/gen-dart/lib/dcguard/zz_run.dart" ]; then
-		# fuse mount drops the executable bit; run JIT instead of the AOT exe
+		# fuse mount drops the executable bit; run the JIT build
 		stage dart-run timeout 300 dart lib/dcguard/zz_run.dart
 		stage dart-compare diff -u "$HERE/expected.txt" "$RUN/stages/dart-run/stdout"
 	else
@@ -115,7 +115,7 @@ if [ -f "$RUN/generated-dart-probe.dart" ]; then
 	stage dart-analyze-corrected timeout 900 dart analyze --fatal-infos .
 	stage dart-compile-corrected timeout 1800 dart compile exe lib/dcguard/zz_run.dart -o run.exe
 	if [ -x "$RUN/gen-dart-corrected/run.exe" ]; then
-		# fuse mount drops the executable bit; run JIT instead of the AOT exe
+		# fuse mount drops the executable bit; run the JIT build
 		stage dart-run-corrected timeout 300 dart lib/dcguard/zz_run.dart
 		stage dart-compare-corrected diff -u "$HERE/expected.txt" "$RUN/stages/dart-run-corrected/stdout"
 	fi

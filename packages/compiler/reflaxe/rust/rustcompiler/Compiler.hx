@@ -128,8 +128,8 @@ class Compiler extends PluginCompiler<Compiler> {
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
         //
-        // Force the WHOLE resident set, not just the modules some corpus entry
-        // happened to reach: a consumer build whose entry list omits the
+        // Force the WHOLE resident set. A corpus entry reaches only the modules
+        // it happens to touch, and a consumer build whose entry list omits the
         // `runtime.*` roots still references these through the std extern
         // surface, and `keep` cannot substitute because it only protects an
         // already-typed module from DCE. Forcing only two of the six left
@@ -588,8 +588,8 @@ class Compiler extends PluginCompiler<Compiler> {
         // A root-level module and a root package can share one snake-case
         // module name (a class `Consumer` and a package `consumer.*`). Both
         // would map to `pub mod consumer;`, which rustc rejects with E0428/E0761.
-        // Reject that collision here with a named diagnostic instead of
-        // emitting a duplicate module declaration. (RustRootModuleRegistration)
+        // Reject that collision here with a named diagnostic, so no duplicate
+        // module declaration is emitted. (RustRootModuleRegistration)
         for (m in rootModules) {
             if (rootPackages.indexOf(m) >= 0)
                 Context.error("root module '" + m + "' collides with a root package of the same name; rename one to avoid a duplicate `pub mod " + m + ";`", Context.currentPos());
@@ -1516,8 +1516,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                         case TEnum(e, _):
                                             hasPayload = true;
                                             final payload = e.get();
-                                            // Identity keys, not bare module
-                                            // paths: two payload enums (or
+                                            // Identity keys: two payload enums (or
                                             // two exception classes) can live
                                             // in one module, and a module key
                                             // makes the later scan overwrite
@@ -1822,7 +1821,7 @@ class Compiler extends PluginCompiler<Compiler> {
                         }
                     case TReturn(ret):
                         // returns "this": the caller receives the object
-                        // identity, not a copy of its fields. (P-4a)
+                        // identity, and the fields stay shared. (P-4a)
                         if (ret != null && isThisExpr(ret))
                             escapes = true;
                         haxe.macro.TypedExprTools.iter(e, walk);
@@ -2007,8 +2006,8 @@ class Compiler extends PluginCompiler<Compiler> {
         a chain of private statics reachable only from dead code dies with
         it. Public members, tests, and @:keep fields are never candidates;
         their emission does not depend on references.
-        StaticReferenceScan.scan stays a producer rather than reading the
-        emission plan: it computes the reference set that
+        StaticReferenceScan.scan stays a producer, computing the reference set
+        that
         RustEmissionPlan.fieldEmit derives from (computeEmissionPlan phase 2)
         and makes no emission decision itself. The plan is the only
         emission-judgment consumer, so having the scan read the plan would
@@ -2025,8 +2024,8 @@ class Compiler extends PluginCompiler<Compiler> {
     /**
         Builds the emission plan every emission decision reads, pre-computed
         once at preScan so compileClassImpl, scanFallibility, and
-        includeStaticFunc all read one consistent answer instead of each
-        re-deriving the same question from different data.
+        includeStaticFunc all read one consistent answer, so no site
+        re-derives the same question from different data.
 
         1. referencedImplModules: synthetic-impl modules whose statics are
            referenced from emitted bodies, replacing the state.referencedImpls
@@ -3515,7 +3514,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 // the target enum: registering would define the same
                 // constructor twice (E0428). Compared by the name the
                 // declaration actually emits (toUpperCamelCase), matching
-                // the constructor rendering, not the raw Haxe name.
+                // the constructor rendering.
                 final targetName = growthKey != null && fnError != null && growthKey != RustEmissionState.identityKey(payloadEnum.module, enumName) ? fnError.name : enumName;
                 final targetModule = growthKey != null && fnError != null && growthKey != RustEmissionState.identityKey(payloadEnum.module, enumName) ? fnError.module : payloadEnum.module;
                 if (enumDeclaresVariant(targetModule, targetName, variant))
@@ -3571,7 +3570,7 @@ class Compiler extends PluginCompiler<Compiler> {
         Whether the enum declared in `enumModule` already emits this variant.
         Constructors render through RustImports.toUpperCamelCase
         (RustDecl.hx enum emission), so the comparison uses that emitted
-        name, not the raw Haxe construct name: a construct declared as
+        name: a construct declared as
         `c_exception_fault` emits `CExceptionFault` and must suppress a
         growth variant of the same emitted name, which the former raw-name
         comparison missed and then collided at E0428 (t-munebyud-bxbr).

@@ -20,7 +20,6 @@ the Argument coercion and leaves the nullable receiver bare; kotlinc must
 then exit nonzero with the nullable-receiver diagnostic. The two arms must
 differ (GP-ABLATE).
 
-kotlin.hxml names packages/compiler on the class path directly instead of
-depending on -lib boring, so the fixture always measures the tree it lives
-in rather than whatever the workspace haxelib projection points at
-(PIT-376).
+kotlin.hxml names packages/compiler on the class path directly, with no
+-lib boring dependency, so the fixture always measures the tree it lives
+in, independent of the workspace haxelib projection (PIT-376).

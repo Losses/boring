@@ -14,7 +14,7 @@ import { join, resolve } from "node:path";
  * each with a runner, and several with probes and expected outputs. They are not
  * debris — they are unwatched.
  *
- * This guard does NOT fix them; it makes the count a FACT rather than something
+ * This guard does NOT fix them; it makes the count a FACT, so it need not be
  * rediscovered. The count may go DOWN deliberately (wire a fixture in, lower the
  * constant) or UP deliberately (add a fixture, raise it). It must not drift
  * while nobody is looking — which is the same contract the baseline's failure
@@ -22,7 +22,7 @@ import { join, resolve } from "node:path";
  *
  * What it deliberately does not judge: whether each fixture SHOULD be collected.
  * Some may be superseded by a collected test elsewhere; deciding that is a
- * review question, not a scan's.
+ * review question.
  */
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
@@ -33,7 +33,7 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * drift while nobody is looking.
  *
  * **34, corrected from 36.** The count dropped because the guard's criterion
- * was wrong, not because three fixtures were wired in during this session: it
+ * was wrong, and no fixture was wired in during this session: it
  * looked for a `.test.ts` only *inside* the fixture directory, so a fixture
  * whose test lives under `tests/<target>/` was indistinguishable from an
  * unwatched one. Three were in that state all along --
@@ -47,7 +47,7 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * carries the corrected number.
  *
  * The two earlier bumps (35 -> 36, and 36 -> 37 when kotlin-smartcast-tfield
- * landed) were partly this blind spot rather than real drift: the 36->37 step
+ * landed) were partly this blind spot, and no real drift occurred: the 36->37 step
  * counted kotlin-smartcast-tfield as unwatched when its test was already
  * driving it.
  *
@@ -65,7 +65,7 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * rust-*-scope, fs-missing-isdirectory, source-container-policy, and others)
  * have no collected test. This raise is the deliberate acknowledgment the
  * guard's contract demands ("must not drift while nobody is looking");
- * wiring them in is deferred to a follow-up task, not this quick-fix.
+ * wiring them in is deferred to a follow-up task.
  */
 const RECORDED_UNCOLLECTED = 43; // +1: tests/haxe/rustGatedValueCopy (TraitIdentityAdapter pure-assertion runner)
 

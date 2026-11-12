@@ -147,7 +147,7 @@ class TsExpr {
         Depth of Array<T> consumption slots being rendered. A data table
         emits as Int32Array (spec 20); only a consumption slot whose static
         type is Array<T> receives an Array.from copy, decided at the slot
-        rather than at every use of the table.
+        so the table's other uses pay nothing.
     **/
     var arraySlotDepth:Int = 0;
 
@@ -990,8 +990,8 @@ class TsExpr {
 
     /**
         True when discarding the expression's value has no observable effect,
-        so a dead binding or a write to a dead local can be dropped outright
-        instead of kept as a bare statement. Constants, type expressions, local
+        so a dead binding or a write to a dead local can be dropped outright,
+        leaving no bare statement. Constants, type expressions, local
         reads, and pure array reads qualify; calls, constructors, field reads,
         and operators are deliberately excluded because they may invoke user
         code or accessors.
@@ -1445,8 +1445,8 @@ class TsExpr {
 
         // A store/push value reads the loop's item declaration, which is
         // emitted as a NonStoreBatch step before it. Record those reads so
-        // dropDeadLocals keeps the item declaration instead of dropping it
-        // as a dead local (the store lives in a separate step, so the
+        // dropDeadLocals keeps the item declaration, so it survives as a live
+        // local (the store lives in a separate step, so the
         // batch's own blockLines call cannot see the read).
         final savedGuard:Array<Int> = [for (k in deadLocalGuard.keys()) k];
         for (k in [for (k in deadLocalGuard.keys()) k])
@@ -2025,7 +2025,7 @@ class TsExpr {
         A call renders with an Array<T> slot active only when one of its
         arguments is a data table and that argument's formal parameter is
         typed Array<T>. Without formal typing the conversion is refused at
-        compile time instead of guessed.
+        compile time, so no guess is made.
     **/
     function renderCall(fn:TypedExpr, args:Array<TypedExpr>):String {
         final outer = arraySlotDepth;
@@ -2084,8 +2084,8 @@ class TsExpr {
                     return rendered;
                 // Site-level conversion: the table emits as Int32Array, and
                 // only a slot typed Array<T> gets an Array.from copy. A use
-                // outside any classified slot is a compile error, not a
-                // silent guess (length and index reads lower directly and
+                // outside any classified slot is a compile error, so a silent guess is
+                // impossible (length and index reads lower directly and
                 // never reach this branch).
                 if (arraySlotDepth > 0)
                     return "Array.from(" + rendered + ")";
@@ -3012,7 +3012,7 @@ class TsExpr {
         };
         final returns = (name == "writeText" || name == "appendText" || name == "makeDirs") ? false : true;
         // A path that does not exist is not a directory: the predicate
-        // returns false instead of letting the host stat error escape, which
+        // returns false, so the host stat error never escapes. That
         // is the cross-target ruling recorded for stdlib/17 (Kotlin, Dart and
         // Rust already read a missing path as false). This catch covers only
         // the stat call; the unavailability throw above still escapes.

@@ -46,7 +46,7 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // :78 that a warning is "an emitter defect with the same severity as a translation that
   // produces wrong output". These two diagnostics therefore COUNT against the standard, and
   // this fixture does NOT satisfy it today. Per work-plan:417 a baseline finding "does not
-  // waive the standard", so this is recorded as a KNOWN BASELINE FAILURE, not as compliance.
+  // waive the standard", so this is recorded as a KNOWN BASELINE FAILURE.
   //
   // What this driver asserts, precisely: zero type errors, and the two `[#no-usage]` warnings
   // of the W1 defect are GONE. That pin has been discharged, so it was removed -- it existed
@@ -54,13 +54,13 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // warnings disappeared, the pin failed, and the count was re-read as zero. W1 is on the line
   // and three independent sessions measured 0 errors / 0 warnings on this fixture.
   //
-  // NOT YET SATISFIED, and recorded rather than hidden: under `swiftc -c` (which runs SILGen,
+  // NOT YET SATISFIED, and recorded openly: under `swiftc -c` (which runs SILGen,
   // unlike `-typecheck`) this fixture still emits one `will never be executed` warning at
   // Gap.swift:117. Per the gate-owner ruling of the round-145 review, a build-phase diagnostic
   // COUNTS against 02-translator-implementation-standard.md:78/:80 -- the standard applies
   // "without warnings" to the generated code's compilation and :80 counts suite warning lines.
   // So the final goal remains ZERO diagnostics under -c as well, and this row is a recorded,
-  // unwaived deviation, not compliance.
+  // unwaived deviation.
   //
   // FACT CHANGE (recorded when the count was re-read): the paragraph above no longer holds.
   // The `will never be executed` warning at Gap.swift:117 is fixed at the cause -- the Swift
@@ -78,8 +78,9 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   expect(typecheck.exitCode, `swiftc -typecheck: ${typecheck.stderr.toString() || typecheck.stdout.toString()}`).toBe(0);
   const diagnostics = typecheck.stderr.toString();
   // Transition assertion, per the round-145 gate-owner ruling: zero type errors, and the
-  // remaining build-phase diagnostic recorded explicitly rather than asserted absent or
-  // silently excluded. The final goal stays zero diagnostics under -c.
+  // remaining build-phase diagnostic recorded explicitly, with no assertion
+  // of absence and no silent exclusion. The final goal stays zero diagnostics
+  // under -c.
   expect(diagnostics.split("\n").filter((l) => l.includes(": error:")), "unexpected type errors").toEqual([]);
   expect(diagnostics.includes("#no-usage"), "the W1 unused-result warnings should be gone").toBe(false);
   // The line that used to be here counted `warning:` lines out of the -typecheck
@@ -137,7 +138,7 @@ test("failure-mode probe: the harness detects a broken Swift source", async () =
   expect(result.exitCode === 0 || result.exitCode === null, "swiftc accepted a deliberately broken source; diagnostics channel is untrustworthy").toBe(false);
   expect(result.stderr.toString()).toContain("error");
   // Same probe for the build phase: a deliberately broken input must make `swiftc -c` fail
-  // too, proving the -c assertions above can actually fire (discriminating, not decorative).
+  // too, proving the -c assertions above can actually fire (discriminating).
   const buildProbe = Bun.spawnSync(["swiftc", "-c", `${probeDir}/broken.swift`, "-o", `${probeDir}/broken.o`], { cwd: root, stdout: "pipe", stderr: "pipe" });
   await Bun.write(`${out}/failure-probe-build.status`, `${buildProbe.exitCode ?? 0}\n`);
   await Bun.write(`${out}/failure-probe-build.stderr.log`, buildProbe.stderr.toString());

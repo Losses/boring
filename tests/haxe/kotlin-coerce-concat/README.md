@@ -1,8 +1,8 @@
 # Kotlin String-concatenation coercion fixture
 
 P2.6. The concatenation binop lowers each operand through the coerce layer and
-picks the operator from Lowered.storage rather than re-reading the rendered
-text. Three operand shapes are pinned:
+picks the operator from Lowered.storage, so the rendered text is never
+re-read. Three operand shapes are pinned:
 
 * leftSafeChain -- nullable receiver read through a safe call: the left
   operand renders as a safe-call chain, so the concatenation uses ?.plus
@@ -20,6 +20,6 @@ The two spellings are semantically different for a null operand (? vs
 tests/haxe/kotlin-coerce-concat/run.sh generates the fixture and greps the
 exact emitted expressions in the generated Kotlin.
 
-kotlin.hxml names packages/compiler on the class path directly instead of
-depending on -lib boring, so the fixture always measures the tree it lives in
+kotlin.hxml names packages/compiler on the class path directly, with no
+-lib boring dependency, so the fixture always measures the tree it lives in
 (PIT-376).

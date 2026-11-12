@@ -28,7 +28,7 @@ import SemanticPolicy.ModuleContext;
     Governance: a validator failure aborts emission (P-18); every failure is a
     named error citing a policy entry id, never a silent guess. The M3 lowering
     (Executor-B) hooks this in front of the renderer; this module owns only the
-    rules, not the lowering.
+    rules.
 **/
 
 /** Synthetic lowered-expression node kind for the M2 validator. */
@@ -214,7 +214,7 @@ class RustHandleValidator {
     /**
         Check every place plan against the mutation contract. A plan that cannot
         prove its write reaches the source location yields one error, so the
-        target refuses to emit code for it instead of patching the text later.
+        target refuses to emit code for it, so no text patch happens later.
     **/
     public static function validatePlacePlans(plans:Array<PlacePlan>):Array<ValidationError> {
         final errors:Array<ValidationError> = [];
@@ -366,8 +366,8 @@ class RustHandleValidator {
 
     static function checkFieldRead(node:HandleNode, errors:Array<ValidationError>):Void {
         // d-4: unborrowed handle field - a handle-typed field read that moves
-        // the handle out of its owner (Move/Owned) instead of borrowing and
-        // cloning. Emits an E0382-style move in the M3 realization.
+        // the handle out of its owner (Move/Owned). Emits an E0382-style move
+        // in the M3 realization.
         switch (node.info.repr) {
             case ReprType.Handle(_, _, _):
                 if (node.mode == UseMode.Move || node.mode == UseMode.Owned)

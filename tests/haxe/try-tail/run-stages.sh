@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # Worktree-root resolution: explicit override wins; otherwise derive from the
 # script location (fixture sits at <root>/tests/haxe/try-tail/). The derived
 # value is validated against worktree markers so a copy placed under a
-# different layout fails loudly instead of silently cd-ing into the wrong
+# different layout fails loudly, with no silent cd into the wrong
 # tree (task t-mun75tk1-h36w).
 ROOT="${FIXTURE_WORKTREE_ROOT:-$(cd "$HERE/../../.." && pwd)}"
 if [ ! -f "$ROOT/flake.nix" ] || [ ! -f "$ROOT/tests/haxe/try-tail/expected.txt" ]; then
@@ -125,7 +125,7 @@ for target in "$@"; do
 		# is the SwiftPM manifest (not a source) and native-main.swift is the
 		# authored harness (passed explicitly below), so both stay out. The
 		# resolved set is expanded here, so each stage's argv archive carries
-		# the actual file list instead of an unevaluated glob. Assertion
+		# the actual file list, with no unevaluated glob. Assertion
 		# semantics are unchanged: gen -> compile -> run -> diff expected.txt.
 		AGEN="$ROOT/$GEN"
 		SWIFTS="$(find "$AGEN" -name '*.swift' ! -name native-main.swift ! -name Package.swift | sort | tr '\n' ' ')"

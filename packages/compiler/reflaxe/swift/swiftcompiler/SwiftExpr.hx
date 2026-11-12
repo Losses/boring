@@ -1039,7 +1039,7 @@ class SwiftExpr {
         }
         // A positive null-guard over a single local shadows the proven value:
         // 'if let x = x {' makes the Swift binding non-optional inside the
-        // branch, so value uses render bare instead of force-unwrapping.
+        // branch, so value uses render bare.
         final shadow = ifLetLocalGuard(c);
         final header = shadow == null ? folded : "let " + shadow.name + " = " + shadow.name;
         final out = [indent(depth) + "if " + header + " {"];
@@ -2880,9 +2880,9 @@ class SwiftExpr {
     /**
         A value-producing route's arm value, lowered against the route's ACTUAL
         destination requirement -- the binding, the assignment place, the
-        parameter, or the return contract being satisfied -- instead of being
-        emitted unconverted or borrowed from the enclosing function's unrelated
-        return type. `fallbackText` is the route's existing rendering and is
+        parameter, or the return contract being satisfied. The arm value
+        converts against that requirement; an unconverted emission or a
+        borrow from the unrelated return type cannot occur. `fallbackText` is
         returned unchanged when the destination does not sit on the array
         boundary. (DestinationRequirementCarried)
     **/
@@ -3635,10 +3635,10 @@ class SwiftExpr {
 
     /**
         A switch expression used as a call argument lowers its closure against
-        the callee parameter (the owning contract for the argument route)
-        instead of the switch's own AST type; every other argument renders
-        exactly as before. A cast-wrapped switch keeps its `castText`
-        rendering. (DestinationRequirementCarried)
+        the callee parameter (the owning contract for the argument route);
+        the switch's own AST type stays out of the decision. Every other
+        argument renders exactly as before. A cast-wrapped switch keeps its
+        `castText` rendering. (DestinationRequirementCarried)
     **/
     function switchArgText(a:TypedExpr, pt:Null<Type>):String {
         final direct = switch (a.expr) {
@@ -3780,7 +3780,7 @@ class SwiftExpr {
         optional, ignoring flow narrowing. This is the pre-merge
         optionalValued body kept as a primitive because isNarrowed itself
         must ask it without re-entering swiftPresence (a narrowed-member test
-        needs the raw static answer, not the narrowing-corrected one).
+        needs the raw static answer, ahead of any narrowing correction).
     **/
     function staticallyOptional(e:TypedExpr):Bool {
         if (isNullLeafType(e.t) && !plainBoundCoalescingLocal(e))
@@ -4706,8 +4706,7 @@ class SwiftExpr {
                         // reads 0, a bound past the end clamps to the count,
                         // and a start past the end swaps (String.substring).
                         final from = "Int(" + expr(args[0]) + ")";
-                        // The clamp is written with min/max ternaries instead of
-                        // mutating guard statements: a literal bound such as
+                        // The clamp is written with min/max ternaries: a literal bound such as
                         // substring(1) or substring(0, 3) makes each guard
                         // statically false and swiftc reports "will never be
                         // executed" for every emitted slice. The ternary form
@@ -5542,7 +5541,7 @@ class SwiftExpr {
 
     /**
         The [UInt16] form of one append into a builder accumulator: a
-        charAt read becomes a direct O(1) unit fetch instead of the O(n)
+        charAt read becomes a direct O(1) unit fetch; the O(n)
         native-String slice that substringUnits performs; a String value
         becomes its unit array; anything else renders through its Haxe
         string form first. (StringAccumulatorBuilder)
@@ -5818,8 +5817,8 @@ class SwiftExpr {
             out.push(l);
         final bodyTry = containsThrowingCall(stripToValue(parts.body)) ? "try " : "";
         // The binding's declared type (v.t) is this route's actual destination
-        // requirement; both arms convert against it, not the function return
-        // type. (DestinationRequirementCarried)
+        // requirement; both arms convert against it.
+        // (DestinationRequirementCarried)
         final bodyValueExpr = PolicyQueries.blockValueParts(parts.body).value;
         if (!armPrefixThrows(parts.body)) {
             out.push(indent(depth + 1) + name + " = " + bodyTry + destinationValueText(bodyValueExpr, v.t, body.value));
@@ -6086,8 +6085,8 @@ class SwiftExpr {
 
     function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
         // The local being bound carries the destination requirement: render
-        // the closure against the declared binding type instead of the
-        // switch's own AST type. (DestinationRequirementCarried)
+        // the closure against the declared binding type.
+        // (DestinationRequirementCarried)
         return [
             indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw, v.t)
         ];
@@ -6107,8 +6106,8 @@ class SwiftExpr {
 
     function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
         // The assignment place's requirement (the target's type) is the actual
-        // destination for every arm value; arms lower against it instead of the
-        // enclosing function's return type. (DestinationRequirementCarried)
+        // destination for every arm value; arms lower against it.
+        // (DestinationRequirementCarried)
         final lines = switchReturn(sw, depth, true, target.t);
         final marker = indent(depth + 2) + "return ";
         for (i in 0...lines.length)
@@ -6235,7 +6234,7 @@ class SwiftExpr {
         final out:Array<String> = [];
         var value:Null<String> = null;
         // Whether the arm's trailing value came from an explicit `return`
-        // statement rather than a plain last statement. Only the last
+        // statement. Only the last
         // classified step decides: every earlier step is demoted to a
         // statement above before the next one is read.
         var valueIsReturn:Bool = false;
@@ -6740,7 +6739,7 @@ class SwiftExpr {
                 case TLocal(v):
                     readCounts.set(v.id, (readCounts.exists(v.id) ? readCounts.get(v.id) : 0) + 1);
                 case TBinop(OpAssign, l, r):
-                    // The target of an assignment is written, not read. Counting it
+                    // The target of an assignment is written. Counting it
                     // as a read kept the dead siblings Haxe leaves behind when it
                     // splits a constant array literal into element locals. A local
                     // that receives a standalone assignment still needs its

@@ -26,10 +26,9 @@ import { join, resolve } from "node:path";
  * What this file asserts is deliberately narrow: that the on-disk reference
  * tree is CONSISTENT WITH ITS SOURCE for the symbols the Rust test suite
  * imports. It does not regenerate anything (that needs haxe and takes minutes);
- * it fails loudly so the fix is a known command, `haxe examples/rust.hxml`,
- * rather than a debugging session.
+ * it fails loudly so the fix is a known command, `haxe examples/rust.hxml`.
  *
- * This is a consistency check, not a substitute for `cargo test`: it reads the
+ * This is a consistency check: it reads the
  * tree the same way the consumer does, and it is cheap enough to run in the
  * collected suite.
  */
@@ -46,7 +45,7 @@ const SAMPLE = join(REPO_ROOT, "samples", "boring", "DataClassStringCompare.hx")
  * The root must actually be the repository, or every check below degenerates
  * into "path does not exist, return quietly" -- which is exactly how an
  * earlier version of this file passed on a stale tree. Asserting this first
- * means a wrong relative depth fails loudly instead of silently.
+ * means a wrong relative depth fails loudly, with no silent pass.
  */
 function assertRepoRootLooksRight(): void {
   expect(
@@ -62,7 +61,7 @@ function assertRepoRootLooksRight(): void {
 
 /**
  * Whether the reference tree has been generated at all. Absence is a setup
- * state, not a regression -- but it must still be asserted against, never
+ * state; it must still be asserted against, never
  * returned from silently, because a silent return is indistinguishable from a
  * pass (see assertRepoRootLooksRight).
  */
@@ -81,7 +80,7 @@ function assertReferenceTreePresent(): boolean {
  * Modules `tests/rust/vector_gen.rs` imports and the module file each one must
  * resolve to inside the generated tree.
  *
- * These are spelled out rather than derived from the symbol names, because the
+ * These are spelled out, because the
  * names do not follow a rule: `BufferHolder`/`BytesFrame` are modules
  * (boring/buffer_holder.rs, boring/bytes_frame.rs) reached through
  * `pub use boring::*` in lib.rs, while `BoundsEm`/`VectorError` are TYPES

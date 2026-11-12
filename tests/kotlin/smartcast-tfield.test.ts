@@ -14,14 +14,14 @@ import * as path from "node:path";
  * rebinds stops being stable from the rebinding onward, and a local a
  * capturing closure writes is unstable for the whole body.
  *
- * The driver asserts the *compiled* result rather than the emitted spelling.
- * kotlinc must accept the generated tree with zero errors and zero warnings,
+ * The driver asserts the *compiled* result: kotlinc must accept the
+ * generated tree with zero errors and zero warnings,
  * and that single assertion fails in both directions: a negative shape that
  * keeps its bare dot is an error, while over-hardening an over-reach control
  * is an `unnecessary non-null assertion (!!)` warning. The mutation negative
  * control then writes the pre-fix predicate's output back into a copy of the
  * tree and asserts kotlinc rejects it, so the gate is shown to detect the
- * exact regression it guards rather than merely to agree with today's output.
+ * exact regression it guards; agreeing with today's output would prove nothing.
  */
 
 const root = path.resolve(import.meta.dir, "../..");
@@ -117,7 +117,7 @@ test("Kotlin TField smart cast respects the field half and the receiver-root hal
   // --- mutation negative control -----------------------------------------
   // Put the pre-fix predicate's output back: the bare dot in place of the
   // hardened access. Without this the driver would only show that the current
-  // output compiles, not that the gate can see the regression.
+  // output compiles; the gate's ability to see the regression would stay unproven.
   const mutant = path.join(scratch, "mutant");
   let hardened = 0;
   for (const file of files) {

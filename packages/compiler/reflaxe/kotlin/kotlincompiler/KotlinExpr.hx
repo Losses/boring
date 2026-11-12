@@ -3184,8 +3184,8 @@ class KotlinExpr {
         // The nullable-type fallback extracts only when no dominating value
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        // The question here is about the subject's *value*, not about its
-        // receiver chain: for a field read the receiver question also answers
+        // The question here is about the subject's *value*:
+        // for a field read the receiver question also answers
         // yes when the chain's root local is merely present (`rootPresent`),
         // which says nothing about the field's own value and would leave a
         // bare dot exactly where Kotlin refuses the smart cast. (PIT-388)
@@ -3344,9 +3344,9 @@ class KotlinExpr {
     function presenceOf(e:TypedExpr):Presence {
         // Type.enumConstructor's QName marker renders "?.name" for a nullable
         // argument (enumQuery hardcodes the separator from its own decision),
-        // so presence tracks the same AST predicates instead of re-reading
-        // rendered text. QCollection always renders present; QLookup lowers to
-        // entries.firstOrNull { ... }, which is nullable.
+        // so presence tracks the same AST predicates, with rendered text
+        // kept out of the decision. QCollection always renders present; QLookup
+        // lowers to entries.firstOrNull { ... }, which is nullable.
         // (EnumQueryNullableName)
         switch (EnumQueryExpander.markerKind(e)) {
             case QName:
@@ -3614,8 +3614,8 @@ class KotlinExpr {
         `root.field` projection, so all of that local's keys go; assigning the
         field itself changes that one key. A write that happens *before* a
         guard removes nothing and does not stop the guard's own proof from
-        taking effect, which is what keeps a plain dot (rather than a
-        redundant `!!`) on the shapes Kotlin's data flow still proves.
+        taking effect, which is what keeps a plain dot on the shapes
+        Kotlin's data flow still proves, with no redundant `!!`.
         (PIT-388)
     **/
     function dropProofsForWriteTarget(target:TypedExpr):Void {
@@ -3680,7 +3680,7 @@ class KotlinExpr {
     }
 
     /**
-        The property-shape clauses (`val`, no custom getter, not `open`) on one
+        The property-shape clauses (`val`, no custom getter, non-`open`) on one
         field. `drop=val` admits a mutable property. `getter` is unreachable:
         a getter-only property is always `var` (`isFinal=false`, caught by the
         `val` clause first) and Haxe cannot declare a `final` field with
@@ -4637,7 +4637,7 @@ class KotlinExpr {
             // (the hop itself was an emitter safety choice); the Haxe
             // member read would NPE there, so this hop hardens with !!.
             // A bare local never renders a safe call. Detected here through
-            // the access result rather than an extra render probe.
+            // the access result, with no extra render probe.
             // (SafeCallHopHardening)
             if (!receiverProven(subj) && !bareSubject && acc == "?.") {
                 acc = "!!.";
@@ -5134,7 +5134,7 @@ class KotlinExpr {
                 // Haxe's fromCharCode takes a scalar; a supplementary scalar
                 // encodes as its surrogate pair. Kotlin's Char is one UTF-16
                 // unit, so the pair splits through pure Kotlin arithmetic
-                // (codePointFromText) instead of java.lang.Character.toChars.
+                // (codePointFromText), with java.lang.Character.toChars left out.
                 // A BMP value (surrogate range included) keeps the
                 // single-char form the existing callers rely on.
                 // (FromCharCodeScalar) (RedundantToStringFold)
@@ -6065,7 +6065,7 @@ class KotlinExpr {
         // mutable property or a reassigned binding keeps its extraction even
         // when the program's control flow proves the value present. Asking the
         // same predicate the read path asks keeps one source for this
-        // judgement instead of a second, narrower copy of it here.
+        // judgement, so no second, narrower copy lives here.
         // (NonNullArgumentExtraction)
         final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || valueProven(e);
@@ -7035,7 +7035,7 @@ class KotlinExpr {
             case "deleteFile":
                 // stdlib/17: deleteFile removes a regular file, but Files.delete
                 // also removes an *empty* directory (a non-empty one raises
-                // DirectoryNotEmptyException instead of the Haxe failure). The
+                // DirectoryNotEmptyException, a case the Haxe failure model lacks). The
                 // target type therefore decides before the call: a directory
                 // entry raises IsDirectory and the directory survives the
                 // refusal. NOFOLLOW_LINKS keeps a symlink-to-directory a file
@@ -7082,8 +7082,8 @@ class KotlinExpr {
         // EISDIR, while rename has several directory outcomes. deleteFile refuses a
         // directory before the call (its arm), so its catch stays Other. `e.file` is
         // used so the path expression is not evaluated twice. The JVM has no
-        // structured ENOTDIR signal, so that case stays Other in every locale
-        // instead of only outside an English one. (FsErrorStructured)
+        // structured ENOTDIR signal, so that case stays Other in every locale,
+        // English included. (FsErrorStructured)
         final directoryProbe = name == "writeText" || name == "appendText";
         final fsCatch = directoryProbe
             ? "catch (e: java.nio.file.FileSystemException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(e.file))) { "

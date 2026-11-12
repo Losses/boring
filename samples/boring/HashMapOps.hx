@@ -47,7 +47,7 @@ class HashMapOps {
         return d.get("c");
     }
 
-    /** A final HashMap field mutates in place (Swift var, not let). */
+    /** A final HashMap field mutates in place, so Swift needs var. */
     public static function fieldMutate():Int {
         final holder = new DictHolder();
         holder.entries.set("k", 7);
@@ -77,7 +77,7 @@ class HashMapOps {
         return r.toString();
     }
 
-    /** A @:dataClass key compares structurally, not by reference. */
+    /** A @:dataClass key compares structurally. */
     public static function structuralKey():Int {
         final d:HashMap<DictKey, Int> = new HashMap();
         d.set(new DictKey(1, "x"), 42);
@@ -85,7 +85,7 @@ class HashMapOps {
     }
 }
 
-/** A final HashMap field keeps mutating methods in Swift (var, not let). */
+/** A final HashMap field keeps mutating methods in Swift, so it needs var. */
 class DictHolder {
     public final entries:HashMap<String, Int>;
     public function new() {
@@ -102,7 +102,7 @@ class DictRecord {
     }
 }
 
-/** @:dataClass key used through a HashMap (structural, not reference). */
+/** @:dataClass key used through a HashMap (structural comparison). */
 @:dataClass
 class DictKey {
     public final a:Int;

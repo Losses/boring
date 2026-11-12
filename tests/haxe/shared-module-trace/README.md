@@ -24,13 +24,13 @@ bun tools/registry-guard/trace-check.ts dart rust  # selected targets
 The runner writes `out/shared-module-trace/<target>/trace.tsv`. The consumer
 table comes from `out/shared-module-consumers.json`, written by
 `SemanticPassRegistry.emitArtifact()` during every compile, so the assertion
-always reads the registry rather than a second copy.
+always reads the registry, so there is one copy.
 
 ## Attribution
 
 The recorded caller is the first stack frame outside the recording module. A
 target that reaches a mechanism through another shared module therefore records
-that module, not the target, which keeps the registry's direct-consumer column
+that module, so the registry's direct-consumer column stays
 meaningful. Those rows stay green because the module ran, and the runner prints
 them under `transitive-only` so a dead direct wrapper stays visible.
 

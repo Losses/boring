@@ -2,7 +2,7 @@
 
 Task `t-mum0wts5-jh3m` (branch `audit/default-arg-throwing-domain`, base `e8648488`).
 This directory is an isolated observation fixture: the default expression E of a coalescing default is a throwable static call, triggered by omitting the argument, comparing the function failure domain, call markers, and try region absorption between Rust and Swift.
-This is a measurement task, not a target fix: all readings live in `out/throwing-default/<attempt>/` (gitignored).
+This is a measurement task: all readings live in `out/throwing-default/<attempt>/` (gitignored).
 
 ## 1. Admission determination (before any observation)
 
@@ -13,10 +13,10 @@ The B/D cross-review (board timeline seq 2/3) worried that spec 22 V16 restricts
 | Calling directly in default position `p:Int = g(2)` | **Rejected**, rc=1 | `PDefaultPosition.hx:15: characters 30-34 : default argument values accept compile-time constants only` |
 | Throwable call inside coalescing default (`?value` + `value == null ? throwingFallback(seed) : value`) | **Accepted**, rc=0, empty output | `stages/admit-coalescing-throwing/status` = 0 |
 
-Clause basis (document citation, not measured):
+Clause basis (document citation, unmeasured):
 
 - `docs/specs/features/22-default-argument-expansion.md` L68-74 (rule 1): the default position accepts only constants, "Any other expression in default position is rejected with the named error `default argument values accept compile-time constants only`".
-- Same file L173-188 (Extension Stage A grammar): the closed grammar of coalescing E **includes** the static call / instance method call roots, and the grammar determination carries no fallibility condition; `packages/compiler/DefaultArgExpander.hx` L695-750 (`validateCoalescingGrammar` rule 6) is measured to be pure grammar matching, not checking whether the called function is throwable.
+- Same file L173-188 (Extension Stage A grammar): the closed grammar of coalescing E **includes** the static call / instance method call roots, and the grammar determination carries no fallibility condition; `packages/compiler/DefaultArgExpander.hx` L695-750 (`validateCoalescingGrammar` rule 6) is measured to be pure grammar matching, with no check of whether the called function is throwable.
 - `docs/specs/style/01-haxe-style-standard.md` L65 (the V16 NonConstantDefault row).
 
 So the reviewer's concern holds only for the **default position**; the coalescing shape this task asks about is within the source domain, the task premise holds, and the line does not shrink. Acceptance itself does not prove the site is registered as a coalescing default (a plain ternary is also legal); registration is proven by the generated artifacts (the `unwrap_or_else` / `= nil` + body normalization in §3 are all products of the registration machinery).
@@ -27,7 +27,7 @@ So the reviewer's concern holds only for the **default position**; the coalescin
 
 - `throwingFallback(seed)`: throwable callee (throws `ThrowingDefaultException(OverThreshold(seed))` when seed>10).
 - `resolve(seed, ?value)`: coalescing default, E = `throwingFallback(seed)` (reads the earlier argument).
-- raw call layer (failure-domain observation subjects, not called by the harness): `callOmittedSafe`=`resolve(5)`, `callOmittedThrowing`=`resolve(20)`, `callExplicit`=`resolve(5, 9)`.
+- raw call layer (failure-domain observation subjects, left uncalled by the harness): `callOmittedSafe`=`resolve(5)`, `callOmittedThrowing`=`resolve(20)`, `callExplicit`=`resolve(5, 9)`.
 - probe layer (region absorption surface returning a uniform `String`, harness entry point): three `final outcome = try { "ok:"+… } catch (error:ThrowingDefaultException) { "caught:"+… }`.
 
 Two call shapes: **omitted argument** (default evaluated, the throwable call actually executes) and **explicit argument** (default not evaluated, the throwable call does not execute). Explicit null materialization (feature 51) is not in this line, untested.
@@ -75,7 +75,7 @@ Swift native compilation has 1 **generated-artifact** warning (att directory `sw
 throwdef/ThrowingDefaultOps.swift:34:33: warning: no calls to throwing functions occur within 'try' expression
 ```
 
-That is, the redundant `try` on `let normalized: Int32 = try value` (`SwiftExpr` L352-354 self-described comment: "a `try` marker the statement pipeline adds over the same call is legal and stays"). Per the ruling criteria in `docs/architecture/rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`, this is a build-phase diagnostic, **a separate matter**, not counted in the failure-domain conclusion; it is recorded here only as a reading. On the Rust side all 4 warnings come from pre-existing `runtime/u_string.rs` code, unrelated to this fixture.
+That is, the redundant `try` on `let normalized: Int32 = try value` (`SwiftExpr` L352-354 self-described comment: "a `try` marker the statement pipeline adds over the same call is legal and stays"). Per the ruling criteria in `docs/architecture/rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`, this is a build-phase diagnostic, **a separate matter** that stays outside the failure-domain conclusion; it is recorded here only as a reading. On the Rust side all 4 warnings come from pre-existing `runtime/u_string.rs` code, unrelated to this fixture.
 
 ## 6. Reproduction
 

@@ -111,7 +111,7 @@ class RustDecl {
         // enum argument through Std.string: None reads "null" and Some(v) falls
         // through to the inner operand form (feature spec 31 "null on every
         // target"). Match by reference so an array element / anon field place is
-        // borrowed rather than moved; both arms render String for one format!
+        // borrowed, so no move occurs; both arms render String for one format!
         // operand type.
         switch (t) {
             case TAbstract(a, [inner]) if (a.get().name == "Null"):
@@ -1599,12 +1599,12 @@ class RustDecl {
 
     /**
         Whether the type lowers to a shared plain-class handle: a concrete
-        non-interface class that is not a @:dataClass value type, not an
-        exception subclass, not a registry marker, and not a concrete
-        implementor of a registered shared interface. Plain classes carry
+        non-interface class outside the @:dataClass value types, the
+        exception subclasses, the registry markers, and the concrete
+        implementors of a registered shared interface. Plain classes carry
         Haxe reference semantics, so the lowering stores one object and
         every binding names the same object through an Rc<RefCell<T>>
-        handle instead of an owned value (ClassParamHandle).
+        handle (ClassParamHandle).
     **/
     /**
         Whether the type lowers to a shared plain-class handle, directly or
@@ -1648,7 +1648,7 @@ class RustDecl {
         switch them to a handle just because a body returns or stores this.
         (P-4a) */
     public static function isHandleAbiEligible(cls:ClassType):Bool {
-        // Only business modules (not haxe std, not std shadow) use the
+        // Only business modules use the
         // Rc<RefCell> handle. Extern and shadow classes keep their specific
         // Rust type mappings.
         final module = cls.module;
@@ -2008,7 +2008,7 @@ class RustDecl {
             // cannot carry the None that a bare null initializer renders
             // (spec: static initializers outside the repr domain). Report a
             // compile error on the same route as the missing-initializer
-            // case above instead of emitting mismatched code.
+            // case above, so no mismatched code is emitted.
             if (StaticFieldHelper.isNullInitializer(init) && StaticFieldHelper.isContainerSourceType(field.type)) {
                 Context.error("static var " + cls.name + "." + field.name
                     + " is a container static initialized with null; the null-container static spelling has no Rust representation. Initialize it with an array literal (for example = [])", field.pos);
@@ -3174,7 +3174,7 @@ class RustDecl {
         // The handle ABI takes `this: &Rc<RefCell<Self>>` on every method,
         // including the ones whose body never reads it; rustc flags those as
         // unused_variables. The parameter is part of the calling convention, so
-        // allow it per method instead of renaming it (the body may still refer
+        // allow it per method and keep the name (the body may still refer
         // to `this` through paths the AST scan does not see). (HandleAbiThis)
         final thisAllow = (selfParam.indexOf("this: &Rc<RefCell<Self>>") >= 0) ? "#[allow(unused_variables)] " : "";
         final head = '    ${thisAllow}${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
@@ -3358,7 +3358,7 @@ class RustDecl {
             final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
             // An interface slot can be fallible while the concrete method is
             // not (Haxe lets a non-throwing method satisfy a throwing one);
-            // then the raw concrete result wraps in Ok instead of map_err.
+            // then the raw concrete result wraps in Ok, with no map_err.
             // (RcHandleTraitFallible)
             final concreteFallible = funcIsFallible(f);
             final body = isFallible && errOwner != null
@@ -3736,8 +3736,8 @@ class RustDecl {
         // A test entry always lowers to testlib::run / testlib::record_not_applicable,
         // so the import is unconditional. Light the TestCore extern so the test
         // runtime emits alongside the entry points; a bundle without the extern
-        // would otherwise leave the import dangling (E0432) instead of emitting
-        // the runtime the call needs. (TestEntryEmitsRuntime)
+        // would otherwise leave the import dangling (E0432); lighting it also
+        // emits the runtime the call needs. (TestEntryEmitsRuntime)
         final testExtern = RuntimeResidents.externsOf("runtime.TestCore")[0];
         state.shimsUsed.set(testExtern, true);
         imports.require("crate::runtime::test as testlib");

@@ -5,7 +5,7 @@ Status: **v1.0.0 draft**
 | Role | Party |
 | --- | --- |
 | Author / owner | Executor (task t-mw549078-udvk) |
-| Architecture arbitration | Astra (lingsuan gpt-6-astra, design final; implemented as-is, not re-designed) |
+| Architecture arbitration | Astra (lingsuan gpt-6-astra, design final; implemented as written) |
 | Sign-off / version | TL (captain); this draft is not normative until the TL promotes it |
 
 ## Purpose
@@ -19,7 +19,7 @@ way SemanticFacts feeds SemanticPolicy.decide.
 The executable encoding lives in packages/compiler/FloatPrecisionPolicy.hx
 (types + decide/explain) and packages/compiler/FloatPrecisionValidator.hx
 (enforcement skeleton, this round interface-only). The policy is a sibling of
-docs/specs/target-semantic-policy.md, not a section of it: FP-n and P-n are
+docs/specs/target-semantic-policy.md, with its own ids: FP-n and P-n are
 independent namespaces and never mix ids.
 
 ## Precision lane (v1 mixed)
@@ -103,7 +103,7 @@ and target restrictions.
   failure (accumulator escape).
 - **Target restrictions**: Rust f64 storage even in an f32 compilation;
   Kotlin Double; TypeScript number (naturally binary64); Swift Double; Dart
-  double. Strict-f32 relabeling is future work, not a target restriction
+  double. Strict-f32 relabeling is future work and imposes no restriction
   today.
 
 ### FP-3 Bits
@@ -115,7 +115,7 @@ and target restrictions.
 - **Allowed / forbidden**: integer bitwise ops, comparisons, bitcast in/out
   at the matching width are allowed. Forbidden: float arithmetic on Bits; a
   bitcast across mismatched widths (u32 vs f64); treating a bitcast as a
-  value conversion (it preserves bits, not value).
+  value conversion (it preserves bits and leaves the value unchanged).
 - **Explicit conversions / rounding**: only the two bitcast edges,
   Value(fN) <-> Bits(uN) at the same width. A bitcast has no rounding point.
 - **Plan fields**: role=Bits, storageType=u32/u64 matching the source float

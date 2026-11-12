@@ -12,10 +12,10 @@ Result error enum has settled to the LOCAL `EFault`. Each therefore registers a 
 variant named `BFault` on the growth key `"EFault"`; the two land in the same bucket and
 the calleeName dedup drops the second.
 
-## Verdict: reachable defect, not an argument
+## Verdict: reachable defect
 
 The adversarial audit recorded this shape as a caveat and explicitly marked it
-"Não counterexample could be built, so this is an argument, not a measurement"
+"Não counterexample could be built, so this stays an argument"
 (in Chinese: could not construct a compiled counterexample). This fixture turns it into
 a measurement.
 
@@ -40,8 +40,8 @@ while `cma`'s own throw site constructs `cma`'s `B`.
 ## It predates this batch
 
 Feeding the same fixture to `05e375b2` (before PIT-281 / TCN-109) gives gen rc=0 and
-cargo rc=101 with 3 errors, so this is a pre-existing defect, not a regression introduced
-by this session's work - consistent with the audit's own "predates this batch" note.
+cargo rc=101 with 3 errors, so this is a pre-existing defect predating
+this session's work - consistent with the audit's own "predates this batch" note.
 
 ## How to reproduce the collision deliberately
 

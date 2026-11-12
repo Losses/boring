@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 // bun run script (not bun test): the acceptance ladder wants a process with a
-// deterministic exit code, not a test that depends on a framework teardown.
+// deterministic exit code, with no framework teardown in the path.
 // Assertion failure -> console.error + exit(1); all pass -> exit(0).
 
 const REPO_ROOT = resolve(import.meta.dir, "..", "..", "..");
@@ -30,7 +30,7 @@ try {
   const genProc = spawnSync("haxe", ["-D", "rust-output=" + gen, HXML], { cwd: REPO_ROOT, encoding: "utf8", timeout: 120000 });
   if (genProc.status !== 0) fail("haxe generation failed (status=" + genProc.status + "): " + genProc.stdout + genProc.stderr);
 
-  // assertion: engine.rs was really emitted, not dead-code-eliminated.
+  // assertion: engine.rs was really emitted, surviving dead-code elimination.
   const engineRs = join(gen, "probe/engine.rs");
   if (!existsSync(engineRs)) fail("engine.rs missing (path was dead-code-eliminated)");
 

@@ -54,8 +54,8 @@ done
 # target's warning allowance and its residual label. A residual (rust
 # std-shadow glob, dart noise) is REGISTERED here - visible and named in the
 # histogram - never hidden from the count. Reading the allowance from this file
-# makes a baseline change an explicit, reviewable edit instead of a quiet
-# threshold bump inside check.sh.
+# makes a baseline change an explicit, reviewable edit, so no quiet
+# threshold bump hides inside check.sh.
 baseline_file() { echo "$ROOT/tools/warning-gate/baseline.txt"; }
 baseline() { awk -v t="$1" -F'\t' '$1==t { print $2; exit }' "$(baseline_file)" 2>/dev/null; }
 residual() { awk -v t="$1" -F'\t' '$1==t { print $3; exit }' "$(baseline_file)" 2>/dev/null; }
@@ -138,8 +138,8 @@ check() {
   # that compiles with the recorded stock, non-zero on one that does not
   # (measured: kotlin 0->1, rust 0->101 under injection). That is the
   # un-confounded "did it compile" verdict, and anything but 0 or 127 fails the
-  # column here, so the failure reads as "rc triggered", not "one warning over
-  # baseline". 127 is "binary absent" and belongs to require_measured.
+  # column here, so the failure reads as "rc triggered"; a "one warning over
+  # baseline" result is reported by require_measured, as is 127 ("binary absent").
   case "$l" in
     ''|*[!0-9]*)
       echo "warning-gate: $name loose rc is not numeric (got '$l'); column NOT measured"

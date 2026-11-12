@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
  *
  * The model spans four layers that a future edit can break independently:
  * the Haxe identity (std.FsError variant-per-kind / std.FsException), the Rust runtime that
- * must carry the failure as a Result instead of panicking, the emitter that
+ * must carry the failure as a Result and never panic, the emitter that
  * must recognize the fallible surface and map it into std.FsError, and the
  * spec text that names the identity. This file reads each layer as text, so
  * it stays hermetic -- it never runs haxe, rustc, or nix. The live readings
@@ -57,7 +57,7 @@ describe("std.Fs failure model", () => {
     expect(shim).toContain("pub fn write_text(path: &UStr, data: &UStr) -> Result<(), FsError>");
     expect(shim).toContain("pub fn make_dirs(path: &UStr) -> Result<(), FsError>");
     expect(shim).toContain("pub fn read_dir(path: &UStr) -> Result<Vec<UString>, FsError>");
-    // The total probes keep their bool shape: a missing path is false, not a failure.
+    // The total probes keep their bool shape: a missing path is false.
     expect(shim).toContain("pub fn exists(path: &UStr) -> bool");
     expect(shim).toContain("pub fn is_directory(path: &UStr) -> bool");
   });

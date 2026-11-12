@@ -2,7 +2,7 @@
 
 Shape: TWO payload exception classes (`xsxm.CrossProbe.E1`, `.E2`) in ONE Haxe
 module; their payload enums live in TWO DIFFERENT modules (`xsxm.Faults1.F1Fault`,
-`xsxm.Faults2.F2Fault`). In this shape `payloadEnumNames` does not collide, but
+`xsxm.Faults2.F2Fault`). In this shape `payloadEnumNames` stays collision-free, while
 `exceptionPayloads` (keyed by the exception CLASS's module) collides between E1
 and E2 -> "whoever is scanned last wins".
 
@@ -37,4 +37,4 @@ wins" mirror. Post, both are rewritten:
 NOT collected by any runner: no script, manifest or CI gate in the repository
 references this fixture (checked in the audited worktree and this scratch
 tree). It exists only in untracked worktree copies plus this archive. Any
-green here is a manual measurement, not a regression guard.
+green here is a manual measurement.

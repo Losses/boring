@@ -2,7 +2,7 @@ package boring;
 
 /**
     Nested subscript writes: arr[i][j][k] = v must reach the storage inside
-    the innermost Vec, not a value-read clone that is dropped. The value read
+    the innermost Vec. A value-read clone would be dropped. The value read
     of a non-Copy array element clones the whole container at the read site;
     a write through that clone stores into a temporary. (PlacePlan)
 **/
@@ -68,7 +68,7 @@ class NestedIndexWriteOps {
     }
 
     /** MutateReferent: a method call on the innermost element reaches the
-        storage inside the Vec, not a value-read clone. (PlacePlan) */
+        storage inside the Vec. (PlacePlan) */
     public static function mutateElementDepth2():Array<Array<String>> {
         final grid:Array<Array<String>> = [["a", "b"], ["c", "d"]];
         grid[0][1] += "!";
@@ -99,7 +99,7 @@ class NestedIndexWriteOps {
     }
 
     /** MutateReferent on a handle element: mutating the object the slot
-        refers to reaches the shared referent, not a detached copy. */
+        refers to reaches the shared referent. */
     public static function mutateHandleElement():Int {
         final grid:Array<Array<NestedIndexCell>> = [[new NestedIndexCell(1), new NestedIndexCell(2)]];
         grid[0][1].value = 20;

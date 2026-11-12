@@ -7,8 +7,8 @@ import { resolve } from "node:path";
  *
  * The assertions live in run.sh, which generates the fixture and checks the
  * emitted `u_string::units(` counts per root function, then checks that the
- * interval walk reads through the hoisted vector instead of rescanning the
- * source. This wrapper exists so `bun test tests/` picks the guard up: a
+ * interval walk reads through the hoisted vector, with no source rescan.
+ * This wrapper exists so `bun test tests/` picks the guard up: a
  * directory holding only run.sh and an .hxml is collected by nothing
  * (tests/fixture-reachability.test.ts counts exactly that class of fixture).
  *
@@ -38,7 +38,7 @@ describe("rust per-character units hoisting", () => {
       `run.sh exited ${result.status}; a non-zero status is always a failure\n${output}`,
     ).toBe(0);
 
-    // 2. On success, report a missing toolchain as a stage rather than as green.
+    // 2. On success, report a missing toolchain as a stage of its own.
     if (output.includes("environment-not-reached")) {
       console.log(output.trim());
       return;

@@ -10,8 +10,9 @@
 #   B = examples/T.hxml        F = examples/T-f32.hxml
 #
 #  (1) ROOT-SET EQUALITY, BOTH DIRECTIONS.  root(B) == root(F).
-#      A module in B but not F ("base-only") and a module in F but not B
-#      ("f32-only") are both reported, and either one fails the guard.
+#      A module present in B and missing from F ("base-only") and a module
+#      present in F and missing from B ("f32-only") are both reported, and
+#      either one fails the guard.
 #      A root is:
 #        (i)   a bare module-path line `Ident(.Ident)*`,
 #        (ii)  a `-main <module>` argument,
@@ -58,7 +59,7 @@
 #      fails the structural check), module a plausible dotted module path, and
 #      a reason that passes the shape checks below.  NO MEANING CHECK: the
 #      reason checks verify SHAPE ONLY -- at least 4 whitespace-separated
-#      words, at least 24 characters, no tab/newline, not a single known
+#      words, at least 24 characters, no tab/newline, no single known
 #      placeholder token, at least three ASCII letters, no repeated-token
 #      spam (one token occupying half or more of the words, so "todo todo
 #      todo todo todo!" fails), and no padded/gibberish token (three or
@@ -74,7 +75,7 @@
 #      real .hx on the classpath THAT FILE declares: its own -cp/-lib lines
 #      plus the -cp/-lib lines of the .hxml files it includes.  A root that
 #      only another file's classpath provides fails -- classpath sets are
-#      checked per file, not unioned (removing `-cp samples` from one f32
+#      checked per file, with no unioning (removing `-cp samples` from one f32
 #      file is a failure).  No repo-wide fallback applies to file roots.
 #      Modules named by the allowlist or by the root floor are resolved
 #      against the union of all guarded classpaths, with a repo-wide .hx
@@ -131,7 +132,7 @@
 #   examples-dir        default: <script>/../../examples
 #   --repo-root=PATH    repository root used for module-source resolution
 #                       (also honoured: ROOTS_GUARD_REPO_ROOT).  If discovery
-#                       fails the guard FAILS rather than skipping the checks.
+#                       fails the guard FAILS.
 #   --strict-duplicates fail on duplicate root lines (see above)
 #   --print-baseline    print the current root floor (one `target<TAB>module`
 #                       line per module of the union of each pair's root
@@ -642,7 +643,7 @@ make_cp_index <(printf '%s\n' ${CP_ALL[@]+"${CP_ALL[@]}"}) "$tmpd/idx.all"
 # F9 (Claude review): fallback index switches to git ls-files '*.hx'.
 # Repo-wide fallback index: every tracked .hx under the repo (git ls-files, so
 # untracked build output and local junk are excluded) as dotted module names.
-# Built once; membership is a single grep, not a per-module find.
+# Built once; membership is a single grep.
 git -C "$repo" ls-files '*.hx' |
 while IFS= read -r hx; do
     rel="${hx#"$repo"/}"

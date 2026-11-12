@@ -54,7 +54,7 @@ class RustImports {
     /**
         Registers a glob import plus the symbol the emitter renders for it,
         so renderFiltered can intersect the module exports with the body
-        instead of keeping the glob unconditionally (Contract 6).
+        (Contract 6).
     **/
     public function requireGlob(importPath:String, symbol:String):Void {
         require(importPath);
@@ -97,7 +97,7 @@ class RustImports {
         // Requiring a type from a resident module is what the emission gate
         // treats as usage (emitResidentModule walks the module's externs
         // against shimsUsed): light the fronting externs here so the resident
-        // emits with its importers instead of leaving a dangling mod entry.
+        // emits with its importers, so no dangling mod entry is left.
         if (RuntimeResidents.isResident(module)) {
             for (externModule in RuntimeResidents.externsOf(module)) {
                 state.shimsUsed.set(externModule, true);
@@ -151,7 +151,7 @@ class RustImports {
             // A glob import uses this module's exported symbols: it stays
             // only when the body names one of the symbols recorded at the
             // require site. Contract 6 keeps the require site as the single
-            // source instead of rescanning the module. (GlobSymbolIntersection)
+            // source. (GlobSymbolIntersection)
             final glob = StringTools.endsWith(imp, "::*");
             if (glob) {
                 var used = false;
