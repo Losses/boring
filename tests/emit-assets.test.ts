@@ -6,8 +6,8 @@ import { randomUUID } from "node:crypto";
 /**
  * Emit-Assets contract (t-mvlogmat-pam8): a @:asset data module's large
  * string literal is externalized to a data file plus a native resource read,
- * instead of inlining as a string literal. The same fixture must externalize
- * on all four non-Rust targets (TS, Kotlin, Swift, Dart).
+ * so the target language carries no inline copy. The same fixture must
+ * externalize on all four non-Rust targets (TS, Kotlin, Swift, Dart).
  */
 
 const root = path.resolve(import.meta.dir, "..");

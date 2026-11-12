@@ -5,8 +5,8 @@ package;
 /**
     Whether a lowered Kotlin expression carries a nullable target type.
     Written by the same line that renders `.` / `?.` / `!!.`, so the
-    coerce layer reads one authoritative fact instead of re-inferring
-    from text.
+    coerce layer reads one authoritative fact, keeping text re-inference
+    out of the path.
 **/
 enum Presence {
     /** Renders to a non-null target expression. */

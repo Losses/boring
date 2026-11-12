@@ -8,8 +8,8 @@ import haxe.macro.Type;
     Pre-computed emission plan for the Rust target.
     Computed once at the start of Compiler.preScan so that
     scanFallibility, compileClassImpl, and includeStaticFunc
-    all read one consistent answer instead of each maintaining
-    its own copy of the emission logic.
+    all read one consistent answer, so the emission logic has a single
+    copy.
 
     1. Which synthetic-impl classes emit: the referencedImplModules
        set replaces the state.referencedImpls read in both

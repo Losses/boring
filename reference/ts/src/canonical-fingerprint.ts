@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 /**
  * One framed field of a P-23 protocol fingerprint. The value bytes are already
  * canonical for the declared type tag; floats come from FloatCanonical
- * (encode64/encode32), and null is signalled by the marker rather than bytes.
+ * (encode64/encode32), and the marker signals null.
  */
 export interface FingerprintField {
   readonly key: string;

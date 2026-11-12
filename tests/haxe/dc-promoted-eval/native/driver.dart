@@ -3,7 +3,7 @@
 // The runner copies this file into the generated tree root, so the relative
 // imports reach <tree>/lib/dcpe/eval_probe.dart and
 // <tree>/lib/dcpe/double_eval_control.dart. The Dart target emits the probe as
-// top-level functions and a top-level counter variable, not as a class. The
+// top-level functions and a top-level counter variable. The
 // driver only observes: it resets the probe counter, calls the probe once, and
 // prints the counter. It takes no verdict; the runner compares the printed
 // observation with the authored expectation.

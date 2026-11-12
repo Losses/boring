@@ -77,8 +77,8 @@ class DcGuard {
 
 	public static function p11TerminateGuardThenClosure(flag:Bool):Int {
 		// The backend emits the captured local as final (never
-		// reassigned), so the leak shows up as a redundant `!` emit
-		// rather than an error here; p10 covers the error-level case.
+		// reassigned), so the leak shows up as a redundant `!` emit here;
+		// p10 covers the error-level case.
 		var s:Null<String> = flag ? "abcd" : null;
 		if (s == null) {
 			return -1;

@@ -73,7 +73,7 @@ if (mode === "markers") {
   // the child had already written its last byte and exited 0 in 41 runs, was
   // stopped mid-write in 18, and was stopped after its last byte in 1. So the
   // host outcome (signal, exit status) and whether any byte was actually
-  // dropped are scheduling facts here, not properties of the record.
+  // dropped are scheduling facts here; the record itself makes no claim.
   const total = Number(process.argv[3] ?? "0");
   const chunk = Buffer.alloc(4096, 0x78);
   let remaining = total;

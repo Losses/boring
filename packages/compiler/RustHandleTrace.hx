@@ -13,7 +13,7 @@ import SemanticPolicy.FunctionMutability;
     place_kind }. The trace is target-neutral text over the typed IR, never
     rendered Rust. An expression with no trace record is a lowering error
     (P-19). The M3 lowering emits one record per expression; this module owns
-    the record shape and serialization, not the lowering.
+    the record shape and serialization; the lowering lives elsewhere.
 **/
 
 typedef TraceRecord = {

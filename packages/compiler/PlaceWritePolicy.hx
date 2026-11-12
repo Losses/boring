@@ -60,7 +60,7 @@ class PlaceWritePolicy {
 
     /**
         The declared storage kind of a landing repr. This is the composition of
-        the SemanticPolicy domains, not a new semantic: Copy/ImmutableValue and
+        the SemanticPolicy domains, with no new semantic: Copy/ImmutableValue and
         a Collection backing are owned value storage; a Handle is a shared
         referent; a static slot is StaticSlot; a closure environment is shared
         referent storage (FnMut). Nullable folds into its inner repr, because

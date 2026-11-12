@@ -224,7 +224,7 @@ class RustType {
                         // A plain class carries Haxe reference semantics, so
                         // the lowering stores it as an Rc<RefCell<T>> handle.
                         // The handle itself is Clone, so it crosses call
-                        // boundaries as an Rc::clone instead of a move.
+                        // boundaries as an Rc::clone, which shares the handle.
                         // (ClassParamHandle)
                         if (RustDecl.isPlainClassHandle(t)) {
                             imports.require("std::rc::Rc");

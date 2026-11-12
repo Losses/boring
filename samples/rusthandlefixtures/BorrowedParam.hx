@@ -1,7 +1,7 @@
 package rusthandlefixtures;
 
 // borrowed param: a handle passed to a static function and reused after the
-// call, so it must be borrowed rather than moved.
+// call, so it must be borrowed.
 class BorrowedParam {
     public function new() {}
 }

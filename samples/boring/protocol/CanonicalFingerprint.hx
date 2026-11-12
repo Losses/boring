@@ -7,8 +7,7 @@ import haxe.crypto.Sha256;
 /**
  * One framed field of a P-23 protocol fingerprint (CanonicalFingerprint).
  * The value bytes are already canonical for the declared type tag; floats come
- * from FloatCanonical.encode64/encode32, and null is signalled by the marker
- * rather than by value bytes.
+ * from FloatCanonical.encode64/encode32, and the marker signals null.
  */
 typedef FingerprintField = {
     var key:String;

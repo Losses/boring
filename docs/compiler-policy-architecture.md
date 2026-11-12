@@ -11,7 +11,7 @@ Each executor receives the exact source revision, relevant repository rules,
 interface specification, file ownership, test obligations, and durable handoff path.
 Record the CLI, actual model, and provider independently.
 Process records (owner requests, status, checkpoint follow-ups) live on the
-workspace task board, not in this document.
+workspace task board.
 
 ## Layers and dependency rules
 

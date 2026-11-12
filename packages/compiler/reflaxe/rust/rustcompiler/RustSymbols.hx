@@ -127,7 +127,7 @@ class RustSymbols {
 
         @param ref      Declared symbol identity (module and raw name).
         @param fromModule  The module dispatch site that requests the path
-                           (for error messages, not the path itself).
+                           (used only in error messages).
         @return crate::<moduleToRustPath>::<emittedTypeName(name)> with
                 payload-enum actual-emitted-module redirection when state is
                 set (P6.5).

@@ -21,7 +21,7 @@ class EscapingTraitIdentityFacade {
 
     // Drives the value-slot coercion for a gated class: proves the
     // emission check fires (and then that the single-unsizing bind
-    // compiles) instead of double-wrapping silently.
+    // compiles), which rules out a silent double-wrap.
     public function consume(w:EscapingWorkerA):String {
         return w.runA();
     }

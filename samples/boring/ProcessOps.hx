@@ -38,7 +38,7 @@ class ProcessOps {
         variable through printenv; a Windows host has no such program, so
         it reads it through the cmd shell builtin. Either way the child must
         see the variable passed in the spawn environment - that is the
-        behaviour under test, not the choice of program. (PortableEnvProbe) */
+        behaviour under test; the program choice is incidental. (PortableEnvProbe) */
     static function probeEnvInheritance():Bool {
         final windows = Process.platform() == "windows";
         final result = windows

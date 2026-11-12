@@ -9,10 +9,10 @@ package floathashnullable;
  *
  * This fixture only declares the data class and references it (dead-code
  * elimination guard). No assertion lives in Haxe source: hashCode is a
- * target-language artifact, not a Haxe member. The assertions run in the
- * native harnesses (native/Main.kt, native/main.dart) against the generated
- * class, and run.sh greps the generated artifacts for the nullable-hash
- * pattern and compiles the generated tree.
+ * target-language artifact that exists only in the generated class. The
+ * assertions run in the native harnesses (native/Main.kt, native/main.dart)
+ * against the generated class, and run.sh greps the generated artifacts for
+ * the nullable-hash pattern and compiles the generated tree.
  */
 @:dataClass
 class NullableFloatRecord {

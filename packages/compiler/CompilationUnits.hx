@@ -89,8 +89,8 @@ class CompilationUnits {
             hatches).
 
         Afterwards the test-support closure reclassifies main modules whose
-        referencers are all already-test modules (a single pass, not a
-        fixpoint).
+        referencers are all already-test modules (a single pass, with no
+        fixpoint iteration).
     **/
     public static function registerFromModuleTypes(mtypes:Array<ModuleType>, includeClassEntries:Bool):Void {
         pinnedMain.clear();

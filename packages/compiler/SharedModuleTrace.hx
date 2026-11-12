@@ -24,8 +24,8 @@ import sys.io.File;
 
     The caller is the first stack frame outside the recording module. That
     keeps attribution at the direct consumer: a target that reaches
-    EnumCycleDetector through PolicyQueries records PolicyQueries, not the
-    target, which is exactly the registry's consumer column. A module whose
+    EnumCycleDetector through PolicyQueries records PolicyQueries as the
+    consumer, which is exactly the registry's consumer column. A module whose
     expected consumers never appear is a bypass.
 **/
 class SharedModuleTrace {

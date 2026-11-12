@@ -76,8 +76,7 @@ implementation stands in for the standard library.
   part, `addChar` emits the pairing check and pushes
   `String.fromCharCode(codeUnit)`, `length` emits `join("").length`, and
   `toString` emits the dangling-lead check and `join("")`. The pairing check
-  reads the last code unit of the last chunk instead of a read on the
-  accumulated string. The fault constructs the compiled
+  reads the last code unit of the last chunk. The fault constructs the compiled
   `std.UStringException`, imported like any compiled std module. The earlier
   form accumulated one `string` with `+=` and read the tail with
   `buf.charCodeAt(buf.length - 1)`; that read flattens the cons-string on

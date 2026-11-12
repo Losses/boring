@@ -575,7 +575,7 @@ class Main {
 
     /**
         Prints an aggregate failure report after continuing past per-bundle
-        test failures instead of stopping at the first error.
+        test failures, so every failing bundle appears in one report.
     **/
     static function reportAggregate(failures:Array<BundleStepFailure>):Void {
         printErr("");

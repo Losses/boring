@@ -62,6 +62,6 @@ The two E0382-attempt fixtures (MultiFieldChain, HandleParamChain) are
 engine-level compound reproductions. In isolation they still compile green
 under v2's clone-everything heuristic -- E0382 ("value moved here") needs the
 full tiqian multi-field expression tree (LayoutResult::new at
-line_adjustment_stage.rs:899), not a single-construct reproducer. They stay
-as canaries: once the IR handle-lowering lands, these are the first E0382
-regression signals.
+line_adjustment_stage.rs:899); a single-construct reproducer cannot reach it.
+They stay as canaries: once the IR handle-lowering lands, these are the first
+E0382 regression signals.

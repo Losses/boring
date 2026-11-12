@@ -8,7 +8,7 @@ package dcpe;
     This control exists to show that the assertion of the positive probe (read
     `callCount` after one call, expect 1) is able to observe the value 2 through
     the very same generation, compilation and invocation path. It is a control
-    on the *assertion*, not a claim about the promoted shape: the promoted
+    on the *assertion*: the promoted
     shape itself is mutated inside the generated tree by the runner (see
     `run.sh`, `mutate`), which is the control that covers duplicate rendering of
     a single switch's scrutinee.

@@ -1,7 +1,7 @@
 package probe;
 
 /** A golden-data holder marked as an asset module: its large payload is
-    externalized to a data file instead of inlining as a string literal.
+    externalized to a data file, so the target language carries no inline copy.
     Mirrors the org.tiqian.layout recorded_* holder shape. */
 @:asset
 class AssetData {

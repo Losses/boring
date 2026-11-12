@@ -25,8 +25,8 @@ impl Exception {
     /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
         live in a process-wide static. Every emitted static lowers as
         LazyLock<Mutex<SingleThread<T>>>, so the Mutex owns exclusivity: reads
-        from a parallel test harness serialize instead of racing the Rc
-        refcount, and a legal serialized cross-thread read no longer trips a
+        from a parallel test harness serialize, keeping the Rc refcount
+        race-free, and a legal serialized cross-thread read no longer trips a
         thread-affine guard. SingleThread itself is a plain wrapper recording
         the Haxe single-threaded value semantics. (SingleThreadStatic) */
     public static final SINGLE_THREAD_SOURCE = '

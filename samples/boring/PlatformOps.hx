@@ -36,7 +36,7 @@ class PlatformOps {
         return Fs.isDirectory(path);
     }
 
-    /** Whether a path names a directory; a missing path is false, not an error. */
+    /** Whether a path names a directory; a missing path yields false. */
     public static function isDirectory(path:String):Bool {
         return Fs.isDirectory(path);
     }

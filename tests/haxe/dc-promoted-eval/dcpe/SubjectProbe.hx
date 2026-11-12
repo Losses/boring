@@ -28,7 +28,7 @@ import haxe.macro.Type.TypedExprDef;
 
     `calls=1` with `initCalls=1` is the structural form of the runtime claim the
     runner measures: the subject call appears once in the typed AST and lands in
-    the synthetic local's initializer, not in the switch subject.
+    the synthetic local's initializer.
 **/
 class SubjectProbe {
 	public static function run():Void {

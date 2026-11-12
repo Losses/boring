@@ -470,7 +470,7 @@ class SwiftDecl {
             case SwiftFloatOrder:
                 lines.push(indent + hasher + ".combine(" + floatHashBits(value) + ")");
             case SwiftUtf16StringOrder:
-                // Bulk-hash the UTF-16 storage in one pass instead of
+                // Bulk-hash the UTF-16 storage in one pass, avoiding
                 // Array's element-wise Hashable walk: Dictionary keys built
                 // from String fields otherwise re-hash every unit on every
                 // get/set (perf gap ④ of Perf-Swift-Gap).

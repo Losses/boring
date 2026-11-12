@@ -20,7 +20,7 @@ package rustcompiler;
 */
 class GatedValueCopy {
     /** Whether the rendered text names a handle (clone, constructor or an
-        already-wrapped slot) rather than a value copy. */
+        already-wrapped slot). */
     public static function renderedIsHandleForm(rendered:String):Bool {
         if (rendered == null || rendered == "")
             return false;

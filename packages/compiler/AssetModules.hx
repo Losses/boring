@@ -4,7 +4,7 @@ import haxe.macro.Type;
 
 /**
     Asset-module registry (Emit-Assets): modules whose data content is emitted
-    as a data file instead of target-language string literals.
+    as a data file, so the target language carries no string literal for it.
 
     Marking priority: an explicit @:asset metadata on a class wins over the
     v1 name registry, which lists the macro-generated golden-data holder

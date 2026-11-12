@@ -58,7 +58,7 @@ class AssignTargetPlan {
         The assignment-target boundary is an lvalue site. A degradation
         decision made on the rendered shape only loses the write silently
         when the conversion is the place-path's value-producing step: the
-        write would land in the fresh value instead of the original slot.
+        write would land in the fresh value, and the original slot stays untouched.
         A conversion that only feeds a place path is legitimate: Rust's
         interior mutability reads *`x.lock().unwrap()` and *`c.borrow_mut()` write
         through, so the guard masks those readers and only refuses a

@@ -11,7 +11,7 @@ import haxe.macro.Type.TypedExpr;
 
     AccessIntent distinguishes a value read from a slot assignment from a
     referent mutation, so a planner can pass the target intent down the
-    projection chain instead of re-deriving it from rendered text.
+    projection chain, with no re-derivation from rendered text.
     (PlacePlan)
 **/
 enum AccessIntent {

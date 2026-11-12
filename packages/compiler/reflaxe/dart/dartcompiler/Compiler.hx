@@ -109,7 +109,7 @@ class Compiler extends PluginCompiler<Compiler> {
             Context.getType("runtime.StringTools");
             Context.getType("runtime.UString");
             Context.getType("runtime.TestCore");
-            // Force the WHOLE resident set, not just the modules some corpus
+            // Force the WHOLE resident set, including the modules no corpus
             // entry happened to reach: a consumer build whose entry list omits
             // the `runtime.*` roots still reaches these through the std extern
             // surface. Forcing only the three above left
@@ -753,9 +753,9 @@ class Compiler extends PluginCompiler<Compiler> {
         import a relative URI that climbs above `lib/` (the analyzer reports
         URI_DOES_NOT_EXIST and the VM stops with "No such file or
         directory"). `runtime-emit=.` therefore means "beside the generated
-        sources", which for the Dart target is `lib/`, not the output-tree
-        root; keeping the runtime one level up left every generated import
-        one `..` too deep. A named directory stays relative to the output
+        sources", which for the Dart target is `lib/`; the output-tree root
+        sits higher. Keeping the runtime one level up left every generated
+        import one `..` too deep. A named directory stays relative to the output
         root, so an explicit `runtime-emit=lib` names the same place.
     **/
     public static function runtimeEmitPath(fileName:String):String {

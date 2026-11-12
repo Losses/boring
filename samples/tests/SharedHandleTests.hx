@@ -6,8 +6,7 @@ import std.Test;
     A stateful interface: the implementor carries a private mutable field,
     so every binding that names the implementor must observe the same
     updates (ClassHandleShare). The @:sharedHandle metadata lowers its
-    interface slots to Arc<Mutex<dyn ..>> handles instead of owning Box
-    clones.
+    interface slots to Arc<Mutex<dyn ..>> handles, which share one referent.
 **/
 @:sharedHandle
 interface ISharedHandleCounter {

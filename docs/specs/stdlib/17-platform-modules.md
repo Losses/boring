@@ -301,7 +301,7 @@ and they never raise `std.FsException` and never enter the `FsError`
 domain. That is the predicate contract on every target: Node
 `existsSync` is total and the `statSync` arm catches everything to
 `false`, the JVM `Files.exists`/`Files.isDirectory` return `false`
-instead of throwing, Dart `FileSystemEntity.typeSync`/`isDirectorySync`
+on a failed lookup, Dart `FileSystemEntity.typeSync`/`isDirectorySync`
 return `false` on any lookup failure, and Rust `Fs::is_directory`
 returns `false` on `Err`. No host error is routed from a predicate into
 `FsException`.

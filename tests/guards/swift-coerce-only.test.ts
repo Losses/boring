@@ -40,7 +40,7 @@ const COERCE_FILE = "SwiftCoerce.hx";
  * "expected site migrated/removed" and the allowlist must be refreshed to
  * the new reality.  When a new bypass is added, the guard reports
  * "new bypass outside coerce".  Both directions force deliberate maintenance
- * instead of silent drift.
+ * so drift cannot pass silently.
  */
 const KNOWN_OUTSIDE: string[] = [
   "SwiftExpr.hx:347",

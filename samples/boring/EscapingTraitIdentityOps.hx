@@ -70,8 +70,8 @@ class EscapingWorkerB implements EscapingSink {
         return "host";
     }
 
-    // Path B: runA does not forward "this" itself, but calls runB on
-    // "this", and runB escapes -- so runA escapes transitively.
+    // Path B: runA forwards "this" by calling runB on it, and runB
+    // escapes -- so runA escapes transitively.
     public function runA():String {
         return "b:" + this.runB();
     }

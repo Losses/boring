@@ -256,7 +256,7 @@ function frameName(sidecar: Sidecar, frameId: number): string {
 // Correlation is by generated position: every conversion CoerceEvent now
 // carries genLine/genColumn (P7.2 EmitSink fix), so a token matches the event
 // emitted for that same generated token. The bypass probe (direction 2) is
-// recorded via record(), not recordCoerce(), so it has no event and is
+// recorded via record(), so it has no coerce event and is
 // flagged here with its emission call stack.
 function findMatchingEvent(sidecar: Sidecar, token: Token, entry: LineEntry | null, lang: Lang): CoerceEvent | ReferEvent | null {
   if (lang === "kotlin") {

@@ -1,6 +1,6 @@
 package driver;
 
-/** A step failure the caller may catch instead of terminating. */
+/** A step failure the caller may catch, so a bundle run continues past it. */
 class BundleStepFailure {
     public var bundleId(default, null):String;
     public var action(default, null):String;

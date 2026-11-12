@@ -62,7 +62,7 @@ done
 
 # The boring library resolves through the worktree .haxelib (gitignored;
 # set up once per checkout, see README.md). A missing dev pointer is a
-# harness-defect, not a toolchain limitation.
+# harness-defect.
 if [ ! -f "$ROOT/.haxelib/reflaxe/.dev" ] || [ ! -f "$ROOT/.haxelib/boring/.dev" ]; then
 	printf 'worktree .haxelib dev pointers missing; run the README setup first\n'
 	exit 2

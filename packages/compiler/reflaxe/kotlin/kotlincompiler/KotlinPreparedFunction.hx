@@ -43,8 +43,8 @@ class KotlinPreparedFunction {
     /**
         Bindings this body writes from inside a nested function. Kotlin
         refuses to smart-cast a local a capturing closure can mutate, and it
-        applies that rule to the whole function rather than from the write's
-        source position, because the closure may run at any call. (PIT-388)
+        applies that rule to the whole function, because the closure may run at
+        any call. (PIT-388)
     **/
     public final closureWrites:Map<Int, Bool>;
 

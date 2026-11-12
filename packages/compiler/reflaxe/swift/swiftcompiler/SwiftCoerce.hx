@@ -81,7 +81,7 @@ class SwiftCoerce {
         Presence form from flow-aware facts (not Lowered.presence). A
         RequiredOperand is bare only when its Swift binding is already plain;
         a guard-proven nullable keeps its optional Swift type, so the axis
-        force-unwraps it instead of dropping to a bare name.
+        force-unwraps it, preserving the optional Swift type.
     **/
     public static function arrayPresenceForm(optionality:SwiftArrayOptionality, presenceFact:SwiftArrayPresenceFact,
             admitsAbsence:Bool):SwiftArrayPresenceForm {

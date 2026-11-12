@@ -33,7 +33,7 @@ package boring;
  * ## Expected post-fix TS
  *
  * The array-literal element carries a non-null assertion (`[atom!]`)
- * so that the array is `Atom[]`, not `(Atom | null)[]`.  `!` is erased
+ * so that the array is `Atom[]` with a non-null element type.  `!` is erased
  * at runtime: `pass(null)` executes as `consume([null])` → `[null].
  * length > 0` → `true`, matching Haxe's own -js output exactly.  The
  * assertion is type-only and does not change runtime behavior.

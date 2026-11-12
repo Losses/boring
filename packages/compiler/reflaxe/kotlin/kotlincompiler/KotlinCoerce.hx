@@ -95,7 +95,7 @@ class KotlinCoerce {
                         // site (nullableAccess) — "?." stays nullable
                         // (MaybeAbsent), "." and "!!." are present. The "!!"
                         // extraction for "!!." is embedded in the text by the
-                        // decision site, not re-derived here, so the three
+                        // decision site, consumed here, so the three
                         // access forms stay distinct (L6 instance two).
                         switch (value.presence) {
                             case MaybeAbsent:

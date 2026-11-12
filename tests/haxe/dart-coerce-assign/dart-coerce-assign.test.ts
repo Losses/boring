@@ -12,8 +12,8 @@ import { expect, test } from "bun:test";
 // arm regenerates with -D dart_coerce_ablate=Argument, which skips the
 // Argument coercion and leaves the bare nullable value; `dart analyze` then
 // rejects it with `argument_type_not_assignable`. The two compile arms must
-// differ (GP-ABLATE). Assertions name the emitted form (the `!` extraction)
-// rather than merely "it compiles" (LAYERED-VERIFICATION).
+// differ (GP-ABLATE). Assertions name the emitted form (the `!` extraction),
+// which a successful compile alone does not establish (LAYERED-VERIFICATION).
 const root = `${import.meta.dir}/../../..`;
 const out =
   Bun.env.BORING_DART_COERCE_ASSIGN_OUT ??

@@ -9,8 +9,8 @@
 # shell-quoted argv, cwd, separated streams, and exit status under
 # $RUN/stages/<id>/ (identity stages under $RUN/identity/<label>/).
 #
-# Observation semantics (this is a measurement task, not a pass/fail
-# gate):
+# Observation semantics (this is a measurement task; it records
+# readings and gates nothing):
 #   - The six source-acceptance probes are compiled standalone against
 #     the plain Haxe 4.3.7 toolchain. All six shapes are EXPECTED TO BE
 #     SOURCE-ACCEPTED and to run: the pinned 4.3.7 typer performs no

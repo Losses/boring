@@ -289,7 +289,7 @@ class FloatPrecisionPolicy {
             storageType: "",
             computeType: "",
             bitsType: "",
-            literalSuffix: "", // TODO: filled by the target profile, not by decide()
+            literalSuffix: "", // TODO: target profile fills this; decide() skips it
             conversionEdges: [],
             roundingPoint: "none",
             operationAllowance: "",

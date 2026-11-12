@@ -7,7 +7,7 @@
 // observation with the authored expectation.
 //
 // The pinned devShell ships no `@types/node`, so the little of the Node surface
-// this driver uses is declared here instead of pulled from the network. The
+// this driver uses is declared here, so the build needs no network fetch. The
 // generated modules are compiled unmodified; only this authored driver carries
 // the declaration.
 declare const process: {
