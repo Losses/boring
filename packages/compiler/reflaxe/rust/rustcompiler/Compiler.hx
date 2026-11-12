@@ -2656,7 +2656,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final className = module.substr(module.lastIndexOf(".") + 1);
             final unionName = className + RustImports.toUpperCamelCase(fieldName) + "Fault";
             final set = members.get(key);
-            if (set != null) {
+            if (set != null && !state.isSyntheticErrorType(unionName)) {
                 final variants:Map<String, String> = [];
                 for (item in set) {
                     final variant = StringTools.startsWith(item.name, className)
