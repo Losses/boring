@@ -66,6 +66,14 @@ class KotlinEmissionState {
     **/
     public final outOfScopeGuaranteedStd:Map<String, Bool> = [];
 
+    /**
+        Package-qualified names of the top-level constants already emitted,
+        mapped to the declaration that owns each. Top-level declarations
+        share the package namespace across files, so a second owner of one
+        name is a duplicate declaration (features/10 field form).
+    **/
+    public final topLevelConstOwners:Map<String, String> = [];
+
     public function new() {}
 }
 #end

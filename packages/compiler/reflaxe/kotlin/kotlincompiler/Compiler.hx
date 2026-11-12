@@ -136,6 +136,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 return null;
             }
             StaticFunctionMarkers.validateAll(funcFields);
+            StaticFunctionMarkers.validateAllVars(varFields);
             final decl = contextFor(classType.module);
             final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
             parts.get(classType.module).push(result);
@@ -160,6 +161,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         StaticFunctionMarkers.validateAll(funcFields);
+        StaticFunctionMarkers.validateAllVars(varFields);
 
         var hasTestMethods = false;
         for (f in funcFields) {

@@ -174,26 +174,36 @@ class KotlinDecl {
 
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // A marked static field leaves its holder's namespace entirely: the
+        // declaration emits at file top level, so neither the object nor the
+        // companion below ever sees it. Extracting and emitting are one
+        // decision, so the top-level constant and the namespace member cannot
+        // both exist (features/10 field form).
+        final extractedVars = [for (v in varFields) if (v.isStatic && StaticFunctionMarkers.isTopLevelField(v.field)) v];
+        final remainingVars = [for (v in varFields) if (!(v.isStatic && StaticFunctionMarkers.isTopLevelField(v.field))) v];
         final extractedParts:Array<String> = [];
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
         }
-        if (varFields.length == 0 && ordinaryFuncs.length == 0) {
+        for (v in extractedVars) {
+            extractedParts.push(topLevelFieldDecl(cls, v).join("\n"));
+        }
+        if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             return extractedParts.join("\n\n");
         }
 
         validateAbiCollisions(cls, ordinaryFuncs);
 
-        final isObject = isAllStatic(varFields, ordinaryFuncs);
+        final isObject = isAllStatic(remainingVars, ordinaryFuncs);
         final lines:Array<String> = [];
 
         if (isObject) {
             lines.push("object " + cls.name + " {");
-            for (v in varFields) {
+            for (v in remainingVars) {
                 for (l in objectVarDecl(v, cls))
                     lines.push(l);
             }
-            var sep = varFields.length > 0 && ordinaryFuncs.length > 0;
+            var sep = remainingVars.length > 0 && ordinaryFuncs.length > 0;
             for (f in ordinaryFuncs) {
                 if (sep)
                     lines.push("");
@@ -214,7 +224,7 @@ class KotlinDecl {
             }
         }
 
-        final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, varFields) : "";
+        final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, remainingVars) : "";
         // The implements clause names every interface; a cross-package
         // interface needs its import recorded here, exactly like a
         // field-type reference does. Same-package interfaces emit no import.
@@ -284,7 +294,7 @@ class KotlinDecl {
             for (f in funcFields)
                 if (!f.isStatic && !StaticFunctionMarkers.isMarked(f.field)) f.field.name
         ];
-        for (v in varFields) {
+        for (v in remainingVars) {
             if (v.isStatic) {
                 continue;
             }
@@ -334,10 +344,10 @@ class KotlinDecl {
 
         final instanceFuncs = [for (f in ordinaryFuncs) if (!f.isStatic && f.field.name != "new") f];
         final staticFuncs = [for (f in ordinaryFuncs) if (f.isStatic) f];
-        final staticVars = [for (v in varFields) if (v.isStatic && !isFunctionType(v.field.type)) v];
-        final staticFunctionVars = [for (v in varFields) if (v.isStatic && isFunctionType(v.field.type)) v];
+        final staticVars = [for (v in remainingVars) if (v.isStatic && !isFunctionType(v.field.type)) v];
+        final staticFunctionVars = [for (v in remainingVars) if (v.isStatic && isFunctionType(v.field.type)) v];
 
-        var sep = varFields.length > 0 && instanceFuncs.length > 0;
+        var sep = remainingVars.length > 0 && instanceFuncs.length > 0;
         for (f in instanceFuncs) {
             if (sep)
                 lines.push("");
@@ -347,7 +357,7 @@ class KotlinDecl {
         }
 
         if (staticVars.length > 0 || staticFuncs.length > 0 || staticFunctionVars.length > 0) {
-            if (instanceFuncs.length > 0 || varFields.length > 0)
+            if (instanceFuncs.length > 0 || remainingVars.length > 0)
                 lines.push("");
             lines.push("    companion object {");
             var csep = false;
@@ -1281,6 +1291,47 @@ class KotlinDecl {
             Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
         }
         return ['    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}'];
+    }
+
+    /**
+        A `@:topLevel` static final field: the declaration emits at file top
+        level, so a consumer imports the constant name itself
+        (`import p.NAME`) and never reads it off the holder object, and
+        the holder keeps no member for it. Kotlin spells the form
+        `const val`, which requires a compile-time constant initializer, so
+        every other initializer shape is rejected
+        (features/10 field form).
+    **/
+    function topLevelFieldDecl(cls:ClassType, v:ClassVarData):Array<String> {
+        final field = v.field;
+        if (!StaticFieldHelper.isConstValue(field)) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return [];
+        }
+        final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return [];
+        }
+        // Top-level declarations share the package namespace across files, so
+        // two holders in one package naming the same constant would emit two
+        // declarations Kotlin rejects. The owner is part of the key so a
+        // repeated visit of the same declaration stays legal.
+        final owner = cls.module + ":" + field.name;
+        final key = (cls.pack.length == 0 ? "" : cls.pack.join(".") + ".") + field.name;
+        final existing = state.topLevelConstOwners.get(key);
+        if (existing == null) {
+            state.topLevelConstOwners.set(key, owner);
+        } else if (existing != owner) {
+            Context.error("duplicate top-level declaration " + key + " from " + existing + " and " + owner, field.pos);
+        }
+        final rawInit = expr.rawExpression(init);
+        // An Int literal assigned to a Float constant renders as a Float
+        // literal, exactly as the object-member form does.
+        final initStr = expr.isIntOrLongType(init.t) && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
+        // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
+        return ['${vis}const val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = $initStr'];
     }
 
     static function isNullableReferenceType(t:Null<Type>):Bool {

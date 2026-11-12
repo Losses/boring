@@ -272,11 +272,20 @@ class RustDecl {
 
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // A marked static final leaves its holder namespace: the declaration
+        // emits as a constant at module scope under its plain screaming-snake
+        // name, which is what the reference site already imports (features/10
+        // field form).
+        final extractedVars = [for (v in varFields) if (v.isStatic && StaticFunctionMarkers.isTopLevel(v.field)) v];
+        final remainingVars = [for (v in varFields) if (!(v.isStatic && StaticFunctionMarkers.isTopLevel(v.field))) v];
         final extractedParts:Array<String> = [];
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
         }
-        if (varFields.length == 0 && ordinaryFuncs.length == 0) {
+        for (v in extractedVars) {
+            extractedParts.push(topLevelConstDecl(cls, v));
+        }
+        if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             return extractedParts.join("\n\n");
         }
 
@@ -1856,9 +1865,48 @@ class RustDecl {
         };
     }
 
+    /**
+        A marked static final field emits as a constant at module scope under its
+        plain screaming-snake name, so a consumer imports the name itself and
+        never the holder type (features/10 field form).
+    **/
+    function topLevelConstDecl(cls:ClassType, v:ClassVarData):String {
+        final field = v.field;
+        if (!StaticFieldHelper.isConstValue(field)) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final valStr = constValFloatInit(init, field.type);
+        final typeStr = switch (field.type) {
+            case TInst(c, _) if (c.get().name == "String"): "&UStr";
+            case _: types.of(field.type);
+        };
+        // @:allow members use crate visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
+        final name = RustImports.toScreamingSnakeCase(field.name);
+        if (typeStr == "&UStr") {
+            imports.requireType("runtime.UString", "UStr");
+            final s = switch (init.expr) {
+                case TConst(TString(s)): s;
+                case _: throw "const String field must be a string literal: " + cls.name + "." + field.name;
+            };
+            return '${vis}const ${name}: ${typeStr} = ${u16ConstLiteral(s)};';
+        }
+        return '${vis}const ${name}: ${typeStr} = $valStr;';
+    }
+
     function staticVarDecl(cls:ClassType, v:ClassVarData):Array<String> {
         final field = v.field;
         if (isStaticFunctionField(v)) {
+            return [];
+        }
+        if (v.isStatic && StaticFunctionMarkers.isTopLevel(field)) {
+            // The marked constant emits at module level instead.
             return [];
         }
         if (v.isStatic && DataTableHelper.isDataTableField(field)) {

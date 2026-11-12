@@ -171,7 +171,12 @@ class DartDecl {
         }
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
-        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
+        // A marked static final leaves its holder namespace: the declaration
+        // emits as a constant at library scope, which is the shape the reference
+        // site already reads (features/10 field form).
+        final extractedVars = [for (v in varFields) if (v.isStatic && StaticFunctionMarkers.isTopLevel(v.field)) v];
+        final remainingVars = [for (v in varFields) if (!(v.isStatic && StaticFunctionMarkers.isTopLevel(v.field))) v];
+        if (flattenStatics(cls) && isStaticsOnly(remainingVars, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
             for (f in ordinaryFuncs) {
                 final name = dartMemberName(f.field);
                 expr.reserveTopLevelName(name);
@@ -184,6 +189,9 @@ class DartDecl {
         // The receiver order is the first-encounter order, keeping the
         // output independent of map iteration order.
         final extractedParts:Array<String> = [];
+        for (v in extractedVars) {
+            extractedParts.push(topLevelConstDecl(cls, module, v));
+        }
         final extensionOrder:Array<String> = [];
         final extensionGroups = new Map<String, Array<ClassFuncData>>();
         for (f in extractedFuncs) {
@@ -201,7 +209,7 @@ class DartDecl {
         for (receiverType in extensionOrder) {
             extractedParts.push(extensionDeclGroup(cls, receiverType, extensionGroups.get(receiverType)).join("\n"));
         }
-        if (varFields.length == 0 && ordinaryFuncs.length == 0) {
+        if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             return extractedParts.join("\n\n");
         }
         final lines:Array<String> = [];
@@ -212,7 +220,7 @@ class DartDecl {
         // outside haxe.Exception). Resident modules always keep the
         // class: the runtime library merges several modules whose
         // top-level function names would collide.
-        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
+        if (flattenStatics(cls) && isStaticsOnly(remainingVars, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
             // Reserve flattened function names before rendering bodies. Imports
             // and local-name allocation both need the complete library scope.
             for (f in ordinaryFuncs) {
@@ -223,7 +231,7 @@ class DartDecl {
             // The data tables of a statics-only class become top-level
             // constants of its library (a top-level variable needs no
             // static keyword).
-            for (v in varFields) {
+            for (v in remainingVars) {
                 final decl = varDeclTopLevel(cls, module, v);
                 if (decl.length == 0) {
                     continue;
@@ -265,7 +273,7 @@ class DartDecl {
         // A coalescing constructor default assigns the field in the
         // body, which Dart accepts only under a late declaration.
         final lateFields = expr.coalescedBodyFields(cls, ordinaryFuncs);
-        for (v in varFields) {
+        for (v in remainingVars) {
             final decl = varDecl(cls, module, v, lateFields);
             if (decl.length == 0) {
                 continue;
@@ -307,7 +315,7 @@ class DartDecl {
             lines.push("  bool operator ==(Object other) {");
             lines.push("    if (identical(this, other)) return true;");
             final comparisons:Array<String> = [];
-            for (v in varFields) {
+            for (v in remainingVars) {
                 if (v.isStatic)
                     continue;
                 final fname = dartMemberName(v.field);
@@ -324,7 +332,7 @@ class DartDecl {
             lines.push("  @override");
             lines.push("  int get hashCode {");
             lines.push("    var hash = 17;");
-            for (v in varFields) {
+            for (v in remainingVars) {
                 if (v.isStatic)
                     continue;
                 final fname = dartMemberName(v.field);
@@ -698,6 +706,28 @@ class DartDecl {
                 structTypedefs.set(sig, def);
             case _:
         }
+    }
+
+    /**
+        A marked static final field emits as a constant at library scope, so a
+        consumer reads the name itself and never the holder namespace
+        (features/10 field form).
+    **/
+    function topLevelConstDecl(cls:ClassType, module:String, v:ClassVarData):String {
+        final field = v.field;
+        if (!StaticFieldHelper.isConstValue(field)) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final name = claimTopLevel(dartMemberName(field), field.pos);
+        expr.reserveTopLevelName(name);
+        imports.reserveName(name);
+        return "const " + name + " = " + constValFloatInit(init, field.type) + ";";
     }
 
     function varDecl(cls:ClassType, module:String, v:ClassVarData, lateFields:Map<String, Bool>):Array<String> {

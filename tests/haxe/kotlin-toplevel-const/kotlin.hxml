@@ -1,0 +1,23 @@
+# Generation input for the Kotlin top-level constant fixture (features/10
+# field form). The caller supplies -D kotlin-output=<dir>; this file is
+# otherwise the complete generation input.
+#
+# Run from the worktree root:
+#   haxe tests/haxe/kotlin-toplevel-const/kotlin.hxml -D kotlin-output=<dir>
+#
+# "-cp packages/compiler" names this tree's emitter explicitly. "-lib boring"
+# resolves through the workspace haxelib projection, which in this workspace
+# points into another worktree (PIT-376), and the fixture would then judge a
+# tree other than the one under test. "samples" supplies the std shim modules
+# the emitter forces into typing (std.UStringException and the Fs faults).
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-toplevel-const
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-toplevel-const'])
+--macro kotlincompiler.Compiler.use()
+toplevelconst.MarkedConsts
+toplevelconst.UnmarkedConsts
+toplevelconst.consumer.ConstConsumer

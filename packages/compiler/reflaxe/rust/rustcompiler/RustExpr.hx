@@ -10918,7 +10918,14 @@ class RustExpr {
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
-            final nativeName = markedFieldUsesFreeName(cls, markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
+            // A marked constant emits at module level under its plain
+            // screaming-snake name; the function forms keep their snake names
+            // (features/10 field form).
+            final isConstField = StaticFunctionMarkers.isTopLevel(markedField) && switch (Context.follow(markedField.type)) {
+                case TFun(_, _): false;
+                case _: true;
+            };
+            final nativeName = isConstField ? RustImports.toScreamingSnakeCase(name) : (markedFieldUsesFreeName(cls, markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name));
             if (markedField.isPublic) {
                 imports.requireType(cls.module, nativeName);
             }

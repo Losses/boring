@@ -37,6 +37,15 @@ The markers are metadata on static function declarations:
   first parameter's type; the first parameter is the receiver. The
   class contributes nothing to its emission.
 
+The markers also have a variable form. `@:topLevel` on a
+`static final` constant moves the declaration to the file top level;
+the holder keeps no member for it, so the top-level constant and the
+namespace member never coexist. A variable has no receiver, so
+`@:extension` on a field stops the compilation with `top-level markers
+on fields accept static final constants only`, as does `@:topLevel` on
+an instance or mutable field. An unmarked `static final` keeps its
+namespace shape.
+
 A class may mix marked and unmarked statics; the unmarked statics keep
 their current namespace shapes and the marked ones extract.
 
@@ -129,6 +138,33 @@ with the target's module-file-private visibility and no import.
    target, and the Dart unconditional flattening of statics-only
    classes no longer applies to a fully extracted class.
 
+## Top-level constants (field form)
+
+A `static final` marked `@:topLevel` emits as a constant at module scope
+on every target. The five spellings are equivalent: each language already
+has a module-scope immutable binding, and the reference site renders the
+bare name plus the import the target already uses for a marked function.
+
+| Target | `@:topLevel public static final PLATFORM_ISSUE:String = "..."` |
+| --- | --- |
+| Kotlin | `const val PLATFORM_ISSUE: String = "..."` in the module facade |
+| TypeScript | `export const PLATFORM_ISSUE: string = "...";` in the module file |
+| Swift | `public let PLATFORM_ISSUE: [UInt16] = Array("...".utf16)` at file scope |
+| Dart | `const PLATFORM_ISSUE = "...";` in the library |
+| Rust | `pub const PLATFORM_ISSUE: &UStr = ...;` at module level |
+
+The holder keeps no member for the constant, so the module-scope binding
+and the namespace member never coexist. A private marked constant emits
+with the target's file-private spelling and no import.
+
+The initializer must be a compile-time constant (a `String`, `Int`,
+`Float`, or `Bool` literal), which is the domain every one of the five
+spellings accepts. An Int literal assigned to a `Float` constant renders
+as a Float literal, matching the namespace-member form.
+
+A class may keep unmarked statics beside the extracted ones; those keep
+their namespace shape on all five targets.
+
 ## Samples and tests
 
 - `samples/boring/FileLevelOps.hx`: a class holding `@:topLevel`
@@ -156,6 +192,21 @@ with the target's module-file-private visibility and no import.
   for the owned receiver and a free `pub fn` for the `String`
   receiver. No target renders the declaring class name at any marked
   call site.
+- `samples/boring/TopLevelConstOps.hx`: the variable form. Two marked
+  constants (one public, one private, the private one read by a static
+  function) beside `samples/boring/HolderConstOps.hx`, the same
+  declaration without the marker. `samples/tests/TopLevelConstTests.hx`
+  reads both from another package, so the consistency manager compares
+  one id set across all six runs.
+- `tests/haxe/kotlin-toplevel-const/`: the Kotlin tree assertion.
+  `MarkedConsts` holds four `@:topLevel` constants (public, private, and
+  an Int literal on a `Float`), `UnmarkedConsts` holds the same
+  declarations without the marker, and a cross-package consumer reads
+  both. `tests/kotlin/toplevel-const.test.ts` asserts the extracted
+  shape, the unchanged default shape, the consumer's file-top-level
+  imports, and a kotlinc run over the tree; its mutation control
+  rewrites the extracted constants into object members and requires
+  kotlinc to reject the consumer's imports.
 - Coverage: the full `bun run verify` chain; the consistency manager must
   report identical identifiers and verdicts across kotlin (baseline),
   haxe, ts, rust, swift, and dart.

@@ -2,9 +2,13 @@
 import haxe.macro.Context;
 import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
+import reflaxe.data.ClassVarData;
 
 /** Shared declaration-side rules for features/10 static function markers. */
 class StaticFunctionMarkers {
+    /** The variable form has no receiver and no mutable spelling. */
+    public static final FIELD_MARKER_ERROR = "top-level markers on fields accept static final constants only";
+
     public static function isTopLevel(field:ClassField):Bool {
         SharedModuleTrace.record("StaticFunctionMarkers");
         return field.meta.has(":topLevel");
@@ -37,6 +41,46 @@ class StaticFunctionMarkers {
         SharedModuleTrace.record("StaticFunctionMarkers");
         for (f in funcFields) {
             validate(f);
+        }
+    }
+
+    /**
+        The variable form of `@:topLevel` (features/10 field form): a
+        `static final` constant whose declaration leaves its holder's
+        namespace and emits at file top level. It is the same metadata the
+        function form reads, so a reference site needs no second spelling;
+        the declaration-side rules below decide which variables may carry
+        it.
+    **/
+    public static function isTopLevelField(field:ClassField):Bool {
+        SharedModuleTrace.record("StaticFunctionMarkers");
+        return field.meta.has(":topLevel");
+    }
+
+    /**
+        Declaration-side rules for the variable form. A variable has no
+        receiver, so `@:extension` has no meaning here and is rejected;
+        and the top-level form is the constant form only, so an instance or
+        mutable field is rejected too. An unmarked field keeps its
+        namespace shape.
+    **/
+    public static function validateField(field:ClassField, isStatic:Bool):Void {
+        SharedModuleTrace.record("StaticFunctionMarkers");
+        if (!isTopLevelField(field)) {
+            if (isExtension(field)) {
+                Context.error(FIELD_MARKER_ERROR, field.pos);
+            }
+            return;
+        }
+        if (isExtension(field) || !isStatic || !field.isFinal) {
+            Context.error(FIELD_MARKER_ERROR, field.pos);
+        }
+    }
+
+    public static function validateAllVars(varFields:Array<ClassVarData>):Void {
+        SharedModuleTrace.record("StaticFunctionMarkers");
+        for (v in varFields) {
+            validateField(v.field, v.isStatic);
         }
     }
 

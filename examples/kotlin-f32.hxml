@@ -712,3 +712,9 @@ boring.protocol.CanonicalFingerprint
 tests.FloatCanonicalTests
 tests.NestedIndexWriteTests
 boring.P21PrivateAccessorClash
+# The variable form of the top-level markers (features/10): one holder
+# whose static finals are marked, one unmarked control, and the cross-module
+# consumer that reads both.
+boring.TopLevelConstOps
+boring.HolderConstOps
+tests.TopLevelConstTests

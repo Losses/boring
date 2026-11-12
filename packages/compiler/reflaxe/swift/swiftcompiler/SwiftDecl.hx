@@ -146,9 +146,17 @@ class SwiftDecl {
         deferredConstructorFields = constructorSelfCallFields(funcFields);
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // A marked static final leaves its holder namespace: the declaration
+        // emits at file scope, which is the shape the reference site already
+        // imports (features/10 field form).
+        final extractedVars = [for (v in varFields) if (v.isStatic && StaticFunctionMarkers.isTopLevel(v.field)) v];
+        final remainingVars = [for (v in varFields) if (!(v.isStatic && StaticFunctionMarkers.isTopLevel(v.field))) v];
         final extractedParts:Array<String> = [];
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
+        }
+        for (v in extractedVars) {
+            extractedParts.push(topLevelConstDecl(cls, module, v));
         }
         final selectedComparator:Null<SwiftRecordPlan> = if (cls.meta.has(":dataClass")) switch (SwiftComparisonPlan.select(SourceComparisonAnalysis.declarationReference(cls),
                 [for (parameter in cls.params) parameter.t], OptionalEqualityCapability)) {
@@ -163,12 +171,12 @@ class SwiftDecl {
         } else null;
         final comparatorPlan = sortedComparator == null ? selectedComparator : sortedComparator;
         final shouldEmitComparator = selectedComparator != null;
-        if (varFields.length == 0 && ordinaryFuncs.length == 0) {
+        if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             final emptyClass = extractedParts.join("\n\n");
             return comparatorPlan != null ? emptyClass + "\n\n" + dataClassComparator(comparatorPlan) : emptyClass;
         }
 
-        final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
+        final staticsOnly = isStaticsOnly(remainingVars, ordinaryFuncs);
         final lines:Array<String> = [];
 
         // A statics-only class lowers to a case-less enum namespace; an
@@ -213,7 +221,7 @@ class SwiftDecl {
         }
 
         // One blank line between members; none inside a member's body.
-        for (v in varFields) {
+        for (v in remainingVars) {
             final decl = varDecl(cls, module, v);
             if (decl.length == 0) {
                 continue;
@@ -683,6 +691,27 @@ class SwiftDecl {
                 structTypedefs.set(sig, def);
             case _:
         }
+    }
+
+    /**
+        A marked static final field emits at file scope, so a consumer reads
+        the name itself and never the holder namespace (features/10 field
+        form).
+    **/
+    function topLevelConstDecl(cls:ClassType, module:String, v:ClassVarData):String {
+        final field = v.field;
+        if (!StaticFieldHelper.isConstValue(field)) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        // @:allow members use Swift public visibility so allowed cross-module references compile.
+        final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
+        return vis + "let " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " = " + constValFloatInit(init, field.type);
     }
 
     function varDecl(cls:ClassType, module:String, v:ClassVarData):Array<String> {

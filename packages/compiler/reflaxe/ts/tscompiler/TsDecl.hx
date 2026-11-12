@@ -115,11 +115,19 @@ class TsDecl {
         // place, so no emitted reference names them and the declaration is
         // dead (TS6133). Drop them here like value types already do.
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field) && !ValueTypeSupport.isInlineHelper(f.field)) f];
+        // A marked static final leaves the class body: the declaration emits
+        // as a constant at module scope, which is the shape the reference site
+        // already imports (features/10 field form).
+        final extractedVars = [for (v in varFields) if (v.isStatic && StaticFunctionMarkers.isTopLevel(v.field)) v];
+        final remainingVars = [for (v in varFields) if (!(v.isStatic && StaticFunctionMarkers.isTopLevel(v.field))) v];
         final extractedParts:Array<String> = [];
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
         }
-        if (varFields.length == 0 && ordinaryFuncs.length == 0) {
+        for (v in extractedVars) {
+            extractedParts.push(topLevelConstDecl(cls, v));
+        }
+        if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             return SourceOriginFragment.plain(extractedParts.join("\n\n"));
         }
 
@@ -140,7 +148,7 @@ class TsDecl {
         // references resolve through runtime symbols, so the resident body
         // needs no pre-registered import line.
         if (!imports.selfResident) {
-            for (v in varFields)
+            for (v in remainingVars)
                 registerTypeImports(v.field.type);
             for (f in funcFields) {
                 registerSignatureImports(f.field.type);
@@ -149,7 +157,7 @@ class TsDecl {
         }
 
         final tableLines:Array<String> = [];
-        for (v in varFields) {
+        for (v in remainingVars) {
             if (v.isStatic && DataTableHelper.isDataTableField(v.field)) {
                 final elems = DataTableHelper.getDataTableElements(v.field.expr());
                 if (elems != null) {
@@ -184,7 +192,7 @@ class TsDecl {
         lines.push('export class ${cls.name}$classParams' + extendsClause + ifaceStr + " {");
 
         var storageCount = 0;
-        for (v in varFields) {
+        for (v in remainingVars) {
             if (isGetterOnlyProperty(v.field)) {
                 continue;
             }
@@ -650,6 +658,28 @@ class TsDecl {
             ];
         }
         return [];
+    }
+
+    /**
+        A marked static final field emits as a constant at module scope, so a
+        consumer imports the name itself and never reads it off the class
+        (features/10 field form). The constant form is the only supported
+        shape, matching the other four targets.
+    **/
+    function topLevelConstDecl(cls:ClassType, v:ClassVarData):String {
+        final field = v.field;
+        if (!StaticFieldHelper.isConstValue(field)) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            Context.error(StaticFunctionMarkers.FIELD_MARKER_ERROR, field.pos);
+            return "";
+        }
+        // @:allow members omit TypeScript visibility so they are public.
+        final vis = field.isPublic || field.meta.has(":allow") ? "export " : "";
+        return vis + "const " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(init) + ";";
     }
 
     function varDecl(cls:ClassType, v:ClassVarData):Array<String> {
