@@ -438,8 +438,7 @@ Rust emits each test class as a cargo integration test:
   construction and follows its test class even when the single-pass
   closure leaves it behind.
 - A large `static final Array<String>` (more than 256 elements) lowers
-  to one joined `&str` plus a `split`+`map`; the element-wise
-  `UString::from` form remains the fallback. An element containing the separator
+  to one joined `&str` plus a `split`+`map`. An element containing the separator
   or a control character falls back to the element-wise form, so the
   compressed value is always identical to the element-wise value.
 - Each test function becomes a `#[test] fn` whose body wraps in
