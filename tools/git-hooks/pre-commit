@@ -1,35 +1,18 @@
 #!/usr/bin/env bash
-# boring pre-commit hook: the documentation style check must not regress.
+# boring pre-commit hook: the documentation style check must be clean.
 #
-# check:docs has a standing whole-repo baseline red state (TCN-213, PIT-488):
-# `bun tools/doc-style/check.ts` returns rc=1 with a known hit count on the
-# current mainline.  That red is a property of the repository as a whole, not
-# of any one commit, so the hook must not refuse a commit whose changes are
-# unrelated to the measured hits.
+# check.ts prints 'hits: N.' and exits 0 only when N is 0. The repository is
+# at zero, so any commit that introduces a candidate is refused. This hook is
+# zero-tolerance: a clean count is the only passing state.
 #
-# This hook is therefore a no-regression gate, following the same shape as
-# tools/warning-gate/check.sh: a committed baseline number in
-# tools/doc-style/baseline.txt records the current hit count, and only a
-# commit that RAISES the count above the baseline is refused.  A count at or
-# below the baseline passes, and the hook reports the standing red state
-# truthfully so the developer sees that the baseline exists.
-#
-# A check that could not be measured is a failure, not a pass: if bun is
-# absent or check.ts does not emit a numeric hit count, this hook refuses
-# (the warning-gate "0 <= baseline holds vacuously" trap, PIT-366).
+# A check that could not be measured is a failure: if bun is absent or
+# check.ts does not emit a numeric hit count, this hook refuses.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "pre-commit: bun not found; run git inside 'nix develop' or install bun" >&2
-  exit 1
-fi
-
-BASELINE_FILE="tools/doc-style/baseline.txt"
-BASELINE=$(sed -n 's/^[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p' "$BASELINE_FILE" | tail -n 1)
-if ! [[ "$BASELINE" =~ ^[0-9]+$ ]]; then
-  echo "pre-commit: cannot read a numeric baseline from $BASELINE_FILE" >&2
   exit 1
 fi
 
@@ -50,13 +33,10 @@ if [[ ! "$HITS" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-if [ "$HITS" -gt "$BASELINE" ]; then
-  echo "pre-commit: doc-style REGRESSED: $HITS hits > baseline $BASELINE (see $BASELINE_FILE)" >&2
-  echo "pre-commit: this commit introduces new doc-style candidates; fix them or refresh" >&2
-  echo "pre-commit: the baseline deliberately (never as a side effect of an unrelated commit)." >&2
+if [ "$HITS" -ne 0 ] || [ "$CHECK_RC" -ne 0 ]; then
+  echo "pre-commit: doc-style is not clean: $HITS hits (rc=$CHECK_RC)" >&2
+  echo "pre-commit: this commit introduces doc-style candidates; fix them before committing" >&2
   exit 1
 fi
 
-echo "pre-commit: doc-style baseline red unchanged: $HITS hits (baseline $BASELINE); not" >&2
-echo "pre-commit: blocking this commit.  See $BASELINE_FILE for refresh policy." >&2
 exit 0
