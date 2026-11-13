@@ -69,13 +69,17 @@ describe("top-level and extension function lowering", () => {
     expect(fileConsumer).toContain("return publicValue(7)");
     expect(fileConsumer).not.toContain("FileLevelOps.");
 
+    // A Haxe String field or argument is Array<UInt16> on Swift
+    // (docs/architecture/INTERFACE-REQUIREMENTS.md:235 "String <->
+    // Array<UInt16>"), so the String receiver's extension is an
+    // `extension [UInt16]` and its members take and return [UInt16].
     expect(extensions).toContain("extension ExtensionMode {");
-    expect(extensions).toContain("extension String {");
-    expect(extensions).toContain("func modeLabel(_ suffix: String) -> String");
-    expect(extensions).toContain("func stringLabel(_ prefix: String) -> String");
+    expect(extensions).toContain("extension [UInt16] {");
+    expect(extensions).toContain("public func modeLabel(_ suffix: [UInt16]) -> [UInt16]");
+    expect(extensions).toContain("public func stringLabel(_ prefix: [UInt16]) -> [UInt16]");
     expect(extensions).not.toContain("enum ExtensionOps");
-    expect(extensionConsumer).toContain("return ExtensionMode.hot.modeLabel(\"!\")");
-    expect(extensionConsumer).toContain("return \"core\".stringLabel(\"@\")");
+    expect(extensionConsumer).toContain("return ExtensionMode.hot.modeLabel(Array(\"!\".utf16))");
+    expect(extensionConsumer).toContain("return Array(\"core\".utf16).stringLabel(Array(\"@\".utf16))");
     expect(extensionConsumer).not.toContain("ExtensionOps.");
   });
 
