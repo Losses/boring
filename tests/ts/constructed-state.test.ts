@@ -25,11 +25,10 @@ describe("constructed static initializer trees", () => {
       "static final FramePolicy weighted = FramePolicy("
     );
     const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
-    // Feature spec 35's judgment table keeps the `Mutex` row for Rust: the
-    // declared field is final, but `cargo test` reads statics from several
-    // threads and the slot's shared handle is an `Rc`, so the read has to be
-    // serialized. The pinned form is therefore the wrapper chain, not a bare
-    // `LazyLock<FramePolicy>`.
+    // `docs/specs/target-semantic-policy.md:125` realizes every static/global
+    // as a `LazyLock`/`Mutex`/single-thread wrapper, so the pinned form is the
+    // wrapper chain, not a bare `LazyLock<FramePolicy>`, and the read goes
+    // through the wrapper's guard.
     expect(rust).toContain("LazyLock<Mutex<SingleThread<");
     expect(rust).toContain("LazyLock::new");
     expect(rust).toContain("FramePolicy");
