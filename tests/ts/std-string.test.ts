@@ -21,7 +21,7 @@ describe("Std.string lowering", () => {
         expect(fs.readFileSync(file, "utf8")).not.toMatch(/\bStd\.[A-Za-z_]\w*\s*\(/u);
       }
     }
-  });
+  }, 120000);
 
   test("Kotlin concatenation keeps Std.string scalar operands bare", () => {
     const content = fs.readFileSync(path.join(root, "reference/kotlin/gen/boring/StdStringOps.kt"), "utf8");

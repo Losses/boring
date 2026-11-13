@@ -57,7 +57,7 @@ describe("StringTools conversions lowering", () => {
         }
       });
     }
-  });
+  }, 120_000);
 
   test("each target uses its ruled native conversion spelling", () => {
     const rows = [

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { ScriptEvidenceTable } from "../../reference/ts/gen-tests/boring/ScriptEvidenceTable.test.ts";
 import { WordCharacterTable } from "../../reference/ts/gen-tests/boring/WordCharacterTable.test.ts";
 import { PayloadTextTable } from "../../reference/ts/gen-tests/boring/PayloadTextTable.test.ts";
-import { CodePointNames } from "../../reference/ts/gen-tests/boring/CodePointNames.test.ts";
+import { CodePointNames } from "../../reference/ts/gen/boring/CodePointNames.ts";
 
 /**
  * Structural and behavioral assertions for compile-time data tables and sorted tables in TS,
