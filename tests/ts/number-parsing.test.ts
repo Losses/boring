@@ -27,7 +27,11 @@ describe("number parsing renderings", () => {
       expect(swiftRuntime).not.toContain("NumberParsing");
       expect(swiftRuntime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
       expect(swiftRuntime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
-      expect(swift).toContain("return parseIntRuntime(value)");
+      // The ops module hands the runtime a native String, so it converts the
+      // [UInt16] argument first (INTERFACE-REQUIREMENTS.md:235); the inlined
+      // scan itself lives in parseIntRuntime (stdlib/14:121 describes the
+      // scan, not where it is declared).
+      expect(swift).toContain('return parseIntRuntime(String(decoding: value, as: UTF16.self))');
       expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
     });
     const dart = read("reference/dart/gen/lib/boring/number_parsing_ops.dart");
