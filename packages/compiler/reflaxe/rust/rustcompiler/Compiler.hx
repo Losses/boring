@@ -1588,6 +1588,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // The static-reference set must exist before the fallibility scan:
         // the emission plan derives its field-emission map from it, and the
         // fallibility registration reads the plan.
+        scanExtensionMethodClaims(mtypes);
         scanStaticReferences(mtypes);
         emissionPlan = computeEmissionPlan(mtypes);
         scanFallibility(mtypes);
@@ -1995,6 +1996,46 @@ class Compiler extends PluginCompiler<Compiler> {
                 }
                 state.syntheticErrorVariants.set(decl.name, variants);
             }
+        }
+    }
+
+    /**
+        Records which extension class claims each method name for a receiver
+        type. An inherent impl carries at most one method of a given name, so
+        two `:extension` classes targeting one receiver with the same method
+        currently emit duplicate definitions (E0592); the claim set lets the
+        declaration and every call site agree to lower both as namespaced
+        free functions instead. (ExtensionNameCollision)
+    **/
+    function scanExtensionMethodClaims(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isExtern || cls.isInterface || !inSourceScope(cls.pos))
+                    continue;
+                for (f in cls.statics.get()) {
+                    if (!StaticFunctionMarkers.isExtension(f))
+                        continue;
+                    final params = switch (Context.follow(f.type)) {
+                        case TFun(args, _): args;
+                        case _: [];
+                    };
+                    if (params.length == 0 || StaticFunctionMarkers.isTypeParameter(params[0].t))
+                        continue;
+                    final claimKey = RustDecl.receiverClaimKey(params[0].t);
+                    if (claimKey == null)
+                        continue;
+                    final key = claimKey + "::" + RustImports.toSnakeCase(f.name);
+                    var owners = state.extensionMethodClaims.get(key);
+                    if (owners == null) {
+                        owners = [];
+                        state.extensionMethodClaims.set(key, owners);
+                    }
+                    final owner = cls.module + "." + cls.name;
+                    if (owners.indexOf(owner) < 0)
+                        owners.push(owner);
+                }
+            case _:
         }
     }
 

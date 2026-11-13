@@ -1551,18 +1551,66 @@ class RustDecl {
     }
 
     /**
-        A marked static emits as a free function when it carries
-        `@:topLevel`, or when its `@:extension` receiver type lives
-        outside the crate family. The free form keeps the plain function
-        name.
+        Whether an `@:extension` receiver type is one this crate declares, so
+        an inherent `impl <receiver>` may name it. A plain-class handle
+        (`Rc<RefCell<T>>`, also behind a Null wrapper) and a trait object are
+        external types: Rust rejects an inherent impl there (E0116), so an
+        extension whose receiver lowers that way cannot use the impl form.
+        (ExtensionReceiverOwnership)
     **/
-    public static function usesFreeFunctionForm(ownerModule:String, field:ClassField, receiverType:Null<Type>):Bool {
+    public static function receiverSupportsInherentImpl(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                !cls.isInterface && !cls.isExtern
+                    && !isPlainClassHandleOrNull(t)
+                    && !isSharedImplementorHandleType(t)
+                    && !isTraitAdapterType(t);
+            case TEnum(_, _): true;
+            case _: false;
+        };
+    }
+
+    /** The identity an extension claim is keyed by: the receiver type the
+        inherent impl form would name. (ExtensionNameCollision) **/
+    public static function receiverClaimKey(t:Null<Type>):Null<String> {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().module + "::" + c.get().name;
+            case TEnum(e, _): e.get().module + "::" + e.get().name;
+            case _: null;
+        };
+    }
+
+    /**
+        A marked static emits as a free function when it carries
+        `@:topLevel`, when its `@:extension` receiver type lives outside the
+        crate family, when the receiver lowers to a type this crate does not
+        declare (an inherent impl there is E0116), or when another extension
+        class already claims the same method name for that receiver (an
+        inherent impl carries one method of a name: a duplicate is E0592).
+        The free form keeps the plain function name and puts every extension
+        in its own module namespace, which is what resolves both.
+        (ExtensionReceiverOwnership, ExtensionNameCollision)
+    **/
+    public static function usesFreeFunctionForm(state:RustEmissionState, ownerModule:String, field:ClassField,
+            receiverType:Null<Type>):Bool {
         if (StaticFunctionMarkers.isTopLevel(field)) {
             return true;
         }
-        return StaticFunctionMarkers.isExtension(field)
-            && receiverType != null
-            && !isCrateOwnedReceiver(ownerModule, receiverType);
+        if (!StaticFunctionMarkers.isExtension(field) || receiverType == null) {
+            return false;
+        }
+        if (!isCrateOwnedReceiver(ownerModule, receiverType)) {
+            return true;
+        }
+        if (!receiverSupportsInherentImpl(receiverType)) {
+            return true;
+        }
+        final claimKey = receiverClaimKey(receiverType);
+        return claimKey != null && state.extensionNameIsContested(claimKey, RustImports.toSnakeCase(field.name));
     }
 
     static function isForeignReceiverModule(module:String):Bool {
@@ -2284,7 +2332,7 @@ class RustDecl {
             coalescedParams.set(site.parameter, true);
         }
         final freeForm = f.args.length > 0
-            ? usesFreeFunctionForm(cls.module, f.field, f.args[0].type)
+            ? usesFreeFunctionForm(state, cls.module, f.field, f.args[0].type)
             : StaticFunctionMarkers.isTopLevel(f.field);
         final snakeName = receiverMethod
             || freeForm
@@ -2614,7 +2662,7 @@ class RustDecl {
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
-        if (usesFreeFunctionForm(cls.module, f.field, f.args.length > 0 ? f.args[0].type : null)) {
+        if (usesFreeFunctionForm(state, cls.module, f.field, f.args.length > 0 ? f.args[0].type : null)) {
             return unindentRustFunction(staticFuncDecl(cls, f));
         }
         final receiverType = types.of(f.args[0].type, false);

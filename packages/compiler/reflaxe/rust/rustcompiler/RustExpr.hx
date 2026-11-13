@@ -10897,6 +10897,18 @@ class RustExpr {
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
+    /** Whether another extension class claims this field's method name for
+        the same receiver type, so the inherent-impl form cannot carry it and
+        the plain free name would collide at the caller. (ExtensionNameCollision) **/
+    function extensionNameIsContested(cls:ClassType, field:ClassField):Bool {
+        return switch (Context.follow(field.type)) {
+            case TFun(params, _) if (params.length > 0):
+                final key = RustDecl.receiverClaimKey(params[0].t);
+                key != null && state.extensionNameIsContested(key, RustImports.toSnakeCase(field.name));
+            case _: false;
+        };
+    }
+
     /**
         Whether a marked static field emits as a free function and so
         carries its plain snake name.
@@ -10904,7 +10916,7 @@ class RustExpr {
     function markedFieldUsesFreeName(cls:ClassType, field:ClassField):Bool {
         switch (field.type) {
             case TFun(args, _) if (args.length > 0):
-                return RustDecl.usesFreeFunctionForm(cls.module, field, args[0].t);
+                return RustDecl.usesFreeFunctionForm(state, cls.module, field, args[0].t);
             case _:
         }
         return StaticFunctionMarkers.isTopLevel(field);
@@ -10938,6 +10950,14 @@ class RustExpr {
             };
             final nativeName = isConstField ? RustImports.toScreamingSnakeCase(name) : (markedFieldUsesFreeName(cls, markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name));
             if (markedField.isPublic) {
+                // Two extension classes claiming one method name for one
+                // receiver both emit free functions under that plain name; a
+                // single `use` of each binds the same name twice (E0252), so a
+                // contested method is named by its module path instead and
+                // imports nothing. (ExtensionNameCollision)
+                if (markedFieldUsesFreeName(cls, markedField) && extensionNameIsContested(cls, markedField)) {
+                    return "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + nativeName;
+                }
                 imports.requireType(cls.module, nativeName);
             }
             return nativeName;
@@ -11648,8 +11668,18 @@ class RustExpr {
                 final path = cls.pack.join(".") + "." + cls.name;
                 final markedField = findStaticField(cls, name);
                 if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+                    // The declaration and this call site must agree on the
+                    // emitted form, so this reads the same predicate off the
+                    // callee's declared receiver type rather than the
+                    // argument's: an upcast argument would otherwise pick a
+                    // different form than the declaration emitted.
+                    // (ExtensionReceiverOwnership)
+                    final declaredReceiver = switch (Context.follow(cf.get().type)) {
+                        case TFun(params, _): params.length > 0 ? params[0].t : null;
+                        case _: null;
+                    };
                     final isOwnedExtension = StaticFunctionMarkers.isExtension(markedField)
-                        && RustDecl.isCrateOwnedReceiver(cls.module, args[0].t);
+                        && !RustDecl.usesFreeFunctionForm(state, cls.module, markedField, declaredReceiver);
                     final isStaticFallible = isFallibleCallee(c, cf, true);
                     final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
                     if (isOwnedExtension) {

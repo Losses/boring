@@ -202,6 +202,22 @@ class RustEmissionState {
     public final emittedAdapterStructs:Map<String, Bool> = [];
     public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
 
+    /**
+        Extension-method claims by receiver type: "<receiver identity>::<emitted
+        method name>" maps to the declaring extension classes. An inherent
+        impl carries at most one method of a name, so a name claimed by two
+        extension owners lowers as namespaced free functions instead.
+        (ExtensionNameCollision)
+    **/
+    public final extensionMethodClaims:Map<String, Array<String>> = [];
+
+    /** Whether two or more extension owners declare this method name for this
+        receiver type, which forbids the inherent-impl form. */
+    public function extensionNameIsContested(receiverKey:String, method:String):Bool {
+        final owners = extensionMethodClaims.get(receiverKey + "::" + method);
+        return owners != null && owners.length > 1;
+    }
+
     public static function interfaceMethodKey(module:String, name:String, method:String):String {
         return module + "." + name + "." + method;
     }
