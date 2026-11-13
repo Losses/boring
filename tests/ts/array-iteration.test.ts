@@ -29,7 +29,10 @@ describe("array element iteration generated tree", () => {
     const content = read(path.resolve(__dirname, "../../reference/rust/gen/boring/array_iteration_ops.rs"));
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
-    expect(content).toContain("let _g1 = holder.values.clone();\n            for &item in &_g1 {");
+    // A plain class is Rc<RefCell<T>> on Rust (docs/specs/target-semantic-policy.md:49),
+    // so the field read goes through the borrow guard before the value is
+    // cloned out of the slot; `holder.values` is not a readable form there.
+    expect(content).toContain("let _g1 = (holder.borrow().values).clone().clone();\n            for &item in &_g1 {");
   });
 
   test.skipIf(targetTreeUnavailable("swift"))("Swift emits element for loops", () => {
