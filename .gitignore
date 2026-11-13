@@ -41,6 +41,10 @@ reference/swift-f32/gen/
 reference/swift-f32/gen-tests/
 reference/dart/gen/
 reference/dart/gen-tests/
+# The registry-tool bundle is a generation-only configuration (test: false):
+# `boring verify` and `boring gen registry-tool` write `gen` (and the empty
+# `gen-tests`) under it, so the whole bundle directory is driver output.
+reference/registry-tool/
 .build/
 
 boring-*.report.md
