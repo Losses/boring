@@ -4410,8 +4410,19 @@ class RustExpr {
                     // self-deadlock without an explicit drop. (LoopGuardScope)
                     loopClose.push(indent(depth) + "drop(" + guardName + ");");
                 } else {
-                    if (loopVecName != null)
-                        loopOpen.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
+                    if (loopVecName != null) {
+                        // The subject is hoisted into its own Vec so the loop
+                        // body can mutate what the source iterated. A field
+                        // read on a plain-class handle already renders
+                        // `(recv.borrow().field).clone()` -- the value
+                        // semantics barrier out of the RefCell -- so appending
+                        // another clone duplicates the Vec for nothing
+                        // (CloneDeriveGap). Only add the clone when the
+                        // rendered subject does not already copy.
+                        final subjectText = expr(sliceSubj);
+                        final copied = StringTools.endsWith(subjectText, ".clone()");
+                        loopOpen.push(indent(depth) + "let " + loopVecName + " = " + subjectText + (copied ? ";" : ".clone();"));
+                    }
                     loopOpen.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
                     loopClose.push(indent(depth) + "}");
                 }
