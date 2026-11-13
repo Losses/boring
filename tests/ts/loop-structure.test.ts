@@ -186,6 +186,19 @@ function loopBodies(text: string): LoopBody[] {
   let match: RegExpExecArray | null;
   while ((match = headPattern.exec(text)) !== null) {
     const start = match.index;
+    // `\bfor\b` also matches Rust's `impl Trait for Type` header and a
+    // `for<'a>` bound. Neither is a loop: taking the impl body as a loop body
+    // reported the closure in `map_err(|e| e.into())` as "closure inside a
+    // loop body" (reference/rust/gen/tests/tests/interface_union_tests_support).
+    // A head only starts a statement when the token before it is not part of an
+    // identifier or a closing type bracket.
+    let before = start - 1;
+    while (before >= 0 && /\s/.test(text[before]!)) {
+      before -= 1;
+    }
+    if (before >= 0 && /[A-Za-z0-9_>\])]/.test(text[before]!)) {
+      continue;
+    }
     const brace = text.indexOf("{", start);
     if (brace === -1) {
       continue;

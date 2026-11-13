@@ -26,9 +26,18 @@ export const TAG_STR = 5;
  */
 export function encodeFingerprint(fields: readonly FingerprintField[]): Uint8Array {
   const chunks: number[] = [];
-  for (const field of fields) {
+  // Indexed heads with hoisted bounds throughout: the loop-structure guard
+  // (tests/ts/loop-structure.test.ts) forbids for-of heads and a property read
+  // in a loop condition. Each bound below is a length of a value the loop body
+  // never writes, so hoisting it does not change the iteration count, and the
+  // elements are objects/strings/typed arrays, whose reads keep reference
+  // semantics under indexing.
+  const fieldCount: number = fields.length;
+  for (let fieldIndex = 0; fieldIndex < fieldCount; fieldIndex += 1) {
+    const field: FingerprintField = fields[fieldIndex]!;
     const keyBytes: number[] = [];
-    for (let i = 0; i < field.key.length; i += 1) {
+    const keyLength: number = field.key.length;
+    for (let i = 0; i < keyLength; i += 1) {
       keyBytes.push(field.key.charCodeAt(i) & 0xff);
     }
     chunks.push((keyBytes.length >>> 8) & 0xff, keyBytes.length & 0xff);
@@ -36,7 +45,8 @@ export function encodeFingerprint(fields: readonly FingerprintField[]): Uint8Arr
     chunks.push(field.typeTag & 0xff);
     chunks.push(field.isNull ? 1 : 0);
     if (!field.isNull) {
-      for (let i = 0; i < field.value.length; i += 1) {
+      const valueLength: number = field.value.length;
+      for (let i = 0; i < valueLength; i += 1) {
         // The loop bound proves the index in range; noUncheckedIndexedAccess
         // still types the read as number | undefined.
         chunks.push(field.value[i]!);

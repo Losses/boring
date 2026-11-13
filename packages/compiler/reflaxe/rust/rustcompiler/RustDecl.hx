@@ -18,6 +18,20 @@ import ValueTypeSupport.ValueTypeOperator;
     Declaration lowering for Rust: structs, impl blocks, and enums.
 **/
 class RustDecl {
+    /**
+        The hash statement of one nullable-float field. A `match` rather than
+        `as_ref().map(..)`: the loop-structure guard forbids functional
+        iteration and closures in generated code, and the derived `Hash` bodies
+        are generated text like any other. The statement hashes the same
+        `Option<u32|u64>` the map form produced, so the distribution is
+        unchanged, and it never appears in a const context.
+    **/
+    static function nullableFloatHash(access:String):String {
+        return "{ let __h = match " + access + ".as_ref() { Some(v) => Some("
+            + RustType.canonicalFloatHashBits("v", true)
+            + "), None => None }; core::hash::Hash::hash(&__h, state) }";
+    }
+
     final imports:RustImports;
     final types:RustType;
     final expr:RustExpr;
@@ -445,7 +459,7 @@ class RustDecl {
                 lines.push("        " + (RustType.isDirectFloatType(v.field.type)
                     ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits("self." + fname, false) + ", state)"
                     : RustType.isNullableFloatType(v.field.type)
-                        ? "self." + fname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                        ? nullableFloatHash("self." + fname)
                         : "self." + fname + ".hash(state)") + ";");
             }
             lines.push("    }");
@@ -3851,7 +3865,7 @@ class RustDecl {
                         lines.push("                " + (RustType.isDirectFloatType(arg.type)
                     ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits(fname, true) + ", state)"
                     : RustType.isNullableFloatType(arg.type)
-                        ? fname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                        ? nullableFloatHash(fname)
                         : fname + ".hash(state)") + ";");
                     }
                     lines.push("            }");
@@ -3986,7 +4000,7 @@ lines.push("        }");
                         recordHashImpl += "        " + (RustType.isDirectFloatType(field.type)
                             ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits("self." + rfname, false) + ", state)"
                             : RustType.isNullableFloatType(field.type)
-                                ? "self." + rfname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                                ? nullableFloatHash("self." + rfname)
                                 : "self." + rfname + ".hash(state)") + ";\n";
                     }
                     recordHashImpl += "    }\n}";
