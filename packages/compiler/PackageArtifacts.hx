@@ -128,29 +128,32 @@ class PackageArtifacts {
 
     /**
         Packs the recorded writes as a tar+gzip artifact (the cargo `.crate`
-        and the Pub `.tar.gz`). Both formats require every member under
-        `<name>-<version>/`: cargo rejects an archive whose members sit at the
-        root ("invalid tarball downloaded"), and pub resolves the same layout.
+        and the Pub `.tar.gz`). Feature spec 25's entry-layout table
+        (docs/specs/features/25-package-artifacts.md:21,23) states "no prefix"
+        for both: the members sit at the archive root, with `Cargo.toml` /
+        `pubspec.yaml` and the module files beside them. The earlier
+        `<name>-<version>/` prefix was a belief about the registries, not a
+        recorded layout, and no test ever pinned it.
     **/
     public static function emitTarGz(outputDir:String, extension:String, ?nameOverride:String):Void {
         SharedModuleTrace.record("PackageArtifacts");
         final stem = (nameOverride == null ? PackageShell.artifactStem() : nameOverride) + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
-        sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
+        sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes("")));
     }
 
     /**
-        Packs the recorded writes as the Swift zip artifact. SwiftPM requires a
-        source archive to hold exactly one root directory, so every member sits
-        under `<name>-<version>/`; an archive with members at the root fails
-        with "failed extract".
+        Packs the recorded writes as the Swift zip artifact. Feature spec 25
+        (docs/specs/features/25-package-artifacts.md:22) states "no prefix" for
+        this archive too, so every member sits at the root and `Package.swift`
+        is a root entry.
     **/
     public static function emitZip(outputDir:String):Void {
         SharedModuleTrace.record("PackageArtifacts");
         final stem = PackageShell.artifactStem() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
         final entries = [
-            for (entry in recordedEntries()) {name: stem + "/" + entry.name, data: entry.data}
+            for (entry in recordedEntries()) {name: entry.name, data: entry.data}
         ];
         sys.io.File.saveBytes(artifactPath, zipFromEntries(entries));
     }

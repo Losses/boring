@@ -5,6 +5,20 @@ import { installTargetTreeReport, withTargetTree, type TargetId } from "../suppo
 
 installTargetTreeReport(import.meta.path);
 
+/**
+ * The Rust realization of a Haxe function value is the single-thread shape the
+ * target policy fixes, not a threaded one:
+ *
+ *   docs/specs/target-semantic-policy.md:43-56 -- "Rust must not smuggle
+ *   Arc/Mutex in to prepare for a possible future threaded host", and
+ *   `Rc<RefCell<dyn FnMut(..) -> R>>` = function value,
+ *   `Rc<RefCell<dyn Trait>>` = interface / shared interface.
+ *
+ * The assertions below therefore pin the Rc<RefCell<...>> spellings. They
+ * previously pinned `Arc<dyn Fn(..) + Send + Sync>`, which no policy sanctions:
+ * a threaded realization is a separate target policy, never this v1 one.
+ */
+
 const root = path.resolve(__dirname, "../..");
 
 function read(relative: string): string {
@@ -40,7 +54,12 @@ describe("first-class function value generated trees", () => {
 
     withTargetTree("swift", "fn-values: TypeScript, Kotlin, Swift, and Dart keep static function storage", () => {
       const swift = read("reference/swift/gen/boring/FnValuesOps.swift");
-      expect(swift).toContain("static let defaultTag: (Int32) -> String =");
+      // Swift stores a Haxe String as Array<UInt16> (docs/architecture/
+      // INTERFACE-REQUIREMENTS.md:235 "String <-> Array<UInt16>", restated for
+      // the buffer at docs/specs/stdlib/08-string-buffer.md:132 and shown as a
+      // value type at docs/specs/features/10-static-extension.md:152). The
+      // closure type therefore ends in [UInt16], not in the native String.
+      expect(swift).toContain("static let defaultTag: (Int32) -> [UInt16] =");
       expect(swift).toContain("defaultTag");
     });
 
@@ -49,47 +68,47 @@ describe("first-class function value generated trees", () => {
     expect(dart).toContain("defaultTag");
   });
 
-  test("Rust uses one boxed representation and adapts indirect lengths", () => {
+  test("Rust uses one shared-handle representation and adapts indirect lengths", () => {
     const rust = read("reference/rust/gen/boring/fn_values_ops.rs");
-    expect(rust).toContain("pub style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>");
-    expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
-    expect(rust).toContain("pub fn new(style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>, resolver: Box<dyn NameResolver>)");
-    expect(rust).toContain("pub fn fn_values_ops_apply_picker(values: &Vec<UString>, pick: Arc<dyn Fn(u32) -> UString + Send + Sync>)");
-    expect(rust).toContain("return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));");
-    expect(rust).toContain("pub fn fn_values_ops_make_prefixer(prefix: &UStr) -> Arc<dyn Fn(&UStr) -> UString + Send + Sync + '_>");
-    expect(rust).toContain("Arc::new(move |suffix|");
-    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> UString =");
+    expect(rust).toContain("pub style_at: Rc<RefCell<dyn FnMut(u32) -> UString>>");
+    expect(rust).toContain("pub resolver: Rc<RefCell<dyn NameResolver>>");
+    expect(rust).toContain("pub fn new(style_at: Rc<RefCell<dyn FnMut(u32) -> UString>>, resolver: Rc<RefCell<dyn NameResolver>>) -> Rc<RefCell<Self>>");
+    expect(rust).toContain("pub fn fn_values_ops_apply_picker(values: &Vec<UString>, pick: Rc<RefCell<dyn FnMut(u32) -> UString>>)");
+    expect(rust).toContain("return pick.borrow_mut()(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));");
+    expect(rust).toContain("pub fn fn_values_ops_make_prefixer(prefix: &UStr) -> Rc<RefCell<dyn FnMut(&UStr) -> UString + '_>>");
+    expect(rust).toContain("Rc::new(RefCell::new(move |suffix: &UStr|");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(u32) -> UString =");
     expect(rust).not.toMatch(/(?:style_at|resolver): NameResolver/);
 
-    const rustTests = read("reference/rust/gen/tests/fn_values_tests.rs");
-    expect(rustTests).toContain("Box::new(BuiltInNameResolver::new())");
+    const rustTests = read("reference/rust/gen/tests/tests/fn_values_tests/tests/fn_values_tests.rs");
+    expect(rustTests).toContain("Rc<RefCell<dyn NameResolver>> = BuiltInNameResolver::new()");
   });
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
     const rust = read("reference/rust-f32/gen/boring/fn_values_ops.rs");
-    expect(rust).toContain("Arc<dyn Fn(u32) -> UString + Send + Sync>");
-    expect(rust).toContain("Box<dyn NameResolver>");
-    expect(rust).toContain("Arc::new(move |suffix|");
-    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> UString =");
+    expect(rust).toContain("Rc<RefCell<dyn FnMut(u32) -> UString>>");
+    expect(rust).toContain("Rc<RefCell<dyn NameResolver>>");
+    expect(rust).toContain("Rc::new(RefCell::new(move |suffix: &UStr|");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(u32) -> UString =");
     expect(rust).toContain("u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)");
   });
 
-  test("Rust bounds every function-value position with Send and Sync", () => {
+  test("Rust realizes every function-value position as one shared handle", () => {
     const rust = read("reference/rust/gen/boring/static_ref_ops.rs");
-    expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> UString + Send + Sync>)");
-    expect(rust).toContain("let r#fn: Arc<dyn Fn(u32) -> UString + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);");
-    expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> UString + Send + Sync + 'static>");
-    expect(rust).toContain("let cmp: Arc<dyn Fn(&UStr, &UStr) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_strings);");
+    expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Rc<RefCell<dyn FnMut(u32) -> UString>>)");
+    expect(rust).toContain("let r#fn: Rc<RefCell<dyn FnMut(u32) -> UString>> = Rc::new(RefCell::new(StaticRefOps::static_ref_ops_render));");
+    expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Rc<RefCell<dyn FnMut(u32) -> UString + 'static>>");
+    expect(rust).toContain("let cmp: Rc<RefCell<dyn FnMut(&UStr, &UStr) -> u32>> = Rc::new(RefCell::new(StaticRefStatics::static_ref_statics_compare_strings));");
 
     const sortedTable = read("reference/rust/gen/runtime/sorted_table.rs");
-    expect(sortedTable).toContain("pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
-    expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
+    expect(sortedTable).toContain("pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>)");
+    expect(sortedTable).toContain("pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>");
   });
 
   test("Rust's f32 tree bounds the resident comparator", () => {
     const sortedTable = read("reference/rust-f32/gen/runtime/sorted_table.rs");
-    expect(sortedTable).toContain("pub fn sorted_table_set_builder<K: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
-    expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
+    expect(sortedTable).toContain("pub fn sorted_table_set_builder<K: Clone>(compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>)");
+    expect(sortedTable).toContain("pub compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>");
   });
 });
 
