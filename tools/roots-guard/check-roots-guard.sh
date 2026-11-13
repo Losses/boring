@@ -89,7 +89,7 @@
 #      `precision:f32`); a target-side declaration never authorises a pair
 #      asymmetry.  An unrooted @:test module passes (4) only with a verified
 #      declaration of either kind.  Nothing is declared away without the tree
-#      checks above, and the PASS line still reports `0 exemption(s)`: there is
+#      checks above, and the PASS line reports those verified counts: there is
 #      no per-target exemption list left to grow.
 #  (3) ROOT EXISTENCE, PER FILE.  Every root of a file must resolve to a
 #      real .hx on the classpath THAT FILE declares: its own -cp/-lib lines
@@ -225,7 +225,6 @@ fi
 repo="$(cd "$repo" && pwd)"
 
 fail=0
-exemptions=0
 unrooted_decls=0
 declared_asym=0
 declared_onlyin=0
@@ -1161,5 +1160,5 @@ if [ "$fail" -ne 0 ]; then
     echo "roots guard: FAILED"
     exit 1
 fi
-echo "roots guard: PASS ($exemptions exemption(s) in force; $declared_onlyin verified @only-in declaration(s); $declared_dormant verified @dormant module(s); $declared_asym declared pair asymmetry(ies) in force; $unrooted_decls declared unrooted @:test module(s); $dup_lines duplicate root line(s) reported; $floor_pins pinned root(s) in root-floor)"
+echo "roots guard: PASS ($declared_onlyin verified @only-in declaration(s); $declared_dormant verified @dormant module(s); $declared_asym declared pair asymmetry(ies) in force; $unrooted_decls declared unrooted @:test module(s); $dup_lines duplicate root line(s) reported; $floor_pins pinned root(s) in root-floor)"
 exit 0
