@@ -401,8 +401,13 @@ class KotlinDecl {
                 for (a in constructorFunc.args) {
                     final name = KotlinNameEscape.escape(a.name);
                     if (sortedNames.exists(a.name)) {
-                        eqTerms.push('this.' + name + '.toString() == other.' + name + '.toString()');
-                        hashTerms.push('this.' + name + '.toString().hashCode()');
+                        // Content, not printed form: runtime.SortedTable's
+                        // contentEquals compares size + element at every index,
+                        // and the hash agrees with it (equal content implies
+                        // equal size, so size().hashCode() is consistent even
+                        // though it collides across equal-sized tables).
+                        eqTerms.push('this.' + name + '.contentEquals(other.' + name + ')');
+                        hashTerms.push('this.' + name + '.size().hashCode()');
                     } else if (expr.isFloatType(a.type)) {
                         eqTerms.push('this.' + name + ' == other.' + name);
                         hashTerms.push(floatHashBits('this.' + name, isNullableType(a.type)));

@@ -139,6 +139,27 @@ class SortedMapTable<K, V> {
     }
 
     /**
+        Content equality: the same size and the same key and value at every
+        index. Generated data-class `equals` calls this instead of comparing
+        the printed forms, which is both wrong (two tables can print alike and
+        differ) and expensive.
+    **/
+    public function contentEquals(other:SortedMapTable<K, V>):Bool {
+        if (other == null || size() != other.size()) {
+            return false;
+        }
+        final total = size();
+        var index = 0;
+        while (index < total) {
+            if (keyAt(index) != other.keyAt(index) || valueAt(index) != other.valueAt(index)) {
+                return false;
+            }
+            index += 1;
+        }
+        return true;
+    }
+
+    /**
         The ruled printed form: `{` + entries joined with `", "` + `}`,
         one entry as the key form, `=`, and the value form, in table
         order. An empty map renders `{}`.
@@ -318,6 +339,26 @@ class SortedSetTable<K> {
     /** The element at `index`; the index must be within range. */
     public function at(index:Int):K {
         return keys[index];
+    }
+
+    /**
+        Content equality: the same size and the same element at every index.
+        Generated data-class `equals` calls this instead of comparing the
+        printed forms.
+    **/
+    public function contentEquals(other:SortedSetTable<K>):Bool {
+        if (other == null || size() != other.size()) {
+            return false;
+        }
+        final total = size();
+        var index = 0;
+        while (index < total) {
+            if (at(index) != other.at(index)) {
+                return false;
+            }
+            index += 1;
+        }
+        return true;
     }
 
     /**

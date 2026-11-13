@@ -154,8 +154,12 @@ async function generateMutation(
     "-lib boring",
     `-cp ${path.join(root, target.shadow)}`,
     `-cp ${path.join(root, target.shadow.replace("/std-shadow", ""))}`,
-    `-cp ${path.join(root, "samples")}`,
+    // The mutated source must shadow the sample: with `-cp samples` first,
+    // Haxe resolves boring.PrintedRecord from samples/boring/PrintedRecord.hx
+    // and the variant never compiles, so the "removed marker" control could
+    // not fail. (The removed-marker run still carried the synthesized member.)
     `-cp ${sourceRoot}`,
+    `-cp ${path.join(root, "samples")}`,
     `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
     `--macro ${target.compilerClass}`,
