@@ -60,9 +60,13 @@ describe("string buffer generated tree", () => {
       path.join(path.resolve(__dirname, "../../reference/swift/gen"), "boring/StringBufOps.swift"),
       "utf8",
     );
+    // The buffer is the resident UTF-16 array (docs/specs/stdlib/08-string-buffer.md:132
+    // "The buffer is Array<UInt16>"), and a Haxe String argument is already
+    // that array on Swift (INTERFACE-REQUIREMENTS.md:235), so appends take the
+    // argument directly instead of converting it.
     expect(content).toContain("var buf = [UInt16]()");
-    expect(content).toContain("buf += Array(a.utf16)");
-    expect(content).toContain("String(decoding: buf, as: UTF16.self)");
+    expect(content).toContain("buf += a");
+    expect(content).toContain("buf.count > 0");
     expect(content).toContain("UStringFault.unpairedSurrogate");
   });
 

@@ -28,8 +28,11 @@ describe("static fields generated trees", () => {
 
 	test.skipIf(targetTreeUnavailable("swift"))("Swift keeps array statics mutable for value-semantic append", () => {
 		const content = read("reference/swift/gen/boring/StaticStateOps.swift");
-		expect(content).toContain("static var current: String? = nil");
-		expect(content).toContain("private static var sections: TiqianArray<String> = TiqianArray<String>([])");
+		// A Haxe String is Array<UInt16> on Swift
+		// (docs/architecture/INTERFACE-REQUIREMENTS.md:235 "String <->
+		// Array<UInt16>"), and the array static holds that element type.
+		expect(content).toContain("static var current: [UInt16]? = nil");
+		expect(content).toContain("private static var sections: BoringArray<[UInt16]> = BoringArray<[UInt16]>([])");
 		expect(content).toContain("static let limit: Int32 = 4096");
 		expect(content).toContain("StaticStateOps.current = value");
 	});
