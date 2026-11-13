@@ -14,6 +14,7 @@ enum RubyKind {
 }
 
 @:dataClass
+@:mainOnly
 class TextRange {
     public final start:Int;
     public final end:Int;

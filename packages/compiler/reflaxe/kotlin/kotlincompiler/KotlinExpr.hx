@@ -10,6 +10,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import CompilationUnits;
 import ExpressionPredicates;
 import PolicyQueries;
 import SourceLocalPresenceAnalysis;
@@ -3654,7 +3655,7 @@ class KotlinExpr {
         | `val`          | immutable property (`FVar` + `isFinal`)    | `var` field -> "mutable property" |
         | `getter`       | no custom getter (`!isGetterOnlyProperty`) | none (vacuous: `var X(get, never)` is `isFinal=false` so `val` rejects it first, and `final X(get, never)` is a Haxe syntax error) |
         | `open`         | not `open` (structurally always true)      | none (vacuous; `drop=open` no-op) |
-        | `sameunit`     | declaring class and use site in one module   | cross-module `val` read |
+        | `sameunit`     | declaring class and use site in one compilation unit | cross-unit `val` read |
         | `closurewrite` | root local not written by a capturing closure | closure rebinds root -> "capturing closure" |
         | `rebind`       | root local not rebound in the body         | root rebound between guard/use |
 
@@ -3670,7 +3671,16 @@ class KotlinExpr {
                 fieldPropertyStable(cf.get()) && receiverRootStable(e)
                     && nullableAccess(receiver) != "?."
                     && (dropped("sameunit")
-                        || c.get().module == useSiteModule);
+                        // Kotlin's restriction is about the COMPILATION the
+                        // declaring class and the use site land in, not the
+                        // Haxe module each was written in: the generated tree
+                        // compiles main and tests as two separate kotlinc
+                        // invocations, and a public-API val read across that
+                        // boundary is not smart-castable. Comparing Haxe
+                        // module names was a proxy that also hardened
+                        // same-compilation reads written in another Haxe
+                        // module. (PIT-389 / PIT-388)
+                        || CompilationUnits.sameUnit(c.get().module, useSiteModule));
             }
             case TField(receiver, FAnon(cf)):
                 fieldPropertyStable(cf.get()) && receiverRootStable(e)

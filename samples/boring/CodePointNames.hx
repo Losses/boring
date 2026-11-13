@@ -6,6 +6,7 @@ import std.SortedMap;
  * Sample demonstrating std.SortedMap construction and ascending traversal
  * (docs/specs/stdlib/07-sorted-keyed-tables.md).
  */
+@:mainOnly
 class CodePointNames {
     static function createTable():SortedMap<Int, String> {
         final b:SortedMapBuilder<Int, String> = SortedMap.builder();

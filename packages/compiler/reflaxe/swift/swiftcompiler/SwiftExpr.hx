@@ -6607,14 +6607,20 @@ class SwiftExpr {
             return expr(leaf);
         }
         if (isIntTyped(leaf)) {
-            return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : TestCore.formatInt(" + expr(leaf) + "!))" : "TestCore.formatInt(" + expr(leaf) + ")";
+            // The shipping tree must not call into the test host. TestCore is
+            // emitted beside the test entry, so a shipping module that named it
+            // typechecks only when that host is compiled with it, and the gap
+            // fixture's shipping typecheck has no such file. Its formatInt is
+            // Array(String(v).utf16) already, so the runtime spelling keeps the
+            // text identical and drops the dependency.
+            return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : Array(String(" + expr(leaf) + "!).utf16))" : "Array(String(" + expr(leaf) + ").utf16)";
         }
         switch (Context.follow(leaf.t)) {
             case TAbstract(a, _):
                 final abs = a.get();
                 if (abs.name != "Int" && abs.name != "Float" && abs.name != "Bool" && abs.module != "std.ReadOnlyArray") {
                     final inner = expr(leaf) + (optional ? "!" : "") + "." + ValueTypeSupport.representationFieldName(abs);
-                    final rendered = isIntType(abs.type) ? "TestCore.formatInt(" + inner + ")" : "Array(String(" + inner + ").utf16)";
+                    final rendered = "Array(String(" + inner + ").utf16)";
                     return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : " + rendered + ")" : rendered;
                 }
             case _:

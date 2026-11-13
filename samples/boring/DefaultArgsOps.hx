@@ -19,6 +19,7 @@ class GreeterImpl implements IGreeter {
     }
 }
 
+@:mainOnly
 class DefaultArgsOps {
     public var familyNames:Array<String>;
     public var normalizationField:String;

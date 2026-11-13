@@ -6,6 +6,7 @@ import std.SortedMap;
  * Sample demonstrating std.SortedMap with String keys (docs/specs/stdlib/07-sorted-keyed-tables.md).
  * Keys are ordered by UTF-16 code unit sequence across all targets.
  */
+@:mainOnly
 class ScriptNames {
     static function createTable():SortedMap<String, Int> {
         final b:SortedMapBuilder<String, Int> = SortedMap.builder();

@@ -67,7 +67,8 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * guard's rule demands ("must not drift while nobody is looking");
  * wiring them in is deferred to a follow-up task.
  */
-// 42, corrected from 43.
+/**
+ * 42, corrected from 43.
  *
  * The +1 counted tests/haxe/rustGatedValueCopy as runner-bearing, but that
  * fixture carries no runner file this guard's own criterion can see: its
