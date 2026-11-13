@@ -139,6 +139,8 @@ typedef EmitterState = {
 
     final extractedFields:Map<String, Bool>;
 
+    final assignedNonNullLocals:Map<Int, Bool>;
+
     final floatRenderedBinops:Map<String, Bool>;
 
     final enumVariants:Map<Int, String>;

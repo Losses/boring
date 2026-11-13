@@ -644,6 +644,15 @@ class KotlinExpr {
     }
 
     /**
+        Whether a capturing closure in this body can rebind the binding. Kotlin
+        refuses to smart-cast such a local for the whole function, so no proof
+        recorded for one statement may license a bare read of it. (PIT-388)
+    **/
+    function closureWritesLocal(binding:Int):Bool {
+        return prepared != null && prepared.closureWrites.exists(binding);
+    }
+
+    /**
         The bindings this body writes from inside a nested function: the
         capturing-closure half of Kotlin's smart-cast stability rule. Such a
         write has no source position to invalidate a proof at, because the
@@ -851,6 +860,7 @@ class KotlinExpr {
             nonNullFields: copyStringMap(nonNullFields),
             extractedLocals: copyIntMap(extractedLocals),
             extractedFields: copyStringMap(extractedFields),
+            assignedNonNullLocals: copyIntMap(assignedNonNullLocals),
             floatRenderedBinops: copyStringMap(floatRenderedBinops),
             enumVariants: copyIntStringMap(enumVariants),
             enumVariantExpressions: copyStringStringMap(enumVariantExpressions)
@@ -864,6 +874,7 @@ class KotlinExpr {
         replaceStringMap(nonNullFields, saved.nonNullFields);
         replaceIntMap(extractedLocals, saved.extractedLocals);
         replaceStringMap(extractedFields, saved.extractedFields);
+        replaceIntMap(assignedNonNullLocals, saved.assignedNonNullLocals);
         replaceStringMap(floatRenderedBinops, saved.floatRenderedBinops);
         replaceIntStringMap(enumVariants, saved.enumVariants);
         replaceStringStringMap(enumVariantExpressions, saved.enumVariantExpressions);
@@ -1214,6 +1225,48 @@ class KotlinExpr {
             case TBlock(b) if (b.length == 1): stripWrap(b[0]).expr.match(TConst(TNull));
             case _: false;
         };
+    }
+
+    /**
+        The one arm a null-comparison ternary always selects.
+
+        A dominating guard transfers a local's presence to Present in the source
+        facts (an early return on the null path), which is the same flow Kotlin
+        tracks: the repeated comparison then tests a non-null local against
+        null, kotlinc reports "condition is always false", and the other arm is
+        dead. Folding is safe only when nothing in the kept arm reads the
+        subject: inside the ternary arm the subject is smart-cast, and a bare
+        read there would not carry that cast to the fold site, so such a shape
+        keeps the ternary. (ConstantNullComparisonTernary)
+    **/
+    function constantNullComparisonArm(c:TypedExpr, t:TypedExpr, f:TypedExpr):Null<TypedExpr> {
+        final operand = switch (stripWrap(c).expr) {
+            case TBinop(OpEq, a, b) if (isNullLiteral(b)): {value: a, comparesNull: true};
+            case TBinop(OpEq, a, b) if (isNullLiteral(a)): {value: b, comparesNull: true};
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(b)): {value: a, comparesNull: false};
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(a)): {value: b, comparesNull: false};
+            case _: null;
+        };
+        if (operand == null)
+            return null;
+        final subject = stripWrap(operand.value);
+        final binding = switch (subject.expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        if (binding == null)
+            return null;
+        // Only a binding the body never rebinds keeps one stable presence
+        // fact, and Kotlin only smart-casts it when no capturing closure can
+        // write it.
+        if (bodyWritesLocal(binding.id) || closureWritesLocal(binding.id))
+            return null;
+        if (!localPresent(subject))
+            return null;
+        final kept = operand.comparesNull ? f : t;
+        if (mentionsLocal(kept, binding))
+            return null;
+        return kept;
     }
 
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
@@ -2067,6 +2120,20 @@ class KotlinExpr {
                 restoreExtractions(fnExtractions);
                 return fnText;
             case TIf(c, t, f) if (f != null):
+                // A null comparison a dominating guard already decided renders
+                // only its live arm. (ConstantNullComparisonTernary)
+                final deadArm = constantNullComparisonArm(c, t, f);
+                if (deadArm != null) {
+                    final deadText = expr(deadArm);
+                    if (isFloatType(e.t) && isIntOrLongType(emittedType(deadArm))) {
+                        // The ternary widened an Int arm to the Float result
+                        // type; the folded arm keeps that widening so an outer
+                        // boundary does not repeat it. (WideningIdempotence)
+                        floatRenderedBinops.set(Std.string(e.pos), true);
+                        return intToFloatText(deadText);
+                    }
+                    return deadText;
+                }
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
                     // `x ?: null` equals x for every value: a null default
@@ -2628,6 +2695,7 @@ class KotlinExpr {
                         // Assigning a non-null value smart-casts the local for
                         // the statements that follow. (AssignedNonNullPromotion)
                         extractedLocals.set(v.id, true);
+                        assignedNonNullLocals.set(v.id, true);
                     case _:
                 }
                 if (map == null) {
@@ -2914,6 +2982,14 @@ class KotlinExpr {
     // (FunctionScopeExtraction)
     final extractedLocals:Map<Int, Bool> = [];
     final extractedFields:Map<String, Bool> = [];
+    // Locals a straight-line assignment bound to a non-null value, for the
+    // statements that follow it in the same block. Kotlin's data flow
+    // smart-casts a local after such an assignment even when the body rebinds
+    // it elsewhere, so a later argument or receiver read needs no second
+    // extraction. Every write retires the record, and the branch, loop, lambda
+    // and catch snapshots restore it, so a record never outlives the dominance
+    // scope that produced it. (AssignedNonNullPromotion)
+    final assignedNonNullLocals:Map<Int, Bool> = [];
     // Locals whose Kotlin declaration infers an optional type: a non-null
     // Haxe annotation wrapped around a nullable initializer still infers
     // `T?`, so nil guards on them stay live. (NullableInferredLocal)
@@ -2949,22 +3025,27 @@ class KotlinExpr {
         body renders in its own frame, so an assertion printed inside it
         never suppresses a read in a sibling arm or after the join, where
         the assertion may not have executed. (ExtractionSuppressesRepeat) */
-    function extractionSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
-        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [];
+    function extractionSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>, assigned:Map<Int, Bool>} {
+        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [], a:Map<Int, Bool> = [];
         for (k in extractedLocals.keys())
             l.set(k, true);
         for (k in extractedFields.keys())
             f.set(k, true);
-        return {locals: l, fields: f};
+        for (k in assignedNonNullLocals.keys())
+            a.set(k, true);
+        return {locals: l, fields: f, assigned: a};
     }
 
-    function restoreExtractions(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):Void {
+    function restoreExtractions(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>, assigned:Map<Int, Bool>}):Void {
         extractedLocals.clear();
         extractedFields.clear();
+        assignedNonNullLocals.clear();
         for (k in s.locals.keys())
             extractedLocals.set(k, true);
         for (k in s.fields.keys())
             extractedFields.set(k, true);
+        for (k in s.assigned.keys())
+            assignedNonNullLocals.set(k, true);
     }
 
     /** The field guard facts one branch contributed, for its own scope. */
@@ -3676,7 +3757,14 @@ class KotlinExpr {
     **/
     function dropProofsForWriteTarget(target:TypedExpr):Void {
         switch (stripWrap(target).expr) {
-            case TLocal(v) if (!dropped("rebind")):
+            case TLocal(v):
+                // Any write retires the pending assignment proof, whatever the
+                // written value turns out to be: the record means "the last
+                // statement that touched this local bound a non-null value".
+                // (AssignedNonNullPromotion)
+                assignedNonNullLocals.remove(v.id);
+                if (dropped("rebind"))
+                    return;
                 final prefix = "field:" + v.id + ".";
                 for (key in nonNullFields.keys())
                     if (StringTools.startsWith(key, prefix))
@@ -6227,6 +6315,18 @@ class KotlinExpr {
         final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || valueProven(e);
         if (smartCastable && proven)
+            return false;
+        // An assignment of a non-null value smart-casts the local for the
+        // statements that follow even when the body rebinds it elsewhere, so
+        // the argument needs no second extraction. The record is write-retired
+        // and scope-snapshotted, and a local a capturing closure can mutate is
+        // excluded because Kotlin refuses that smart cast.
+        // (AssignedNonNullPromotion)
+        final assignedProof = switch (stripWrap(e).expr) {
+            case TLocal(v): assignedNonNullLocals.exists(v.id) && !closureWritesLocal(v.id);
+            case _: false;
+        };
+        if (assignedProof)
             return false;
         // A field read the typer widened to Null<T> whose rendering already
         // extracts the receiver and reads a non-null declared property
