@@ -50,46 +50,65 @@
 #      module set through a non-include macro is therefore undetectable here
 #      by design; only the include('X') reject case of (iv) is modelled.)
 
-#  (2) DECLARED DIVERGENCE.  roots-allowlist.json `exempt` entries authorise a
-#      specific (target, module) asymmetry.  An entry must be LIVE: that module
-#      must be the asymmetric one for that target; an entry for a
-#      guarded target whose module is symmetric for it (present in both files,
-#      or absent from both) is a STALE exemption and fails.  Entries are
-#      structurally validated: target in {kotlin,rust,swift,*} (anything else
-#      fails the structural check), module a plausible dotted module path, and
-#      a reason that passes the shape checks below.  NO MEANING CHECK: the
-#      reason checks verify SHAPE ONLY -- at least 4 whitespace-separated
-#      words, at least 24 characters, no tab/newline, no single known
-#      placeholder token, at least three ASCII letters, no repeated-token
-#      spam (one token occupying half or more of the words, so "todo todo
-#      todo todo todo!" fails), and no padded/gibberish token (three or
-#      more consecutive repeats of one character, so the minimal
-#      four-word 24-character bypass "aaaa bbbb cccc dddxxxxxx" fails).
-#      A well-shaped but meaningless reason (e.g. "alpha beta gamma delta
-#      oxen") still passes: a script cannot verify that text is
-#      meaningful, so a reviewer has to read the reason.  A single
-#      `target: "*"` entry authorises the same
-#      (module, reason) for all three guarded targets at once (one entry =
-#      up to three EXEMPT/UNROOT effects); that blast radius is by design.
+#  (2) DECLARED TARGET-ONLY ROOTS (there is no allowlist).  A roots file may
+#      declare a root that legitimately exists on only one side of the
+#      precision switch, or on only some targets.  The declaration is a fixed
+#      comment line in the roots file of the bundle(s) it describes:
+#
+#        # @only-in: precision:binary64 registry.Main
+#        # @only-in: target:rust tests.EscapingTraitIdentityTests
+#        # @dormant: rust tests.E0308FiTests
+#
+#      `@only-in: precision:<binary64|f32>` states that only bundles of that
+#      precision root the module (the plain pair files and the non-f32
+#      examples are binary64; `*-f32` files and the f32 haxe bundle are f32).
+#      `@only-in: target:<kotlin|rust|swift>` states that only that target's
+#      bundles root it.  `@dormant: <target>` states that the module declares
+#      @:test, its body is wrapped in `#if <target>_output`, and no bundle
+#      roots it today (a probe that compiles nowhere; the guard fails if the
+#      body stops being fully wrapped by that define, or if any bundle starts
+#      rooting it -- drop the marker then, a dormant module must not silently
+#      become a permanent exemption).
+#
+#      Every declaration is a CLAIM ABOUT THE TREE and is verified against it,
+#      so a marker is never a free pass: the module must resolve to a real .hx;
+#      at least one bundle on the declared side must root it -- through a root
+#      line of that bundle's roots file, or through a TestCollector generate()
+#      scan directory that file declares -- and NO bundle outside the declared
+#      side may root it (a `precision:binary64` module rooted by an f32 bundle
+#      fails; a `target:rust` module rooted by kotlin fails).  A marker must
+#      sit in a bundle's own rootsFile, never in a file that rootsFile
+#      includes, so the guard and the consistency check read the same lines.
+#      Declarations are read from the `rootsFile` of every bundle in
+#      `boring.json`, so the guard and the bundle driver read the same files;
+#      a missing boring.json or bundle roots file is a FAIL, so no check is
+#      ever silently disabled.
+#
+#      EFFECT ON (1) AND (4).  A base-only asymmetry is authorised only by a
+#      verified `precision:binary64` declaration (f32-only by
+#      `precision:f32`); a target-side declaration never authorises a pair
+#      asymmetry.  An unrooted @:test module passes (4) only with a verified
+#      declaration of either kind.  Nothing is declared away without the tree
+#      checks above, and the PASS line still reports `0 exemption(s)`: there is
+#      no per-target exemption list left to grow.
 #  (3) ROOT EXISTENCE, PER FILE.  Every root of a file must resolve to a
 #      real .hx on the classpath THAT FILE declares: its own -cp/-lib lines
 #      plus the -cp/-lib lines of the .hxml files it includes.  A root that
 #      only another file's classpath provides fails -- classpath sets are
 #      checked per file, with no unioning (removing `-cp samples` from one f32
 #      file is a failure).  No repo-wide fallback applies to file roots.
-#      Modules named by the allowlist or by the root floor are resolved
-#      against the union of all guarded classpaths, with a repo-wide .hx
-#      fallback; for those, existence is still not compilability (a module
-#      no single file's classpath provides can still pass if the union or
-#      the fallback sees it).
+#      Modules named by the root floor (and by a (2) declaration) are
+#      resolved against the union of all guarded classpaths, with a
+#      repo-wide .hx fallback; for those, existence is still not
+#      compilability (a module no single file's classpath provides can
+#      still pass if the union or the fallback sees it).
 #  (4) TEST-MODULE COVERAGE.  Every .hx under a `tests/` directory of a
 #      guarded classpath (the union of all six files' classpaths) that
 #      declares `@:test` must be a root of at least one of B/F.  A test
 #      module missing from BOTH files used to be invisible; it now fails
-#      unless declared in allowlist section `unrootedTestModules` (also
-#      shape-checked and stale-checked -- and, when it was rooted at the
-#      last baseline refresh, caught by (5) even with a well-shaped
-#      declaration).
+#      unless a verified (2) declaration covers it (either @only-in kind,
+#      or @dormant -- and, when it was rooted at the last baseline
+#      refresh, still caught by (5)).
 #  (5) ROOT FLOOR.  roots-baseline.txt pins the root set at the moment it
 #      was last refreshed: every pinned (target, module) must still be a
 #      root of at least one of the pair's files.  (1) compares the two
@@ -108,23 +127,21 @@
 #     file:line and counted so they stop being invisible.
 #
 # NOT COVERED (the header never claims these):
-#   * the meaning of a reason (shape only, see (2));
 #   * side effects of non-include `--macro` lines and of all other flag lines
 #     (see (1)); `--next`/`--each` multi-compilation files are flattened into
 #     one root set;
 #   * @:test modules outside a <guarded-classpath>/tests directory, including
 #     any under the repository-root tests/ (coverage scans the guarded
 #     classpaths' tests/ directories only);
-#   * compilability of allowlist/floor modules beyond existence (see (3));
+#   * compilability of root-floor/declared modules beyond existence (see (3));
 #   * test ids, @:test case sets, module bodies, runtime behaviour under
-#     binary32/binary64.  `samples/tests/f32/PrintedFloatTests.hx` ships 6
-#     f32-only ids that this guard cannot see (declared in
-#     packages/test/assertions/consistency/extra-id-allowlist.json);
+#     binary32/binary64.  This guard reads the (2) declarations only at the
+#     module level; the cross-target consistency check
+#     (packages/driver/src/driver/Compare.hx) reads the same @only-in markers
+#     to authorise the extra ids those modules produce;
 #   * dart/ts pairs are not guarded (no -f32 variant);
-#   * bypass routes: ROOTS_GUARD_ALLOWLIST (see below) and --repo-root /
-#     ROOTS_GUARD_REPO_ROOT redirect what is checked; a caller who can set
-#     them can point the guard at any allowlist or tree, so a PASS is only
-#     as strong as the provenance of the allowlist and the tree it ran on.
+#   * bypass routes: --repo-root / ROOTS_GUARD_REPO_ROOT redirect what is
+#     checked, so a PASS is only as strong as the tree it ran on.
 #
 # Usage: check-roots-guard.sh [examples-dir] [--repo-root=PATH]
 #                       [--strict-duplicates] [--print-baseline]
@@ -139,12 +156,12 @@
 #                       sets) and exit; use it to refresh
 #                       roots-baseline.txt after a deliberate root change.
 #
+# The (2) declarations are read from the `rootsFile` of every bundle in
+# `<repo>/boring.json`; a missing project file or bundle roots file is a
+# FAIL, never a silently disabled check.
+#
 # Environment:
 #   ROOTS_GUARD_REPO_ROOT   repository root (same as --repo-root=PATH)
-#   ROOTS_GUARD_ALLOWLIST   path of the allowlist (default:
-#                       <script>/roots-allowlist.json).  Documented
-#                       override: a PASS produced with a non-default
-#                       allowlist is only as strong as that file.
 #
 # Exit: 0 = PASS, 1 = FAILED, 2 = usage error.
 set -u
@@ -173,7 +190,6 @@ while [ "$#" -gt 0 ]; do
 done
 
 here="$(cd "$(dirname "$0")" && pwd)"
-allowlist="${ROOTS_GUARD_ALLOWLIST:-$here/roots-allowlist.json}"
 baseline="$here/roots-baseline.txt"
 examples="${examples:-$here/../../examples}"
 if [ ! -d "$examples" ]; then
@@ -211,125 +227,240 @@ repo="$(cd "$repo" && pwd)"
 fail=0
 exemptions=0
 unrooted_decls=0
+declared_asym=0
+declared_onlyin=0
+declared_dormant=0
 dup_lines=0
 floor_pins=0
 
 tmpd="$(mktemp -d "${TMPDIR:-/tmp}/roots-guard.XXXXXX")"
 trap 'rm -rf "$tmpd"' EXIT
 
-# ---------------------------------------------------------------- allowlist --
-if [ ! -f "$allowlist" ]; then
-    echo "FAIL: allowlist not found: $allowlist"
+# --------------------------------------------- target-only declarations (2) --
+# The declarations are fixed comment markers in the roots files (see the
+# header).  Every one is a CLAIM ABOUT THE TREE: the module must be rooted on
+# the declared side and by nothing outside it, so no check below treats a
+# marker as a free pass.
+project="$repo/boring.json"
+if [ ! -f "$project" ]; then
+    echo "FAIL: bundle project file not found: $project; the target-only declarations are read from the rootsFile entries of its bundles"
     echo "roots guard: FAILED"
     exit 1
 fi
 node -e '
 const fs = require("fs");
-const raw = fs.readFileSync(process.argv[1], "utf8");
+const raw = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(function (line) {
+    const text = line.trim();
+    return !(text.length > 1 && text[0] === "/" && text[1] === "/");
+}).join("\n");
 let doc;
 try { doc = JSON.parse(raw); }
-catch (e) { console.log("FAIL: allowlist is not valid JSON: " + e.message); process.exit(1); }
-if (doc === null || typeof doc !== "object" || Array.isArray(doc)) {
-    console.log("FAIL: allowlist root must be a JSON object"); process.exit(1);
+catch (error) { console.log("FAIL: boring.json is not valid JSON: " + error.message); process.exit(1); }
+const bundles = doc && Array.isArray(doc.bundles) ? doc.bundles : null;
+if (bundles === null) { console.log("FAIL: boring.json has no bundles array"); process.exit(1); }
+for (const bundle of bundles) {
+    if (bundle === null || typeof bundle !== "object") { console.log("FAIL: boring.json has a non-object bundle"); process.exit(1); }
+    const id = typeof bundle.id === "string" ? bundle.id : "";
+    if (!id) { console.log("FAIL: boring.json has a bundle without an id"); process.exit(1); }
+    const roots = typeof bundle.rootsFile === "string" ? bundle.rootsFile : "";
+    const target = typeof bundle.target === "string" ? bundle.target : "";
+    const precision = typeof bundle.precision === "string" ? bundle.precision : "binary64";
+    console.log([id, roots, target, precision].join("|"));
 }
-const allowed = new Set(["exempt", "unrootedTestModules"]);
-for (const k of Object.keys(doc)) if (!allowed.has(k))
-    console.log("FAIL: unknown top-level key: " + JSON.stringify(k));
-const GUARDED = new Set(["kotlin", "rust", "swift", "*"]);
-const PLACEHOLDER = new Set(["", "x", "todo", "n/a", "na", "none", "fixme", "xxx", "placeholder", "reason"]);
-function moduleOk(s) { return typeof s === "string" && /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(s); }
-function reasonProblem(r) {
-    if (typeof r !== "string") return "reason is not a string";
-    const t = r.trim();
-    if (!t) return "blank/whitespace-only reason";
-    if (/[\t\n\r]/.test(t)) return "reason contains a tab or newline";
-    const words = t.split(/\s+/);
-    if (words.length < 4) return "reason is too short to be an exemption sentence (" + words.length +
-        " word(s): " + JSON.stringify(t) + "); need >= 4 words";
-    if (t.length < 24) return "reason too short (" + t.length + " chars, need >= 24)";
-    if (PLACEHOLDER.has(t.toLowerCase())) return "reason is a placeholder token: " + JSON.stringify(t);
-    if (!/[A-Za-z]{3}/.test(t)) return "reason contains no prose";
-    for (const w of words) {
-        if (/(.)\1{2,}/.test(w))
-            return "reason contains a padded/gibberish token (three or more consecutive repeats of one character): " +
-                JSON.stringify(w);
-    }
-    const cnt = {};
-    let mxTok = "", mxN = 0;
-    for (const w of words) {
-        const k = w.toLowerCase();
-        cnt[k] = (cnt[k] || 0) + 1;
-        if (cnt[k] > mxN) { mxN = cnt[k]; mxTok = k; }
-    }
-    if (mxN >= Math.ceil(words.length / 2))
-        return "reason is repeated-token spam (" + mxN + " of " + words.length +
-            " words are " + JSON.stringify(mxTok) + ")";
-    return "";
-}
-function checkEntry(section, i, e) {
-    if (e === null || typeof e !== "object" || Array.isArray(e))
-        return section + "[" + i + "] is not an object";
-    const keys = Object.keys(e).sort();
-    const want = ["module", "reason", "target"];
-    if (keys.join(",") !== want.join(","))
-        return section + "[" + i + "] keys must be exactly target,module,reason (got " +
-            keys.join(",") + ")";
-    if (!GUARDED.has(e.target))
-        return section + "[" + i + "].target must be one of kotlin/rust/swift/* (got " +
-            JSON.stringify(e.target) + ")";
-    if (!moduleOk(e.module))
-        return section + "[" + i + "].module is not a plausible dotted module path: " +
-            JSON.stringify(e.module);
-    const rp = reasonProblem(e.reason);
-    if (rp) return section + "[" + i + "].module " + e.module + ": " + rp;
-    return "";
-}
-const seen = new Set();
-let bad = 0;
-for (const section of ["exempt", "unrootedTestModules"]) {
-    const arr = doc[section];
-    if (arr === undefined) continue;
-    if (!Array.isArray(arr)) {
-        console.log("FAIL: " + section + " must be an array"); bad = 1; continue;
-    }
-    for (let i = 0; i < arr.length; i++) {
-        const p = checkEntry(section, i, arr[i]);
-        if (p) { console.log("FAIL: allowlist: " + p); bad = 1; continue; }
-        const t = arr[i].target === "*" ? ["kotlin", "rust", "swift"] : [arr[i].target];
-        for (const tt of t) {
-            const k = section + "|" + tt + "|" + arr[i].module;
-            if (seen.has(k)) {
-                console.log("FAIL: allowlist: duplicate " + section + " entry for target " +
-                    tt + " module " + arr[i].module); bad = 1;
-            }
-            seen.add(k);
-        }
-    }
-}
-process.exit(bad ? 1 : 0);
-' "$allowlist"
+' "$project" > "$tmpd/bundles.txt"
 if [ $? -ne 0 ]; then
     echo "roots guard: FAILED"
     exit 1
 fi
 
-declare -a ex_keys=() un_keys=()
-declare -A ex_reason=() un_reason=()
-node -e '
-const fs = require("fs");
-const doc = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-for (const s of ["exempt", "unrootedTestModules"]) {
-    for (const e of doc[s] || []) {
-        for (const t of (e.target === "*" ? ["kotlin", "rust", "swift"] : [e.target]))
-            process.stdout.write(s + "\t" + t + "\t" + e.module + "\t" +
-                e.reason.replace(/\n/g, " ") + "\n");
-    }
+declare -A B_ROOTS_FILE=() B_TARGET=() B_PRECISION=() BUNDLE_ROOTS_FILE=()
+declare -A OI_SCOPE=() OI_AT=() DORMANT=() DORM_AT=()
+declare -a MARK_MODS=()
+
+# marker_collect <bundle> <roots-file> <depth> -- emit pipe-separated records:
+#   ROOT|<module>                     a module the bundle roots
+#   SCAN|<dir>                        a TestCollector.generate() scan directory
+#   ONLYIN|<module>|<scope>|<file>    an @only-in declaration
+#   DORMANT|<module>|<target>|<file>  an @dormant declaration
+#   ERR|<message>                     an unreadable/unresolvable roots file
+marker_collect() {
+    local bundle="$1" f="$2" depth="$3" line line_t rest kind scan rel base
+    [ -n "$f" ] || return 0
+    if [ ! -f "$f" ]; then
+        echo "ERR|bundle $bundle: roots file not found: $f"
+        return 0
+    fi
+    if [ "$depth" -gt 8 ]; then
+        echo "ERR|bundle $bundle: roots file include depth exceeded at $f"
+        return 0
+    fi
+    rel="$f"
+    case "$rel" in "$repo"/*) rel="${rel#"$repo"/}" ;; esac
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_t="${line#"${line%%[![:space:]]*}"}"
+        line_t="${line_t%"${line_t##*[![:space:]]}"}"
+        case "$line_t" in
+            ''|';'*)
+                continue ;;
+            '#'*)
+                case "$line_t" in
+                    '# @only-in:'*)
+                        rest="${line_t#'# @only-in:'}"
+                        rest="${rest#"${rest%%[![:space:]]*}"}"
+                        kind="${rest%%[[:space:]]*}"
+                        rest="${rest#"$kind"}"
+                        rest="${rest#"${rest%%[![:space:]]*}"}"
+                        echo "ONLYIN|$rest|$kind|$rel"
+                        ;;
+                    '# @dormant:'*)
+                        rest="${line_t#'# @dormant:'}"
+                        rest="${rest#"${rest%%[![:space:]]*}"}"
+                        kind="${rest%%[[:space:]]*}"
+                        rest="${rest#"$kind"}"
+                        rest="${rest#"${rest%%[![:space:]]*}"}"
+                        echo "DORMANT|$rest|$kind|$rel"
+                        ;;
+                esac
+                continue ;;
+        esac
+        case "$line_t" in
+            -main[[:space:]]*|--main[[:space:]]*)
+                rest="$line_t"
+                rest="${rest#-}"
+                rest="${rest#-}"
+                rest="${rest#main}"
+                rest="${rest#"${rest%%[![:space:]]*}"}"
+                rest="${rest%"${rest##*[![:space:]]}"}"
+                case "$rest" in
+                    ''|*[[:space:]]*) : ;;
+                    *) echo "ROOT|$rest" ;;
+                esac
+                continue ;;
+        esac
+        case "$line_t" in
+            --macro*|-macro*)
+                case "$line_t" in
+                    *TestCollector.generate*)
+                        case "$line_t" in
+                            *"["*"]"*)
+                                rest="${line_t#*[}"
+                                rest="${rest%%]*}"
+                                while IFS= read -r scan; do
+                                    scan="${scan#"${scan%%[![:space:]]*}"}"
+                                    scan="${scan%"${scan##*[![:space:]]}"}"
+                                    scan="$(echo "$scan" | tr -d "'" | tr -d '"')"
+                                    scan="${scan#"${scan%%[![:space:]]*}"}"
+                                    scan="${scan%"${scan##*[![:space:]]}"}"
+                                    [ -n "$scan" ] && echo "SCAN|$scan"
+                                done <<< "$(echo "$rest" | tr "," "\n")"
+                                ;;
+                        esac ;;
+                esac
+                continue ;;
+        esac
+        case "$line_t" in
+            *.hxml)
+                for base in "$(dirname "$f")" "$examples" "$repo" "$PWD"; do
+                    if [ -f "$base/$line_t" ]; then
+                        marker_collect "$bundle" "$base/$line_t" $((depth + 1))
+                        break
+                    fi
+                done
+                continue ;;
+        esac
+        case "$line_t" in
+            -*|+*) continue ;;
+        esac
+        if [[ "$line_t" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$ ]]; then
+            echo "ROOT|$line_t"
+        fi
+    done < "$f"
 }
-' "$allowlist" > "$tmpd/entries.tsv"
-while IFS=$'\t' read -r sect t mod reason; do
-    if [ "$sect" = "exempt" ]; then ex_keys+=("$t|$mod"); ex_reason["$t|$mod"]="$reason"
-                                   else un_keys+=("$t|$mod"); un_reason["$t|$mod"]="$reason"; fi
-done < "$tmpd/entries.tsv"
+
+while IFS='|' read -r bid rfile btarget bprec; do
+    [ -n "$bid" ] || continue
+    B_TARGET["$bid"]="$btarget"
+    B_PRECISION["$bid"]="$bprec"
+    if [ -z "$rfile" ]; then
+        echo "FAIL: boring.json bundle $bid declares no rootsFile; the target-only declarations cannot be located"
+        fail=1
+        continue
+    fi
+    B_ROOTS_FILE["$bid"]="$rfile"
+    BUNDLE_ROOTS_FILE["$rfile"]=1
+    : > "$tmpd/bundle.$bid.roots"
+    : > "$tmpd/bundle.$bid.scan"
+    rf="$rfile"
+    case "$rf" in /*) : ;; *) rf="$repo/$rfile" ;; esac
+    stream="$tmpd/bundle.$bid.stream"
+    marker_collect "$bid" "$rf" 0 > "$stream"
+    while IFS='|' read -r kind a b c; do
+        case "$kind" in
+            ROOT)
+                echo "$a" >> "$tmpd/bundle.$bid.roots" ;;
+            SCAN)
+                echo "$a" >> "$tmpd/bundle.$bid.scan" ;;
+            ONLYIN)
+                if [ -n "${OI_SCOPE[$a]:-}" ] && [ "${OI_SCOPE[$a]}" != "$b" ]; then
+                    echo "FAIL: conflicting @only-in declarations for $a: '${OI_SCOPE[$a]}' (${OI_AT[$a]}) and '$b' ($c)"
+                    fail=1
+                else
+                    OI_SCOPE["$a"]="$b"
+                    OI_AT["$a"]="$c"
+                fi ;;
+            DORMANT)
+                if [ -n "${DORMANT[$a]:-}" ] && [ "${DORMANT[$a]}" != "$b" ]; then
+                    echo "FAIL: conflicting @dormant declarations for $a: '${DORMANT[$a]}' (${DORM_AT[$a]}) and '$b' ($c)"
+                    fail=1
+                else
+                    DORMANT["$a"]="$b"
+                    DORM_AT["$a"]="$c"
+                fi ;;
+            ERR)
+                echo "FAIL: $a"
+                fail=1 ;;
+        esac
+    done < "$stream"
+done < "$tmpd/bundles.txt"
+
+MARK_MODS=()
+for decl_module in "${!OI_SCOPE[@]}" "${!DORMANT[@]}"; do
+    MARK_MODS+=("$decl_module")
+done
+if [ "${#MARK_MODS[@]}" -gt 1 ]; then
+    mapfile -t MARK_MODS < <(printf "%s\n" "${MARK_MODS[@]}" | sort -u)
+fi
+for mod in ${MARK_MODS[@]+"${MARK_MODS[@]}"}; do
+    [ -n "$mod" ] || continue
+    if [[ ! "$mod" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$ ]]; then
+        echo "FAIL: declaration names a malformed module path: $mod"
+        fail=1
+        continue
+    fi
+    if [ -n "${OI_SCOPE[$mod]:-}" ] && [ -n "${DORMANT[$mod]:-}" ]; then
+        echo "FAIL: $mod carries both an @only-in and an @dormant declaration (${OI_AT[$mod]}, ${DORM_AT[$mod]}); keep exactly one"
+        fail=1
+    fi
+    scope="${OI_SCOPE[$mod]:-}"
+    case "$scope" in
+        '') : ;;
+        precision:binary64|precision:f32) : ;;
+        target:kotlin|target:rust|target:swift) : ;;
+        *) echo "FAIL: $mod: @only-in scope must be precision:binary64, precision:f32, target:kotlin, target:rust or target:swift (got '$scope' in ${OI_AT[$mod]})"
+           fail=1 ;;
+    esac
+    dormant="${DORMANT[$mod]:-}"
+    case "$dormant" in
+        '') : ;;
+        kotlin|rust|swift) : ;;
+        *) echo "FAIL: $mod: @dormant target must be kotlin, rust or swift (got '$dormant' in ${DORM_AT[$mod]})"
+           fail=1 ;;
+    esac
+done
+if [ "$fail" -ne 0 ]; then
+    echo "roots guard: FAILED"
+    exit 1
+fi
 
 # ------------------------------------------------------- root floor (5) -----
 FLOOR_MODULES=()
@@ -396,9 +527,9 @@ note_cp() {
     CP_ALL+=("$abs")
 }
 
-# note_cp_for: record a classpath dir for the global union (allowlist/floor
-# existence, coverage) AND for the top-level file it came from (per-file
-# existence check).  $1 = top file, $2 = dir (relative or absolute).
+# note_cp_for: record a classpath dir for the global union (root-floor and
+# declaration existence, coverage) AND for the top-level file it came from
+# (per-file existence check).  $1 = top file, $2 = dir (relative or absolute).
 note_cp_for() {
     local top="$1" d="$2"
     [ -d "$d" ] || return 0
@@ -637,7 +768,7 @@ done
 
 # --------------------------------------------------------------- resolution --
 # Union of all guarded classpaths (index) + repo-wide fallback.  Used for
-# allowlist/root-floor modules only.
+# root-floor modules only.
 make_cp_index <(printf '%s\n' ${CP_ALL[@]+"${CP_ALL[@]}"}) "$tmpd/idx.all"
 
 # F9 (Claude review): fallback index switches to git ls-files '*.hx'.
@@ -667,6 +798,165 @@ resolve_module() {
     fi
     return 1
 }
+
+# ------------------------------------- declaration verification (2) --------
+# A declaration is honoured only when the tree agrees with it: the module
+# resolves, every bundle on the declared side roots it, and no bundle outside
+# the declared side roots it.
+module_path() {
+    local m="$1" rel d
+    rel="${m//.//}.hx"
+    for d in ${CP_ALL[@]+"${CP_ALL[@]}"}; do
+        if [ -f "$d/$rel" ]; then
+            printf '%s\n' "$d/$rel"
+            return 0
+        fi
+    done
+    if [ -f "$repo/$rel" ]; then
+        printf '%s\n' "$repo/$rel"
+        return 0
+    fi
+    return 1
+}
+
+bundle_roots_module() {
+    local bid="$1" mod="$2" mp d scan
+    if grep -qxF -- "$mod" "$tmpd/bundle.$bid.roots" 2>/dev/null; then
+        return 0
+    fi
+    [ -s "$tmpd/bundle.$bid.scan" ] || return 1
+    mp="$(module_path "$mod")" || return 1
+    while IFS= read -r scan; do
+        [ -n "$scan" ] || continue
+        for d in "$repo/$scan" "$(dirname "$repo/${B_ROOTS_FILE[$bid]:-}")/$scan"; do
+            [ -d "$d" ] || continue
+            d="$(cd "$d" && pwd)"
+            case "$mp" in "$d"/*) return 0 ;; esac
+        done
+    done < "$tmpd/bundle.$bid.scan"
+    return 1
+}
+
+declare -A VERIFIED=()
+for mod in ${MARK_MODS[@]+"${MARK_MODS[@]}"}; do
+    [ -n "$mod" ] || continue
+    if ! src="$(module_path "$mod")"; then
+        echo "FAIL: declaration for $mod does not resolve to any .hx on the guarded classpaths or anywhere under $repo"
+        fail=1
+        continue
+    fi
+    where="${OI_AT[$mod]:-${DORM_AT[$mod]:-}}"
+    if [ -z "${BUNDLE_ROOTS_FILE[$where]:-}" ]; then
+        echo "FAIL: $mod: the declaration in $where is not a bundle rootsFile; declare it in one of the rootsFile entries of boring.json so the guard and the consistency check read the same line"
+        fail=1
+        continue
+    fi
+    rooting=""
+    for bid in ${B_TARGET[@]+"${!B_TARGET[@]}"}; do
+        if bundle_roots_module "$bid" "$mod"; then
+            rooting="$rooting $bid"
+        fi
+    done
+    scope="${OI_SCOPE[$mod]:-}"
+    if [ -n "$scope" ]; then
+        dim="${scope%%:*}"
+        value="${scope#*:}"
+        if [ -z "$rooting" ]; then
+            echo "FAIL: $mod is declared @only-in: $scope in ${OI_AT[$mod]}, but no bundle roots it; the declaration is stale"
+            fail=1
+            continue
+        fi
+        bad=""
+        for bid in $rooting; do
+            if [ "$dim" = "target" ]; then
+                if [ "${B_TARGET[$bid]}" != "$value" ]; then
+                    bad="$bad $bid(target ${B_TARGET[$bid]})"
+                fi
+            else
+                if [ "${B_PRECISION[$bid]}" != "$value" ]; then
+                    bad="$bad $bid(precision ${B_PRECISION[$bid]})"
+                fi
+            fi
+        done
+        if [ -n "$bad" ]; then
+            echo "FAIL: $mod is declared @only-in: $scope in ${OI_AT[$mod]}, but it is also rooted by bundle(s):$bad"
+            fail=1
+            continue
+        fi
+        VERIFIED["$mod"]="$scope"
+        declared_onlyin=$((declared_onlyin + 1))
+    else
+        dormant="${DORMANT[$mod]}"
+        if [ -n "$rooting" ]; then
+            echo "FAIL: $mod is declared @dormant: $dormant in ${DORM_AT[$mod]}, but bundle(s):$rooting root it; drop the marker and declare @only-in instead"
+            fail=1
+            continue
+        fi
+        if ! grep -q "@:test" "$src" 2>/dev/null; then
+            echo "FAIL: $mod is declared @dormant: $dormant in ${DORM_AT[$mod]}, but ${src#"$repo"/} declares no @:test"
+            fail=1
+            continue
+        fi
+        # The body must be EXACTLY one top-level conditional block: it opens
+        # with "#if <target>_output", that block's "#end" closes it, nothing
+        # compiles after the closing "#end", and no top-level "#else"/"#elseif"
+        # branch exists (a branch would compile part of the module on another
+        # target).  Comment-only lines are ignored.
+        shape_first=""
+        shape_opens=0
+        shape_depth=0
+        shape_topelse=0
+        shape_after=0
+        shape_closed=0
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line#"${line%%[![:space:]]*}"}"
+            line="${line%"${line##*[![:space:]]}"}"
+            case "$line" in
+                ""|"//"*) continue ;;
+            esac
+            if [ -z "$shape_first" ]; then
+                shape_first="$line"
+            fi
+            case "$line" in
+                "#if"|"#if "*)
+                    if [ "$shape_depth" -eq 0 ]; then
+                        shape_opens=$((shape_opens + 1))
+                    fi
+                    shape_depth=$((shape_depth + 1))
+                    continue ;;
+                "#end"|"#end "*)
+                    if [ "$shape_depth" -gt 0 ]; then
+                        shape_depth=$((shape_depth - 1))
+                    fi
+                    if [ "$shape_depth" -eq 0 ]; then
+                        shape_closed=1
+                    fi
+                    continue ;;
+                "#else"|"#else "*|"#elseif"|"#elseif "*)
+                    if [ "$shape_depth" -eq 1 ]; then
+                        shape_topelse=1
+                    fi
+                    continue ;;
+            esac
+            if [ "$shape_closed" -eq 1 ]; then
+                shape_after=1
+            fi
+        done < "$src"
+        if [ "$shape_first" != "#if ${dormant}_output" ]; then
+            echo "FAIL: $mod is declared @dormant: $dormant in ${DORM_AT[$mod]}, but its body does not open with '#if ${dormant}_output' (first code line: '$shape_first')"
+            fail=1
+            continue
+        fi
+        if [ "$shape_opens" -ne 1 ] || [ "$shape_depth" -ne 0 ] || [ "$shape_topelse" -ne 0 ] || [ "$shape_after" -ne 0 ]; then
+            echo "FAIL: $mod is declared @dormant: $dormant in ${DORM_AT[$mod]}, but its body is not exactly one '#if ${dormant}_output' block with nothing outside it (top-level #if blocks: $shape_opens, unclosed: $shape_depth, top-level #else: $shape_topelse, code after the closing #end: $shape_after)"
+            fail=1
+            continue
+        fi
+
+        VERIFIED["$mod"]="dormant:$dormant"
+        declared_dormant=$((declared_dormant + 1))
+    fi
+done
 
 # --print-baseline: emit the current root floor and stop.
 if [ "$print_baseline" -eq 1 ]; then
@@ -715,9 +1005,8 @@ if [ "$scan_found" -eq 0 ]; then
 fi
 mapfile -t SCAN_MOD_LIST < <(printf '%s\n' ${SCAN_MODULES[@]+"${!SCAN_MODULES[@]}"} | sort)
 
-declare -A EX_USED=() UN_USED=()
 # ------------------------------------------------------------- per target ---
-# The global union is only used for allowlist/floor module existence and for
+# The global union is only used for root-floor/declaration existence and for
 # the coverage scan; the per-target checks below work per file.
 R_ANY=0
 while IFS= read -r d; do
@@ -792,32 +1081,28 @@ for target in kotlin rust swift; do
     comm -23 "$tmpd/set.base" "$tmpd/set.f32" > "$tmpd/only.base"
     comm -13 "$tmpd/set.base" "$tmpd/set.f32" > "$tmpd/only.f32"
 
-    # EX_USED is per-target (checked within the iteration); UN_USED
-    # accumulates across targets (checked after the loop).
-    EX_USED=()
+    # A verified @only-in: precision:<side> declaration is the only thing that
+    # can authorise one side of the pair missing a root the other side has; a
+    # target: declaration is deliberately not enough here.
     while IFS= read -r mod; do
         [ -n "$mod" ] || continue
         at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$tmpd/roots.base")"
-        key="$target|$mod"
-        if [ -n "${ex_reason[$key]:-}" ]; then
-            exemptions=$((exemptions + 1))
-            EX_USED["$key"]=1
-            echo "EXEMPT: $f32_name omits root module $mod (base-only, at $at); declared in allowlist: ${ex_reason[$key]}"
+        if [ "${VERIFIED[$mod]:-}" = "precision:binary64" ]; then
+            declared_asym=$((declared_asym + 1))
+            echo "DECLARED: $f32_name omits root module $mod (base-only, at $at); it carries a verified @only-in: precision:binary64 declaration in ${OI_AT[$mod]}"
         else
-            echo "FAIL: $f32_name omits root module $mod (present in $base_name at $at); the f32 bundle would lose a root that the base bundle compiles"
+            echo "FAIL: $f32_name omits root module $mod (present in $base_name at $at); the f32 bundle would lose a root that the base bundle compiles (declare it @only-in: precision:binary64 next to a root line if that is deliberate)"
             fail=1
         fi
     done < "$tmpd/only.base"
     while IFS= read -r mod; do
         [ -n "$mod" ] || continue
         at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$tmpd/roots.f32")"
-        key="$target|$mod"
-        if [ -n "${ex_reason[$key]:-}" ]; then
-            exemptions=$((exemptions + 1))
-            EX_USED["$key"]=1
-            echo "EXEMPT: $base_name omits root module $mod (f32-only, at $at); declared in allowlist: ${ex_reason[$key]}"
+        if [ "${VERIFIED[$mod]:-}" = "precision:f32" ]; then
+            declared_asym=$((declared_asym + 1))
+            echo "DECLARED: $base_name omits root module $mod (f32-only, at $at); it carries a verified @only-in: precision:f32 declaration in ${OI_AT[$mod]}"
         else
-            echo "FAIL: $base_name omits root module $mod (present in $f32_name at $at); the base bundle would compile a root the f32 bundle does not"
+            echo "FAIL: $base_name omits root module $mod (present in $f32_name at $at); the base bundle would compile a root the f32 bundle does not (declare it @only-in: precision:f32 next to a root line if that is deliberate)"
             fail=1
         fi
     done < "$tmpd/only.f32"
@@ -844,68 +1129,27 @@ for target in kotlin rust swift; do
         if grep -qx -- "$mod" "$tmpd/set.base" || grep -qx -- "$mod" "$tmpd/set.f32"; then
             continue
         fi
-        unmatch=""
-        for k in ${un_keys[@]+"${un_keys[@]}"}; do
-            kt="${k%%|*}"
-            km="${k#*|}"
-            if [ "$km" = "$mod" ] && { [ "$kt" = "*" ] || [ "$kt" = "$target" ]; }; then
-                unmatch="$k"
-                break
-            fi
-        done
-        if [ -n "$unmatch" ]; then
+        if [ -n "${VERIFIED[$mod]:-}" ]; then
             unrooted_decls=$((unrooted_decls + 1))
-            UN_USED["$unmatch"]=1
-            echo "UNROOT: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; declared in allowlist: ${un_reason[$unmatch]}"
+            where="${OI_AT[$mod]:-${DORM_AT[$mod]}}"
+            echo "DECLARED: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; verified declaration ${VERIFIED[$mod]} in $where"
         else
-            echo "FAIL: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; an @:test module missing from both files is a regression unless declared in allowlist section unrootedTestModules"
+            echo "FAIL: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; an @:test module missing from both files is a regression unless a verified @only-in/@dormant declaration covers it"
             fail=1
         fi
     done
 
-    # (stale) allowlist entries that no longer describe the tree
-    for key in ${ex_keys[@]+"${ex_keys[@]}"}; do
-        [ -z "$key" ] && continue
-        kt="${key%%|*}"
-        km="${key#*|}"
-        case "$kt" in
-            kotlin|rust|swift) [ "$kt" = "$target" ] || continue ;;
-        esac
-        if [ -z "${EX_USED[$key]:-}" ]; then
-            echo "STALE: allowlist exempts $km for target $kt but the module is not asymmetric for it now (present in both files, or absent from both); drop the entry"
-            fail=1
-        fi
-    done
 done
 
-# (stale) unrootedTestModules entries that no longer describe the tree
-for key in ${un_keys[@]+"${un_keys[@]}"}; do
-    [ -z "$key" ] && continue
-    kt="${key%%|*}"
-    km="${key#*|}"
-    if [ -z "${UN_USED[$key]:-}" ]; then
-        echo "STALE: allowlist declares $km unrooted for target $kt but no such unrooted @:test module exists now; drop the entry"
-        fail=1
-    fi
-done
-
-# Existence of every module named by the allowlist or the root floor
+# Existence of every module pinned by the root floor
 # (union of all guarded classpaths + repo-wide fallback).
 declare -A CHECKMOD=()
-for key in ${ex_keys[@]+"${ex_keys[@]}"}; do
-    [ -z "$key" ] && continue
-    CHECKMOD["${key#*|}"]=1
-done
-for key in ${un_keys[@]+"${un_keys[@]}"}; do
-    [ -z "$key" ] && continue
-    CHECKMOD["${key#*|}"]=1
-done
 for fl in ${FLOOR_MODULES[@]+"${FLOOR_MODULES[@]}"}; do
     CHECKMOD["${fl#*$'\t'}"]=1
 done
 for m in ${CHECKMOD[@]+"${!CHECKMOD[@]}"}; do
     if ! resolve_module "$m"; then
-        echo "FAIL: allowlist/root-floor module $m does not resolve to any .hx on the guarded classpaths or anywhere under $repo"
+        echo "FAIL: root-floor module $m does not resolve to any .hx on the guarded classpaths or anywhere under $repo"
         fail=1
     fi
 done
@@ -917,5 +1161,5 @@ if [ "$fail" -ne 0 ]; then
     echo "roots guard: FAILED"
     exit 1
 fi
-echo "roots guard: PASS ($exemptions exemption(s) in force; $unrooted_decls declared unrooted @:test module(s); $dup_lines duplicate root line(s) reported; $floor_pins pinned root(s) in root-floor)"
+echo "roots guard: PASS ($exemptions exemption(s) in force; $declared_onlyin verified @only-in declaration(s); $declared_dormant verified @dormant module(s); $declared_asym declared pair asymmetry(ies) in force; $unrooted_decls declared unrooted @:test module(s); $dup_lines duplicate root line(s) reported; $floor_pins pinned root(s) in root-floor)"
 exit 0

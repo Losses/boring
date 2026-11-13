@@ -9,6 +9,7 @@
 -cp packages/registry/src
 -cp packages/driver/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+# @only-in: precision:f32 tests.f32.PrintedFloatTests
 --macro TestCollector.generate('reference/haxe-f32/gen-tests', ['samples/tests/f32', 'samples/boring'], 'TestMainF32')
 -main GenerateMain
 -js reference/haxe-f32/gen/generate-main-f32.js

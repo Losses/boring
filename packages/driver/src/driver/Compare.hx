@@ -78,20 +78,15 @@ class Compare {
     }
 
     /**
-        The declared-extra allowlist of the project the results directory
-        belongs to, or an empty string when no project up the chain declares
-        one. The nearest ancestor holding
-        packages/test/assertions/consistency/extra-id-allowlist.json names the project.
-        An entry declares a test id that a target legitimately carries
-        while the baseline does not -- for example the f32-only oracle
-        tests collected from samples/tests/f32 under the precision switch
-        (feature spec 44), which the binary64 baseline excludes by
-        design. Every entry must state a reason; a reasonless entry is
-        rejected like a reasonless uncovered-mechanism entry.
+        The bundle project file of the project the results directory belongs
+        to, or an empty string when no ancestor holds `boring.json`. The
+        nearest ancestor holding it names the project: its bundles carry the
+        `rootsFile` entries whose `@only-in` markers declare target-only
+        modules.
     **/
-    static function findExtraAllowlist(resultsDir:String):String {
+    static function findProjectFile(resultsDir:String):String {
         var dir = Path.normalize(Path.join(Process.cwd(), resultsDir));
-        final marker = "packages/test/assertions/consistency/extra-id-allowlist.json";
+        final marker = "boring.json";
         while (true) {
             final candidate = Path.join(dir, marker);
             if (exists(candidate)) {
@@ -106,32 +101,127 @@ class Compare {
         return "";
     }
 
-    static function loadExtraAllowlist(path:String):Array<ExtraEntry> {
-        final allowlist:Array<ExtraEntry> = [];
-        if (path == "" || !exists(path)) {
-            return allowlist;
+    static function readText(path:String):String {
+        return readFile(path);
+    }
+
+    /**
+        The target-only declarations of the project, derived from the
+        `# @only-in: <scope> <module>` markers in the roots files of every
+        bundle in `boring.json`. A marker names a dimension and a side --
+        `precision:binary64`, `precision:f32`, `target:<target>` -- and the
+        entry it produces lists every bundle whose target/precision is on
+        that side, so a test id may be a declared extra for exactly those
+        bundles. The roots guard verifies the same markers against the tree
+        (the module is rooted on the declared side and nowhere else), so a
+        marker is never a per-id allowlist: ids follow their module.
+        A project without boring.json, or with a bundle whose roots file is
+        missing, contributes no declarations; the ids then fail as extras
+        exactly as they did before.
+    **/
+    static function loadOnlyInDeclarations(projectPath:String):Array<ExtraEntry> {
+        final entries:Array<ExtraEntry> = [];
+        if (projectPath == "" || !exists(projectPath)) {
+            return entries;
         }
-        final data:JsonValue = Json.read(readFile(path));
-        final entries = Json.arrayValues(Json.getField(data, "extras"));
-        if (entries == null) {
-            return allowlist;
+        final projectDir = Path.dirname(projectPath);
+        // boring.json may carry // comment lines (JSONC); drop them before
+        // parsing, exactly as the roots guard does.
+        final kept:Array<String> = [];
+        for (line in readText(projectPath).split("\n")) {
+            final text = StringTools.trim(line);
+            final comment = text.length > 1 && StringTools.startsWith(text, "//");
+            if (!comment) {
+                kept.push(line);
+            }
         }
-        for (entry in entries) {
-            final id = Json.stringValue(Json.getField(entry, "id"));
-            final reason = Json.stringValue(Json.getField(entry, "reason"));
-            if (id == null || reason == null) {
-                printErr("Error: Every declared extra id requires an id and a reason.");
-                exit(1);
+        var data:JsonValue;
+        try {
+            data = Json.read(kept.join("\n"));
+        } catch (error:JsonException) {
+            return entries;
+        }
+        final bundles = Json.arrayValues(Json.getField(data, "bundles"));
+        if (bundles == null) {
+            return entries;
+        }
+        final ids:Array<String> = [];
+        final targets:Array<String> = [];
+        final precisions:Array<String> = [];
+        final rootsFiles:Array<String> = [];
+        for (bundle in bundles) {
+            final id = Json.stringValue(Json.getField(bundle, "id"));
+            final roots = Json.stringValue(Json.getField(bundle, "rootsFile"));
+            if (id == null || roots == null) {
+                continue;
             }
             final idText:String = id == null ? "" : id;
-            final reasonText:String = reason == null ? "" : reason;
-            if (StringTools.trim(reasonText) == "") {
-                printErr("Error: Every declared extra id requires an id and a reason.");
-                exit(1);
+            final rootsText:String = roots == null ? "" : roots;
+            if (idText == "" || rootsText == "") {
+                continue;
             }
-            allowlist.push({id: idText, reason: reasonText});
+            final targetValue = Json.stringValue(Json.getField(bundle, "target"));
+            final precisionValue = Json.stringValue(Json.getField(bundle, "precision"));
+            ids.push(idText);
+            targets.push(targetValue == null ? "" : targetValue);
+            precisions.push(precisionValue == null ? "binary64" : precisionValue);
+            rootsFiles.push(rootsText);
         }
-        return allowlist;
+        for (index in 0...rootsFiles.length) {
+            final declaredIn = rootsFiles[index];
+            final rootsPath = StringTools.startsWith(declaredIn, "/")
+                ? declaredIn
+                : Path.join(projectDir, declaredIn);
+            if (!exists(rootsPath)) {
+                continue;
+            }
+            var rootsText:String = "";
+            try {
+                rootsText = readText(rootsPath);
+            } catch (error:std.FsException) {
+                continue;
+            }
+            for (line in rootsText.split("\n")) {
+                final text = StringTools.trim(line);
+                if (!StringTools.startsWith(text, "# @only-in:")) {
+                    continue;
+                }
+                final rest = StringTools.trim(text.substr("# @only-in:".length));
+                final space = rest.indexOf(" ");
+                if (space < 1) {
+                    continue;
+                }
+                final scope = rest.substr(0, space);
+                final moduleName = StringTools.trim(rest.substr(space + 1));
+                if (moduleName == "") {
+                    continue;
+                }
+                final colon = scope.indexOf(":");
+                if (colon < 1) {
+                    continue;
+                }
+                final dimension = scope.substr(0, colon);
+                final side = scope.substr(colon + 1);
+                final matching:Array<String> = [];
+                for (bundleIndex in 0...ids.length) {
+                    final onSide = dimension == "target"
+                        ? targets[bundleIndex] == side
+                        : dimension == "precision" && precisions[bundleIndex] == side;
+                    if (onSide) {
+                        matching.push(ids[bundleIndex]);
+                    }
+                }
+                if (matching.length == 0) {
+                    continue;
+                }
+                entries.push({
+                    module: moduleName,
+                    reason: '@only-in: $scope declared in $declaredIn',
+                    bundles: matching
+                });
+            }
+        }
+        return entries;
     }
 
     static function checkMechanismCoverage(allIds:Array<String>, path:String):Bool {
@@ -277,11 +367,11 @@ class Compare {
             exit(1);
             return;
         }
-        final extraAllowlist = loadExtraAllowlist(findExtraAllowlist(resultsDir));
-        final comparison = CompareCore.run(inputs, baselineTarget, extraAllowlist);
+        final extraDeclarations = loadOnlyInDeclarations(findProjectFile(resultsDir));
+        final comparison = CompareCore.run(inputs, baselineTarget, extraDeclarations);
         for (line in comparison.lines) outputLine(line);
         if (comparison.declaredExtras.length > 0) {
-            outputLine('Declared extra test ids (not in baseline, allowlisted): ${comparison.declaredExtras.length}');
+            outputLine('Declared extra test ids (not in baseline, target-only modules): ${comparison.declaredExtras.length}');
             for (declared in comparison.declaredExtras) outputLine('  - $declared');
         }
         final coveragePath = findMechanismCoverage(resultsDir);

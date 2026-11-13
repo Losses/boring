@@ -239,6 +239,7 @@ registry.JsonException
 registry.SemverException
 registry.Sha1
 registry.Release
+# @only-in: precision:binary64 registry.Main
 registry.Main
 tests.RegistrySha1Tests
 tests.RegistryJsonTests

@@ -28,7 +28,9 @@ boring.BufferHolder
 boring.BytesFrame
 boring.EscapingTraitIdentityFacade
 boring.EscapingTraitIdentityOps
+# @only-in: target:rust tests.EscapingTraitIdentityTests
 tests.EscapingTraitIdentityTests
+# @dormant: rust tests.E0308FiTests
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps

@@ -44,8 +44,36 @@ class CompareCore {
         return null;
     }
 
-    static function findExtra(extras:Array<ExtraEntry>, id:String):Null<ExtraEntry> {
-        for (extra in extras) if (extra.id == id) return extra;
+    /** The declaring module of a test id: the id without its trailing member name. **/
+    static function moduleOfId(id:String):String {
+        var last = -1;
+        var index = 0;
+        while (index < id.length) {
+            final found = id.indexOf(".", index);
+            if (found < 0) {
+                break;
+            }
+            last = found;
+            index = found + 1;
+        }
+        if (last <= 0) {
+            return id;
+        }
+        return id.substr(0, last);
+    }
+
+    /**
+        The declaration that authorises `id` in bundle `bundleId`, or null.
+        An id is authorised only by a declaration of its own module that lists
+        the bundle the id was produced by, so a module declared target-only for
+        one target never authorises its ids on another.
+    **/
+    static function findExtra(extras:Array<ExtraEntry>, id:String, bundleId:String):Null<ExtraEntry> {
+        final moduleName = moduleOfId(id);
+        for (extra in extras) {
+            if (extra.module != moduleName) continue;
+            for (bundle in extra.bundles) if (bundle == bundleId) return extra;
+        }
         return null;
     }
 
@@ -125,13 +153,13 @@ class CompareCore {
                 if (target.id == baseline) continue;
                 if (baseRecord == null) {
                     if (record != null) {
-                        // A declared extra: the project states why this id
-                        // legitimately exists outside the baseline (an entry
-                        // without a reason is rejected at load), so it is
-                        // reported as a declared extra, keeping it out of the
-                        // divergence count. Ported from packages/test/assertions/consistency
-                        // (feature spec 44 f32 extras).
-                        final extra = findExtra(extras, id);
+                        // A declared extra: the module of this id carries a
+                        // verified @only-in marker (read from the bundle roots
+                        // files by the roots guard), so the id legitimately
+                        // exists outside the baseline for this bundle. It is
+                        // reported as a declared extra and never counted as a
+                        // divergence.
+                        final extra = findExtra(extras, id, target.id);
                         if (extra != null) {
                             final tag = '[${target.id}] $id -- ${extra.reason}';
                             if (declaredExtras.indexOf(tag) < 0) declaredExtras.push(tag);
