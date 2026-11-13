@@ -27,13 +27,14 @@ describe("constructed static initializer trees", () => {
     const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
     // `docs/specs/target-semantic-policy.md:125` realizes every static/global
     // as a `LazyLock`/`Mutex`/single-thread wrapper, so the pinned form is the
-    // wrapper chain, not a bare `LazyLock<FramePolicy>`, and the read goes
+    // wrapper chain; a bare `LazyLock<FramePolicy>` is not the pinned form,
+    // and the read goes
     // through the wrapper's guard.
     expect(rust).toContain("LazyLock<Mutex<SingleThread<");
     expect(rust).toContain("LazyLock::new");
     expect(rust).toContain("FramePolicy");
     expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-    // The read lane takes the guard, clones the shared handle out of the
+    // The read path takes the guard, clones the shared handle out of the
     // SingleThread slot, and borrows the field: the lock is what makes the
     // parallel harness read sound (see spec 35's Mutex row).
     expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).lock().unwrap().clone()");

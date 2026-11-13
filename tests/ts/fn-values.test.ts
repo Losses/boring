@@ -7,7 +7,7 @@ installTargetTreeReport(import.meta.path);
 
 /**
  * The Rust realization of a Haxe function value is the single-thread shape the
- * target policy fixes, not a threaded one:
+ * target policy fixes; a threaded shape is ruled out:
  *
  *   docs/specs/target-semantic-policy.md:43-56 -- "Rust must not smuggle
  *   Arc/Mutex in to prepare for a possible future threaded host", and
@@ -58,7 +58,8 @@ describe("first-class function value generated trees", () => {
       // INTERFACE-REQUIREMENTS.md:235 "String <-> Array<UInt16>", restated for
       // the buffer at docs/specs/stdlib/08-string-buffer.md:132 and shown as a
       // value type at docs/specs/features/10-static-extension.md:152). The
-      // closure type therefore ends in [UInt16], not in the native String.
+      // closure type therefore ends in [UInt16]; the native String type is
+      // unused here.
       expect(swift).toContain("static let defaultTag: (Int32) -> [UInt16] =");
       expect(swift).toContain("defaultTag");
     });

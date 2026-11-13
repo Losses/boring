@@ -132,8 +132,8 @@ class PackageArtifacts {
         (docs/specs/features/25-package-artifacts.md:21,23) states "no prefix"
         for both: the members sit at the archive root, with `Cargo.toml` /
         `pubspec.yaml` and the module files beside them. The earlier
-        `<name>-<version>/` prefix was a belief about the registries, not a
-        recorded layout, and no test ever pinned it.
+        `<name>-<version>/` prefix was a belief about the registries with no
+        recorded layout behind it, and no test ever pinned it.
     **/
     public static function emitTarGz(outputDir:String, extension:String, ?nameOverride:String):Void {
         SharedModuleTrace.record("PackageArtifacts");

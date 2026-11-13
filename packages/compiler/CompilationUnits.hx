@@ -190,8 +190,8 @@ class CompilationUnits {
         for (module in reclassified) {
             units.set(module, Tests);
             // Silenced by default, on purpose. This is an internal accounting
-            // decision, not a defect in the compiled program, and the line
-            // lands on the same stderr the package tooling treats as the
+            // decision that says nothing about the compiled program, and the
+            // line reaches the same stderr the package tooling treats as the
             // compile result: PackageArtifacts captures the child's stderr and
             // the package-artifact tests require it to be empty. -D
             // compilation_units_verbose restores the per-module account for a

@@ -140,8 +140,8 @@ class SortedMapTable<K, V> {
 
     /**
         Content equality: the same size and the same key and value at every
-        index. Generated data-class `equals` calls this instead of comparing
-        the printed forms, which is both wrong (two tables can print alike and
+        index. Generated data-class `equals` calls this so the printed forms
+        are never compared, which is both wrong (two tables can print alike and
         differ) and expensive.
     **/
     public function contentEquals(other:SortedMapTable<K, V>):Bool {
@@ -346,8 +346,8 @@ class SortedSetTable<K> {
 
     /**
         Content equality: the same size and the same element at every index.
-        Generated data-class `equals` calls this instead of comparing the
-        printed forms.
+        Generated data-class `equals` calls this so the printed forms are
+        never compared.
     **/
     public function contentEquals(other:SortedSetTable<K>):Bool {
         // Non-optional parameter, so the nil test folds to false in the

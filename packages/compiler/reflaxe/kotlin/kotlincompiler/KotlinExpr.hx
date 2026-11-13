@@ -3672,8 +3672,9 @@ class KotlinExpr {
                     && nullableAccess(receiver) != "?."
                     && (dropped("sameunit")
                         // Kotlin's restriction is about the COMPILATION the
-                        // declaring class and the use site land in, not the
-                        // Haxe module each was written in: the generated tree
+                        // declaring class and the use site are compiled into,
+                        // and the Haxe module each was written in is not what
+                        // decides it: the generated tree
                         // compiles main and tests as two separate kotlinc
                         // invocations, and a public-API val read across that
                         // boundary is not smart-castable. Comparing Haxe

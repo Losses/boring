@@ -74,7 +74,7 @@ describe("string buffer generated tree", () => {
     // The buffer is the resident UTF-16 array (docs/specs/stdlib/08-string-buffer.md:132
     // "The buffer is Array<UInt16>"), and a Haxe String argument is already
     // that array on Swift (INTERFACE-REQUIREMENTS.md:235), so appends take the
-    // argument directly instead of converting it.
+    // argument directly, with no conversion.
     expect(content).toContain("var buf = [UInt16]()");
     expect(content).toContain("buf += a");
     expect(content).toContain("buf.count > 0");

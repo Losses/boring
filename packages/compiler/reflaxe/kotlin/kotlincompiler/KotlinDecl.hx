@@ -401,7 +401,8 @@ class KotlinDecl {
                 for (a in constructorFunc.args) {
                     final name = KotlinNameEscape.escape(a.name);
                     if (sortedNames.exists(a.name)) {
-                        // Content, not printed form: runtime.SortedTable's
+                        // Comparison by content, independent of the printed
+                        // form: runtime.SortedTable's
                         // contentEquals compares size + element at every index,
                         // and the hash agrees with it (equal content implies
                         // equal size, so size().hashCode() is consistent even

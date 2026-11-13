@@ -36,7 +36,7 @@ reach every expression category the ruling below admits.
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
 | Rust: `LazyLock` static over the construction closure | One construction per program; the lock checks an atomic the target runtime already provides; every read borrows or clones without locking. | One representation per constructed static; the declared field maps to one Rust item. | No new dependency; `LazyLock` is standard-library. | The declaration reads as a lazily built constant. |
-| Rust: `Mutex` static as in feature 30 rule 3 | One construction plus one lock acquisition per access. | Shares the mutable-static representation, so two different shapes of static read alike. | Current, not rejected: `docs/specs/target-semantic-policy.md:125` realizes every static/global as a `LazyLock`/`Mutex`/single-thread wrapper. This table was written 2026-08-31, when the target used a thread-affine shim; fa4b733ba (2026-11-09) replaced that shim with the `Mutex` wrapper, so the earlier rejection reason no longer describes the target. | The wrapper is the v1 static realization, and the read form follows it. |
+| Rust: `Mutex` static as in feature 30 rule 3 | One construction plus one lock acquisition per access. | Shares the mutable-static representation, so two different shapes of static read alike. | Current and accepted: `docs/specs/target-semantic-policy.md:125` realizes every static/global as a `LazyLock`/`Mutex`/single-thread wrapper. This table was written 2026-08-31, when the target used a thread-affine shim; fa4b733ba (2026-11-09) replaced that shim with the `Mutex` wrapper, so the earlier rejection reason no longer describes the target. | The wrapper is the v1 static realization, and the read form follows it. |
 | Rust: `pub const` with the construction inline | No runtime cost; the construction arguments include function calls and cross-class reads, which const evaluation rejects at the Rust compile. | Same spelling as the const form while the value is not a const expression. | None. | The declaration claims a guarantee the target rejects. |
 | Argument grammar: closed recursive language over literals, enums, arrays, constructions, static field reads, static function calls | Compile-time classification only. | One enumerated grammar; a rejected argument names its category in the error. | No second expression system; the categories reuse the coalescing grammar's shape. | Each accepted argument form is one the emitters already render at call sites. |
 | Argument grammar: any expression the emitters render | Compile-time delegation to five renderers. | Acceptance depends on five renderer implementations agreeing; a partial renderer agreement produces a per-target generation failure, and the failure names no rule. | No classifier to maintain. | No enumerated language to read; the error for a rejected form is the renderer's own. |
@@ -120,11 +120,11 @@ reach every expression category the ruling below admits.
   reads rendering `(*NAME).lock()`. The
   `#[allow(non_upper_case_globals)]` attribute appears only when the emitted
   name is not uniformly upper case. Both follow from `docs/specs/target-semantic-policy.md:125`
-  rather than from this feature's own comparison: every static/global is
+  drawn from this feature's own comparison: every static/global is
   realized as a `LazyLock`/`Mutex`/single-thread wrapper, so this static
   carries the `Mutex` inside the `LazyLock` slot, and the read form follows the
-  wrapper — the read spells `(*NAME).lock()` instead of the bare deref of a
-  lock-free slot.
+  wrapper. The read spells `(*NAME).lock()`, with the bare deref of a
+  lock-free slot absent.
 - Mutation checks: a `static var` field with a construction initializer
   stops generation with the feature 30 text; a final field with a static
   function call at the root stops generation with the rule 3 final-field

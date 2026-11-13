@@ -30,7 +30,7 @@ describe("number parsing renderings", () => {
       // The ops module hands the runtime a native String, so it converts the
       // [UInt16] argument first (INTERFACE-REQUIREMENTS.md:235); the inlined
       // scan itself lives in parseIntRuntime (stdlib/14:121 describes the
-      // scan, not where it is declared).
+      // scan; its declaration site is elsewhere).
       expect(swift).toContain('return parseIntRuntime(String(decoding: value, as: UTF16.self))');
       expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
     });

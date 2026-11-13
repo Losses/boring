@@ -19,9 +19,10 @@ import ValueTypeSupport.ValueTypeOperator;
 **/
 class RustDecl {
     /**
-        The hash statement of one nullable-float field. A `match` rather than
-        `as_ref().map(..)`: the loop-structure guard forbids functional
-        iteration and closures in generated code, and the derived `Hash` bodies
+        The hash statement of one nullable-float field. A `match` is the form
+        the loop-structure guard allows; `as_ref().map(..)` would need
+        functional iteration and closures in generated code, and the derived
+        `Hash` bodies
         are generated text like any other. The statement hashes the same
         `Option<u32|u64>` the map form produced, so the distribution is
         unchanged, and it never appears in a const context.

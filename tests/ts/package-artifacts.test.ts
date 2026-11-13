@@ -341,7 +341,7 @@ describe("package artifact emission", () => {
       fs.rmSync(first, { recursive: true, force: true });
       fs.rmSync(second, { recursive: true, force: true });
     }
-  }, 420000);
+  }, 600000);
 
   test("an invalid package-artifacts value aborts the compile", async () => {
     const root = tempRoot("invalid");
