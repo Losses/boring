@@ -451,6 +451,18 @@ Rust emits each test class as a cargo integration test:
   (`<package>::runtime::test as testlib`); `crate::` does not resolve in an
   integration test.
 - `cargo test` discovers and runs them natively.
+- The test harness mode is declared with `-D rust-test-threads`. The
+  default is `serial`, which runs the generated tests on one thread
+  (`cargo test -- --test-threads=1`, the mode the project driver selects);
+  the owner thread of that harness is the access thread a ThreadAffine
+  static needs (policy P-1a). `parallel` selects the cargo default
+  scheduler and is supported for ImmutableLazy and ThreadSafeShared statics
+  only. While the compilation emits a ThreadAffine static, the parallel
+  value is rejected at generation with the policy text, so a crate whose
+  thread-affine static state would differ per test thread is never
+  produced. Any value other than `serial` and `parallel` is rejected too:
+  an unrecognized value would otherwise select neither harness and leave the
+  cargo default scheduler in place.
 
 ```rust
 use generated::runtime::test as testlib;

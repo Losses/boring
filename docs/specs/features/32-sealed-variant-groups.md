@@ -142,7 +142,8 @@ abstract class. Three pieces are missing:
   the `AutoSpacePolicy` shape of the port, appears beside the sealed
   samples: its tests assert the spec 31 labeled printed form for the
   constructed default and for a read of the static, and its tree
-  assertions pin the spec 35 lowering (the Rust `LazyLock` static, the
-  Kotlin companion `val Default = ...`) with no bare-name toString
+  assertions pin the spec 35 lowering (the Rust ThreadAffine
+  `thread_local!` static of policy P-1a, the Kotlin companion
+  `val Default = ...`) with no bare-name toString
   anywhere; the field-less singleton of this specification keeps its
   bare-name form in the same trees.

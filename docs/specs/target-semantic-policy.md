@@ -1,8 +1,14 @@
 # Target Semantic Policy
 
-Status: **v1.1.0**
+Status: **v1.2.0**
 
 Release note (v1.0.2): semantic rules unchanged; test-module compilation coverage added (P-20a).
+
+Release note (v1.2.0): P-1a added. The static/global realization splits into
+ImmutableLazy, ThreadAffine, and ThreadSafeShared (Astra arbitration,
+2026-11-12). P-1 rule 2 and P-15 rule 2 follow the new entry; the
+`LazyLock<Mutex<SingleThread<T>>>` realization and the unconditional
+`unsafe impl Send/Sync` for `SingleThread<T>` are retired.
 
 | Role | Party |
 | --- | --- |
@@ -15,8 +21,9 @@ Release note (v1.0.2): semantic rules unchanged; test-module compilation coverag
 This document is the single cross-target semantic specification for Haxe reference
 and handle semantics. It converges every prior ruling (Rc/RefCell handle,
 receiver ABI, interface traits without Send+Sync, @:sharedHandle,
-SingleThread/OnceLock static state, parameter/return/field/closure passing, and
-the forbidden patterns) into one authoritative policy, so that no backend,
+the static realization modes (ImmutableLazy, ThreadAffine, ThreadSafeShared),
+OnceLock static state, parameter/return/field/closure passing, and the
+forbidden patterns) into one authoritative policy, so that no backend,
 renderer template, fixture, or patch record re-decides the same question by
 syntax position or by a compiler error message.
 
@@ -24,8 +31,9 @@ The executable encoding of this policy is
 `packages/compiler/SemanticPolicy.hx`. The typed IR it defines
 (ReprType, UseMode, ExprInfo, ReceiverAbi, ParamMode) is the policy's runnable
 form; the validator (added in the follow-up IR task) is its enforcement; and
-`Rc<RefCell<T>>`, `SingleThread<T>`, and all other concrete Rust types are
-only the Rust target's *realization* of the policy, never the policy itself.
+`Rc<RefCell<T>>`, the three static realization modes, and all other concrete
+Rust types are only the Rust target's *realization* of the policy, never the
+policy itself.
 
 ## Layering
 
@@ -122,14 +130,84 @@ Each entry carries the six required elements:
    an owned value with Clone/PartialEq derives; plain class -> Rc<RefCell<T>>;
    interface -> Rc<RefCell<dyn Trait>>; collection -> Vec / HashMap / sorted
    table; nullable -> Option<inner>; function -> Rc<RefCell<dyn FnMut>>;
-   static/global -> a LazyLock/Mutex/single-thread wrapper. TS, Kotlin, Swift,
-   Dart: TODO interface.
+   static/global -> one of the three realizations of P-1a: ImmutableLazy
+   (`LazyLock<T>`, or a plain immutable static for a const expression),
+   ThreadAffine (a `thread_local!` slot), or ThreadSafeShared (`Mutex<T>`).
+   TS, Kotlin, Swift, Dart: TODO interface.
 3. `ReprType` (all variants).
 4. Every Haxe type handed to a renderer must carry a non-empty `ReprType`; an
    unclassified type is a lowering error.
 5. Positive: `FX-representation-classes`. Negative: none (classification is
    total on the accepted subset).
 6. (shared rule)
+
+### P-1a Static/global realization
+
+1. A static or global field declares exactly one realization: ImmutableLazy,
+   ThreadAffine, or ThreadSafeShared. The declared mode and the emitted target
+   item agree; an item whose form contradicts the declaration is a generation
+   error.
+2. Rust: the item forms below are the realization of each mode.
+
+   | Mode | Item form | Condition |
+   | --- | --- | --- |
+   | ImmutableLazy | `static NAME: T = <const expr>;` for a const expression, `static NAME: LazyLock<T> = LazyLock::new(..);` otherwise | the value is immutable and `T` satisfies the Rust auto traits the slot requires (Send + Sync): no Rc, RefCell, Rc<dyn>, or Box<dyn> inside |
+   | ThreadAffine | `thread_local! { static NAME: T = ..; }`, or `thread_local! { static NAME: RefCell<T> = RefCell::new(..); }` for a reassignable field | the value carries Haxe single-threaded semantics and is !Send and !Sync: an Rc<RefCell<T>> handle, a container of handles, or a trait-object value |
+   | ThreadSafeShared | `static NAME: Mutex<T> = Mutex::new(..);` or `LazyLock<Mutex<T>>` for a non-const initializer | a process slot that tests and threads share; `T` is Send and the item contains no Rc or RefCell |
+
+   Three rules follow from the table:
+
+   - An immutable value uses ImmutableLazy (`LazyLock<T>` when the
+     initializer is not a const expression).
+   - A value that contains Rc or RefCell can be carried by no process-global
+     Sync static. It is ThreadAffine, its access requires the owner thread, and
+     the target item is a `thread_local!` slot.
+   - A shared process slot is ThreadSafeShared, uses a safe primitive, and
+     contains no Rc or RefCell.
+
+   An unconditional `unsafe impl Send` or `unsafe impl Sync` for a wrapper over
+   Rc or RefCell is forbidden. The former `SingleThread<T>` wrapper and its
+   `unsafe impl` pair are removed.
+
+3. IR: `StaticRealizationMode.ImmutableLazy | ThreadAffine | ThreadSafeShared`,
+   with the existing `ReprType.Static(inner)` and `PlaceKind.Static`. The
+   emitter records the mode from the declaration facts, and the reader derives
+   its read form from the same mode.
+4. Validator: `RustStaticRealization.verifyItem` checks every emitted static
+   item against its declared mode and stops generation on a mismatch.
+   ImmutableLazy carries no Mutex, RefCell, or `thread_local!`; ThreadAffine is
+   a `thread_local!` item over Rc or RefCell and is never a process-global
+   LazyLock or Mutex; ThreadSafeShared carries a Mutex and carries no Rc or
+   RefCell. `RustStaticRealization.checkHarness` rejects a parallel test
+   harness while the compilation emits a ThreadAffine static.
+
+   The check reads the rendered item text. It does not walk the Haxe type
+   graph a second time: the mode and the item are derived from the same
+   declaration facts, so the text gate covers every emission path the emitter
+   already has. The auto-trait obligation behind ImmutableLazy and
+   ThreadSafeShared is discharged by rustc when the crate compiles; this gate
+   catches a form the declaration forbids, and a value that fails the auto
+   traits fails the Rust build.
+5. Positive: `FX-static-mutable`, `FX-static-constructed-immutable`.
+   Negative: `NEG-send-sync`, `NEG-thread-affine-global`.
+6. (shared rule) The serial and parallel test harnesses have different support.
+   The serial harness runs the generated tests on the owner thread and is
+   supported for all three modes; it is the default (`-D
+   rust-test-threads=serial`). The parallel harness is supported for
+   ImmutableLazy and ThreadSafeShared only; while a ThreadAffine static is
+   present, `-D rust-test-threads=parallel` is rejected at generation until an
+   owner-thread harness exists. The define accepts only `serial` and
+   `parallel`; any other value, including the `1` a bare
+   `-D rust-test-threads` sets, is a generation error, so an unrecognized value
+   cannot silently leave the cargo default scheduler selected. A crate with no
+   static has no realization to gate and carries no such check.
+
+Migration (Astra arbitration, 2026-11-12): `LazyLock<Mutex<SingleThread<T>>>`
+is retired. A class-handle static that used it lowers as ThreadAffine, and its
+read clones the handle out of the owner-thread slot. A mutable static whose
+value is Send lowers as ThreadSafeShared and keeps its guard reads. An
+immutable static whose value satisfies the auto traits lowers as ImmutableLazy
+and reads through the LazyLock referent.
 
 ### P-2 Plain-class handle
 
@@ -311,11 +389,13 @@ Each entry carries the six required elements:
 ### P-15 Static / global state
 
 1. A static field is process/global state.
-2. Rust: a static whose storage is !Send (an Rc handle, a trait object, an
-   Rc-backed function value) is wrapped so the type is not required to be
-   Send+Sync: `LazyLock<SingleThread<T>>`, `LazyLock<Mutex<SingleThread<T>>>`
-   for a mutable container, and `thread_local! RefCell<T>` for the trait-object
-   form. TS, Kotlin, Swift, Dart: TODO interface.
+2. Rust: P-1a fixes the realization. A static whose storage is !Send (an Rc
+   handle, a container of handles, a trait object, an Rc-backed function value)
+   is ThreadAffine: the item is a `thread_local!` slot, and a reassignable
+   field keeps its slot in a RefCell. An immutable value that satisfies the
+   required auto traits is ImmutableLazy. A process slot shared with tests and
+   threads is ThreadSafeShared and carries a Mutex. TS, Kotlin, Swift, Dart:
+   TODO interface.
 3. `ReprType.Static(inner)` + `PlaceKind.Static`.
 4. A static field that renders as a bare `static T` while T is !Send is
    rejected.
@@ -533,7 +613,7 @@ fill-in (TODO -> concrete) does not bump the policy version.
 | collection (Map) | HashMap<K,V> / sorted table | TODO | TODO | TODO | TODO |
 | nullable value | Option<inner> | TODO | TODO | TODO | TODO |
 | function/closure | Rc<RefCell<dyn FnMut(..) -> R>> (no Send/Sync); Rc<dyn Fn(..) -> R> as optimization | TODO | TODO | TODO | TODO |
-| static/global | LazyLock<SingleThread<T>> / Mutex / thread_local RefCell | TODO | TODO | TODO | TODO |
+| static/global | P-1a: ImmutableLazy (LazyLock<T> or plain immutable static) / ThreadAffine (thread_local slot) / ThreadSafeShared (Mutex<T>) | TODO | TODO | TODO | TODO |
 
 The four TODO columns are declared interfaces only; this round implements the
 Rust realization and leaves the others untouched.

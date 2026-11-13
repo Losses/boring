@@ -91,9 +91,13 @@ test("a re-assigned nullable static is re-read every iteration, and the cached-h
   const correctDir = makeScratch("reassign");
   generate(correctDir);
   const correctSrc = fs.readFileSync(path.join(correctDir, "probe", "reassign_loop.rs"), "utf8");
-  expect(correctSrc).toContain("LazyLock<Mutex<SingleThread<Option<Rc<RefCell<ReassignCounter>>>>>>");
-  expect(correctSrc).toContain("SingleThread::new(None)");
-  expect(correctSrc).toContain("let __new = Some(ReassignCounter::new(");
+  // The null-initialized class static is re-assignable, so the
+  // ThreadAffine realization keeps its slot in an owner-thread RefCell
+  // (docs/specs/target-semantic-policy.md P-1a).
+  expect(correctSrc).toContain("thread_local! {\n    pub static REASSIGN_LOOP_INSTANCE: RefCell<Option<Rc<RefCell<ReassignCounter>>>> = RefCell::new(None);\n}");
+  expect(correctSrc).toContain("REASSIGN_LOOP_INSTANCE.with(|__ta| __ta.borrow().clone())");
+  expect(correctSrc).toContain(".with(|c| *c.borrow_mut() = __rhs_value);");
+  expect(correctSrc).toContain("Some(ReassignCounter::new(");
   expect(correctSrc).toContain("while { let __static_read");
   expect(correctSrc.slice(0, correctSrc.indexOf("while { let __static_read"))).not.toContain("let __static_read");
 

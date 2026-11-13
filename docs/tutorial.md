@@ -1066,7 +1066,7 @@ the recipes live in boring's own source, never in the project file:
 | `haxe` | `haxe` over the reference entry | `bun` on the emitted js | nothing |
 | `ts` | none; `bun` transpiles | `bun test <gen-tests>` | `tsc` |
 | `kotlin` | `kotlinc`: a library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc` |
-| `rust` | `cargo test --no-run` in the crate root | `cargo test` | nothing |
+| `rust` | `cargo test --no-run` in the crate root | `cargo test -- --test-threads=1` | nothing |
 | `swift` | `swiftc`: the library, then the test executable against it | the executable | nothing |
 | `dart` | none | `dart <gen-tests>/main.dart` | nothing |
 

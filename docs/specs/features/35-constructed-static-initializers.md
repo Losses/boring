@@ -36,7 +36,7 @@ reach every expression category the ruling below admits.
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
 | Rust: `LazyLock` static over the construction closure | One construction per program; the lock checks an atomic the target runtime already provides; every read borrows or clones without locking. | One representation per constructed static; the declared field maps to one Rust item. | No new dependency; `LazyLock` is standard-library. | The declaration reads as a lazily built constant. |
-| Rust: `Mutex` static as in feature 30 rule 3 | One construction plus one lock acquisition per access. | Shares the mutable-static representation, so two different shapes of static read alike. | Current and accepted: `docs/specs/target-semantic-policy.md:125` realizes every static/global as a `LazyLock`/`Mutex`/single-thread wrapper. This table was written 2026-08-31, when the target used a thread-affine shim; fa4b733ba (2026-11-09) replaced that shim with the `Mutex` wrapper, so the earlier rejection reason no longer describes the target. | The wrapper is the v1 static realization, and the read form follows it. |
+| Rust: `Mutex` static as in feature 30 rule 3 | One construction plus one lock acquisition per access. | Shares the mutable-static representation, so two different shapes of static read alike. | Historical candidate, superseded by policy P-1a: this row was accepted on 2026-11-09, when fa4b733ba replaced the thread-affine shim with a `Mutex` wrapper over `SingleThread<T>`. The Astra arbitration of 2026-11-12 retired that wrapper: a constructed class handle is !Send and !Sync, so its static is ThreadAffine (`thread_local!`), and an immutable constructed value is ImmutableLazy (`LazyLock<T>`). | The v1 wrapper no longer describes the target; the read form follows the realization mode. |
 | Rust: `pub const` with the construction inline | No runtime cost; the construction arguments include function calls and cross-class reads, which const evaluation rejects at the Rust compile. | Same spelling as the const form while the value is not a const expression. | None. | The declaration claims a guarantee the target rejects. |
 | Argument grammar: closed recursive language over literals, enums, arrays, constructions, static field reads, static function calls | Compile-time classification only. | One enumerated grammar; a rejected argument names its category in the error. | No second expression system; the categories reuse the coalescing grammar's shape. | Each accepted argument form is one the emitters already render at call sites. |
 | Argument grammar: any expression the emitters render | Compile-time delegation to five renderers. | Acceptance depends on five renderer implementations agreeing; a partial renderer agreement produces a per-target generation failure, and the failure names no rule. | No classifier to maintain. | No enumerated language to read; the error for a rejected form is the renderer's own. |
@@ -81,7 +81,7 @@ reach every expression category the ruling below admits.
    | Kotlin | `val name: T = C(args)` in the object or companion object | `Class.name` direct reference |
    | Swift | `static let name: T = C(args...)` | `Class.name` direct reference |
    | Dart | `static final name: T = C(args);`, or a top-level `final` when the declaring class flattens | direct reference, module-scope under flattening |
-   | Rust | `#[allow(non_upper_case_globals)] static NAME: LazyLock<T> = LazyLock::new(\|\| <construction form call sites render>);` at module scope | the dereference `&*NAME`, module-qualified from another class, with the existing move adaptation cloning when the consumer takes ownership |
+   | Rust | ImmutableLazy: `#[allow(non_upper_case_globals)] static NAME: LazyLock<T> = LazyLock::new(\|\| <construction form call sites render>);` at module scope. ThreadAffine: `thread_local! { static NAME: T = <construction form call sites render>; }` when the constructed value is a class handle, which is !Send and !Sync | ImmutableLazy reads the dereferenced referent `&*NAME`; ThreadAffine reads the owner-thread slot value. Both are module-qualified from another class, with the existing move adaptation cloning when the consumer takes ownership |
 
    The Rust item derives nothing new: classes already carry
    `#[derive(Debug, Clone, PartialEq)]`, so the clone arm of the move
@@ -115,16 +115,16 @@ reach every expression category the ruling below admits.
   TypeScript tree carries `static readonly` over the construction; the
   Kotlin tree carries `val name: FramePolicy = FramePolicy(`; the Swift
   tree carries `static let`; the Dart tree carries `static final`; the
-  Rust tree carries `LazyLock<`, `LazyLock::new`, and a `Mutex` inside the
-  slot (see the Mutex row above: the parallel test harness needs it), with
-  reads rendering `(*NAME).lock()`. The
+  Rust tree carries a `thread_local!` slot over the constructed class handle
+  (`pub static FRAME_POLICY_WEIGHTED: Rc<RefCell<FramePolicy>> = FramePolicy::new(`),
+  and reads clone the handle out of that slot
+  (`FRAME_POLICY_WEIGHTED.with(|__ta| __ta.clone())`). The
   `#[allow(non_upper_case_globals)]` attribute appears only when the emitted
-  name is not uniformly upper case. Both follow from `docs/specs/target-semantic-policy.md:125`
-  drawn from this feature's own comparison: every static/global is
-  realized as a `LazyLock`/`Mutex`/single-thread wrapper, so this static
-  carries the `Mutex` inside the `LazyLock` slot, and the read form follows the
-  wrapper. The read spells `(*NAME).lock()`, with the bare deref of a
-  lock-free slot absent.
+  name is not uniformly upper case. Both follow from
+  `docs/specs/target-semantic-policy.md` P-1a: a constructed class handle is
+  !Send and !Sync, so no process-global static carries it and the realization
+  is ThreadAffine. A constructed immutable value that satisfies the required
+  auto traits takes the ImmutableLazy `LazyLock<T>` form instead.
 - Mutation checks: a `static var` field with a construction initializer
   stops generation with the feature 30 text; a final field with a static
   function call at the root stops generation with the rule 3 final-field

@@ -25,20 +25,20 @@ describe("constructed static initializer trees", () => {
       "static final FramePolicy weighted = FramePolicy("
     );
     const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
-    // `docs/specs/target-semantic-policy.md:125` realizes every static/global
-    // as a `LazyLock`/`Mutex`/single-thread wrapper, so the pinned form is the
-    // wrapper chain; a bare `LazyLock<FramePolicy>` is not the pinned form,
-    // and the read goes
-    // through the wrapper's guard.
-    expect(rust).toContain("LazyLock<Mutex<SingleThread<");
-    expect(rust).toContain("LazyLock::new");
+    // `docs/specs/target-semantic-policy.md` P-1a realizes a class-handle
+    // static as ThreadAffine: the owner-thread slot holds the Rc handle, the
+    // read clones the handle out of the slot, and no process-global lock or
+    // LazyLock is part of the shape.
+    expect(rust).toContain("thread_local! {");
+    expect(rust).toContain("pub static FRAME_POLICY_WEIGHTED: Rc<RefCell<FramePolicy>> = FramePolicy::new(");
     expect(rust).toContain("FramePolicy");
+    expect(rust).not.toContain("SingleThread");
+    expect(rust).not.toContain("LazyLock<Mutex<");
     expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-    // The read path takes the guard, clones the shared handle out of the
-    // SingleThread slot, and borrows the field: the lock is what makes the
-    // parallel harness read sound (see spec 35's Mutex row).
-    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).lock().unwrap().clone()");
-    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).lock().unwrap().clone().borrow().label");
+    // The read clones the handle out of the owner-thread slot and borrows
+    // the field on the clone, which keeps the object identity.
+    expect(rust).toContain("FRAME_POLICY_WEIGHTED.with(|__ta| __ta.clone())");
+    expect(rust).toContain("FRAME_POLICY_WEIGHTED.with(|__ta| __ta.clone()).borrow().label");
   });
 });
 

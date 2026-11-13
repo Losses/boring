@@ -115,9 +115,10 @@ class Plan {
             addStep(steps, "run", "java", ["-cp", libraryJar + ":" + testsJar + ":" + generatedDir + "/resources"].concat(bundle.run.args).concat(["TestMainKt"]), project.root, runEnv);
         } else if (bundle.target == "rust") {
             addStep(steps, "build", "cargo", ["test", "--release", "--no-run"].concat(bundle.build.args), generatedDir, bundle.build.env);
-            // Haxe semantics are single-threaded (P-15 SingleThread statics
-            // hold Rc handles behind an unsafe Send+Sync); the test harness must
-            // run serially or the thread-affine guard panics. (SingleThreadStatic)
+            // Haxe semantics are single-threaded, and a ThreadAffine static
+            // holds the Rc handle in an owner-thread slot (policy P-1a), so
+            // the test harness runs the generated tests on one thread and the
+            // owner-thread slot is the harness thread. (StaticRealization)
             // cargoArgs come before the harness -- separator, so options for cargo
             // options (for example --features f32) reach cargo itself while
             // run.args stay after the separator as harness arguments.

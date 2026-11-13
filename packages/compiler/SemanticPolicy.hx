@@ -6,10 +6,10 @@ package;
 
     This module is the only definition of the typed-IR vocabulary a
     Haxe type and expression must resolve into before any target renderer runs.
-    It is a *policy*: Rc<RefCell<T>>,
-    SingleThread<T>, and every other concrete type are the Rust *realization*
-    declared in the mapping table (docs/specs/target-semantic-policy.md), never
-    the policy itself.
+    It is a *policy*: Rc<RefCell<T>>, the three static realizations
+    (ImmutableLazy, ThreadAffine, ThreadSafeShared), and every other concrete
+    type are the Rust *realization* declared in the mapping table
+    (docs/specs/target-semantic-policy.md), never the policy itself.
 
     Final boundary (single-thread target):
       - Rc<RefCell<T>>            = plain class

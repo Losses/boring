@@ -20,6 +20,10 @@
     "doc": "Output directory for Rust generation (rustcompiler)."
   },
   {
+    "define": "rust-test-threads",
+    "doc": "Test harness configuration for the Rust target: serial (default) runs the generated tests on one thread, which is the owner thread a ThreadAffine static needs; parallel selects the cargo default scheduler and is rejected while the compilation emits a ThreadAffine static. See docs/specs/target-semantic-policy.md P-1a."
+  },
+  {
     "define": "ts-test-output",
     "doc": "Output directory for TypeScript test generation (tscompiler)."
   },

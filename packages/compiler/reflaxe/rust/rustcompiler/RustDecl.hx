@@ -1809,7 +1809,7 @@ class RustDecl {
     /** Whether a static's rendered type holds an Rc<RefCell<T>> handle,
         directly or nested inside a container (Vec/HashMap/Option). The
         top-level isPlainClassHandle misses the container case, which still
-        needs the SingleThread static treatment because Rc is not Send+Sync.
+        needs the ThreadAffine realization because Rc is not Send+Sync.
         (RcContainerStatic) */
     public static function isPlainClassHandleStaticType(typeStr:String):Bool {
         return typeStr.indexOf("Rc<RefCell") >= 0;
@@ -1866,7 +1866,9 @@ class RustDecl {
             chunks.push("    " + formatted.slice(i, end).join(", "));
             i = end;
         }
-        return '${vis}static ${RustImports.toScreamingSnakeCase(field.name)}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
+        final item = '${vis}static ${RustImports.toScreamingSnakeCase(field.name)}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
+        RustStaticRealization.verifyItem(StaticRealizationMode.ImmutableLazy, item, imports.selfModule + "." + field.name, field.pos);
+        return item;
     }
 
     function isFunctionType(t:Null<Type>):Bool {
@@ -1897,9 +1899,9 @@ class RustDecl {
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
         final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
         final initializerText = expr.rawFunctionInitializer(initializer);
-        return [
-            vis + "static " + name + ": " + types.staticFunctionOf(field.type) + " = " + initializerText + ";"
-        ];
+        final item = vis + "static " + name + ": " + types.staticFunctionOf(field.type) + " = " + initializerText + ";";
+        RustStaticRealization.verifyItem(StaticRealizationMode.ImmutableLazy, item, cls.name + "." + field.name, field.pos);
+        return [item];
     }
 
     /**
@@ -2110,38 +2112,11 @@ class RustDecl {
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
         final typeStr = types.of(field.type);
         final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
-        if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init)) {
-            final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
-            final elements = switch (StaticFieldHelper.stripDecorations(init).expr) {
-                case TArrayDecl(values): values.length;
-                case _: 0;
-            };
-            return [
-                '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
-            ];
-        }
-        if (RustDecl.isPlainClassHandleStaticType(typeStr)) {
-            imports.require("std::sync::LazyLock");
-            state.shimsUsed.set("runtime.SingleThread", true);
-            imports.require(RuntimeConfig.requireImportName("module runtime.SingleThread") + "::single_thread::SingleThread");
-            // Immutable plain-class statics read-only via LazyLock deref; a
-            // mutable `var` static needs interior Mutex so the SingleThread
-            // inner value stays assignable. (RcContainerStatic)
-            // Final non-container statics take the same Mutex lowering:
-            // the SingleThread deref guard only hands ownership between
-            // threads sequentially, while a parallel test harness
-            // reads the static from live threads at once, which races the
-            // Rc refcount. Every read serializes through the Mutex.
-            imports.require("std::sync::Mutex");
-            final nullBacked = RustDecl.isNullBackedPlainClassStatic(field, typeStr);
-            // A null-initialized class static stores None in an Option slot
-            // even though the Haxe type names the class; every read unwraps
-            // and every assignment wraps. (NullableStaticInit)
-            final slotType = nullBacked ? "Option<" + typeStr + ">" : typeStr;
-            return [
-                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + slotType + ">>> = LazyLock::new(|| Mutex::new(SingleThread::new(" + expr.rawExpression(init) + ")));"
-            ];
-        }
+        final directIntArray = field.isFinal
+            && StaticFieldHelper.isNonEmptyArrayLiteral(init)
+            && StaticFieldHelper.isIntLiteralArray(init);
+        final handleBacked = isPlainClassHandleStaticType(typeStr);
+        final nonSend = !handleBacked && isNonSendStaticType(typeStr);
 
         // A large static array of string literals is a data table: the
         // direct vec![UString::from(..), ...] initializer over thousands of
@@ -2151,50 +2126,89 @@ class RustDecl {
         final compressSetting = Context.definedValue("rust_static_table_compress");
         final compressEnabled = compressSetting == null || compressSetting != "none";
         final stringTable = compressEnabled ? stringLiteralArray(init) : null;
-        if (stringTable != null && stringTable.length > 256 && typeStr == "Vec<UString>") {
-            var joinable = true;
-            for (value in stringTable) {
-                if (value.indexOf("|") >= 0 || value.indexOf('"') >= 0 || value.indexOf("\\") >= 0) {
-                    joinable = false;
-                    break;
+        final compressedTable = stringTable != null && stringTable.length > 256 && typeStr == "Vec<UString>";
+        final lazyBacked = !handleBacked && !nonSend && !directIntArray
+            && (compressedTable || usesLazyLockStatic(cls, field, state));
+
+        // Every emitted static declares one of the three realizations and
+        // the item text is checked against that declaration.
+        final mode = RustStaticRealization.modeOf(handleBacked, nonSend, lazyBacked, directIntArray);
+        final label = cls.name + "." + field.name;
+        RustStaticRealization.checkHarness(mode, label, field.pos);
+        switch (mode) {
+            case ImmutableLazy:
+                if (directIntArray) {
+                    final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
+                    final elements = switch (StaticFieldHelper.stripDecorations(init).expr) {
+                        case TArrayDecl(values): values.length;
+                        case _: 0;
+                    };
+                    final item = '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};';
+                    RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                    return [item];
                 }
-                for (i in 0...value.length) {
-                    final code = value.charCodeAt(i);
-                    if (code < 0x20 || code == 0x7F) {
-                        joinable = false;
-                        break;
+                if (compressedTable) {
+                    var joinable = true;
+                    for (value in stringTable) {
+                        if (value.indexOf("|") >= 0 || value.indexOf('"') >= 0 || value.indexOf("\\") >= 0) {
+                            joinable = false;
+                            break;
+                        }
+                        for (i in 0...value.length) {
+                            final code = value.charCodeAt(i);
+                            if (code < 0x20 || code == 0x7F) {
+                                joinable = false;
+                                break;
+                            }
+                        }
+                        if (!joinable)
+                            break;
+                    }
+                    if (joinable) {
+                        imports.require("std::sync::LazyLock");
+                        imports.requireType("runtime.UString", "UString");
+                        final data = stringTable.join("|");
+                        final item = '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| { const __DATA: &str = "${data}"; __DATA.split(\'|\').map(|__s| UString::from(__s).to_ustring()).collect() });';
+                        RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                        return [item];
                     }
                 }
-                if (!joinable)
-                    break;
-            }
-            if (joinable) {
                 imports.require("std::sync::LazyLock");
-                imports.requireType("runtime.UString", "UString");
-                final data = stringTable.join("|");
-                return [
-                    '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| { const __DATA: &str = "${data}"; __DATA.split(\'|\').map(|__s| UString::from(__s).to_ustring()).collect() });'
-                ];
-            }
+                final item = '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});';
+                RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                return [item];
+            case ThreadAffine:
+                // The value is not Send+Sync, so no process-global static can
+                // carry it. The owner-thread slot holds it and every access
+                // runs on that thread. (StaticRealization)
+                if (handleBacked) {
+                    imports.require("std::cell::RefCell");
+                    final nullBacked = RustDecl.isNullBackedPlainClassStatic(field, typeStr);
+                    // A null-initialized class static stores None in an Option
+                    // slot even though the Haxe type names the class; every
+                    // read unwraps and every assignment wraps.
+                    // (NullableStaticInit)
+                    final slotType = nullBacked ? "Option<" + typeStr + ">" : typeStr;
+                    // A reassignable static var keeps its slot in a RefCell so
+                    // the owner thread can replace the value. A final static
+                    // is never reassigned, so its slot is the value itself.
+                    // (RcContainerStatic)
+                    final item = !field.isFinal
+                        ? 'thread_local! {\n    ${vis}static ${name}: RefCell<${slotType}> = RefCell::new(${expr.rawExpression(init)});\n}'
+                        : 'thread_local! {\n    ${vis}static ${name}: ${slotType} = ${expr.rawExpression(init)};\n}';
+                    RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                    return [item];
+                }
+                imports.require("std::cell::RefCell");
+                final item = 'thread_local! {\n    ${vis}static ${name}: RefCell<${typeStr}> = RefCell::new(${expr.rawExpression(init)});\n}';
+                RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                return [item];
+            case ThreadSafeShared:
+                imports.require("std::sync::Mutex");
+                final item = '${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});';
+                RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                return [item];
         }
-        if (usesLazyLockStatic(cls, field, state)) {
-            imports.require("std::sync::LazyLock");
-            return [
-                '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
-            ];
-        }
-        if (isNonSendStaticType(typeStr)) {
-            imports.require("std::cell::RefCell");
-            return [
-                'thread_local! {',
-                '    ${vis}static ${name}: RefCell<${typeStr}> = RefCell::new(${expr.rawExpression(init)});',
-                '}'
-            ];
-        }
-        imports.require("std::sync::Mutex");
-        return [
-            '${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
-        ];
     }
 
     function isStringType(t:Type):Bool {

@@ -45,7 +45,7 @@ defect went unobserved before the probe.
 | --- | --- | --- | --- | --- |
 | Rust: module-scope `Mutex` statics for mutable and container statics | One lock acquisition per access; the port's mutable statics are trace infrastructure touched once per test class, so the cost is bounded by the test count. | One representation per static; a declared Haxe static maps to one Rust item whatever the access position. | No unsafe blocks enter the generated tree, and stored values are not copied per access beyond the existing move adaptation. | Access positions read a lock guard around the value. |
 | Rust: `static mut` with unsafe access blocks | No lock on access; every read and write needs an `unsafe` block, and the generated tree would carry its first unsafe code. | Same single representation. | The unsafe discipline spreads to every accessor the emitter writes. | Readers weigh safety at each access position. |
-| Rust: `thread_local!` storage | No lock on access; a per-thread cell allocates lazily per thread. | State becomes per thread while the other four targets hold one instance, so the targets disagree under a threaded test runner. | One cell per thread the program runs. | Access reads a closure-scoped borrow. |
+| Rust: `thread_local!` storage | No lock on access; a per-thread cell allocates lazily per thread. | State becomes per thread while the other four targets hold one instance, so the targets disagree under a threaded test runner. | One cell per thread the program runs. | Access reads a closure-scoped borrow. Rejected for a shared process slot. Accepted as the ThreadAffine realization of a !Send value under policy P-1a, where the serial test harness is the supported configuration. |
 | Swift: `static var` for container statics | Identical access cost. | One spelling for every static field the class declares. | No second binding form to track per container. | The binding reads as mutable while the source declares it final. |
 | Swift: `static let` for container statics | Identical access cost. | The binding matches the source declaration. | A second binding form for containers. | Swift arrays hold value semantics, so `append` on a `let` binding fails the Swift compile; the form rejects the mutation the port performs. |
 | Dart: flatten static-only classes to top-level variables | Identical access cost. | Matches the flattening the target already applies to static functions. | No empty class remains in the output for the reader to open. | Static state reads as the module-scope state it compiles to. |
@@ -86,7 +86,13 @@ defect went unobserved before the probe.
    the value per the emitter's existing move adaptation; an assignment
    renders `*current.lock().unwrap_or_else(|e| e.into_inner()) = Some(value);` for a nullable
    declaration and `*current.lock().unwrap_or_else(|e| e.into_inner()) = value;` otherwise; a
-   container mutation renders through the same guard, for example
+   Policy P-1a fixes the mode of each static. A mutable or container
+   static whose value is Send is ThreadSafeShared and keeps the `Mutex`
+   form above. A final static whose value is a class handle (or any other
+   Rc/RefCell value) is ThreadAffine, because no process-global Sync static
+   can carry it. A final array literal that is not a Send scalar table is
+   ImmutableLazy and reads through a `LazyLock` referent.
+   A container mutation renders through the same guard, for example
    `classes.lock().unwrap_or_else(|e| e.into_inner()).push(...)`. The item carries
    `#[allow(non_upper_case_globals)]` so the field-name spelling matches
    the const form the target already emits.

@@ -822,7 +822,7 @@ class RustExpr {
                     // static does not provide.
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
                     if (plainClassStaticField != null && plainClassStaticField.kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
-                        final value = "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().clone()";
+                        final value = handleStaticRead(cls, fieldName);
                         return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
                             ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + value + "; __shared_handle }" : value;
                     }
@@ -1582,31 +1582,27 @@ class RustExpr {
         static in one statement hold two guards and deadlock on the second
         lock. (StaticReadStatementScope)
     **/
-    function staticReadPath(e:TypedExpr):Null<String> {
+    function staticReadPath(e:TypedExpr):Null<{path:String, read:String}> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)):
                 final field = cf.get();
-                // Only the Mutex-backed handle static read lowers to
-                // (*STATIC).lock().unwrap().clone(); constants and value
-                // statics read by value and never take a guard. Check the
-                // field kind before lowering its type: a method or dynamic
-                // static has no handle representation.
+                // Only a ThreadAffine handle static read is hoisted;
+                // constants and value statics read by value. Check the field
+                // kind before lowering its type: a method or dynamic static
+                // has no handle representation.
                 if (!field.kind.match(FVar(_, _)))
                     return null;
                 final typeStr = types.of(field.type);
-                // TODO(StaticReadContainer): a container static read is the
-                // guard itself (*S).lock().unwrap(); two reads
-                // of one container static in one statement still hold two
-                // guards and can deadlock. It is excluded here because the
-                // statement hoist binds a cloned value, while the container
-                // form would have to bind one mutable guard and reuse it
-                // across the statement. No current example reads one
-                // container static twice in one statement; revisit when one
-                // does.
+                // TODO(StaticReadContainer): a container static read is a
+                // whole-value clone, so two reads of one container static in
+                // one statement clone twice. It is excluded here because the
+                // statement hoist binds the cloned value once; no current
+                // example reads one container static twice in one statement.
                 if (RustDecl.isPlainClassHandleContainerStaticType(typeStr))
                     return null;
-                RustDecl.isPlainClassHandleStaticType(typeStr)
-                    ? staticItemPath(c.get(), field.name) : null;
+                if (!RustDecl.isPlainClassHandleStaticType(typeStr))
+                    return null;
+                {path: staticItemPath(c.get(), field.name), read: handleStaticRead(c.get(), field.name)};
             case _: null;
         };
     }
@@ -1616,14 +1612,14 @@ class RustExpr {
         expressions. Nested statement bodies are separate scopes and are
         hoisted by their own stmtLines call.
     **/
-    function collectStaticReads(e:TypedExpr):Array<String> {
+    function collectStaticReads(e:TypedExpr):Array<{path:String, read:String}> {
         final out = [];
         function walk(x:TypedExpr):Void {
             switch (stripWrap(x).expr) {
                 case TField(_, FStatic(_, _)):
-                    final path = staticReadPath(x);
-                    if (path != null)
-                        out.push(path);
+                    final read = staticReadPath(x);
+                    if (read != null)
+                        out.push(read);
                 case TField(subj, _): walk(subj);
                 case TParenthesis(inner): walk(inner);
                 case TCast(inner, _): walk(inner);
@@ -1672,8 +1668,11 @@ class RustExpr {
         if (reads.length == 0)
             return expr(cond);
         final counts = new Map<String, Int>();
-        for (path in reads)
-            counts.set(path, (counts.exists(path) ? counts.get(path) : 0) + 1);
+        final readByPath = new Map<String, String>();
+        for (item in reads) {
+            counts.set(item.path, (counts.exists(item.path) ? counts.get(item.path) : 0) + 1);
+            readByPath.set(item.path, item.read);
+        }
         final duplicated = [];
         for (path => count in counts)
             if (count > 1)
@@ -1686,7 +1685,7 @@ class RustExpr {
         for (path in duplicated) {
             final local = freshRegionName("__static_read");
             activeStaticReadSubstitution.set(path, local);
-            lets.push("let " + local + " = { let __g = (*" + path + ").lock().unwrap(); (*__g).clone() };");
+            lets.push("let " + local + " = { " + readByPath.get(path) + " };");
         }
         final body = expr(cond);
         activeStaticReadSubstitution = saved;
@@ -1698,8 +1697,11 @@ class RustExpr {
         if (reads.length == 0)
             return stmtLinesCore(e, depth);
         final counts = new Map<String, Int>();
-        for (path in reads)
-            counts.set(path, (counts.exists(path) ? counts.get(path) : 0) + 1);
+        final readByPath = new Map<String, String>();
+        for (item in reads) {
+            counts.set(item.path, (counts.exists(item.path) ? counts.get(item.path) : 0) + 1);
+            readByPath.set(item.path, item.read);
+        }
         final duplicated = [];
         for (path => count in counts)
             if (count > 1)
@@ -1712,7 +1714,7 @@ class RustExpr {
         for (path in duplicated) {
             final local = freshRegionName("__static_read");
             activeStaticReadSubstitution.set(path, local);
-            lets.push("let " + local + " = { let __g = (*" + path + ").lock().unwrap(); (*__g).clone() };");
+            lets.push("let " + local + " = { " + readByPath.get(path) + " };");
         }
         final body = stmtLinesCore(e, depth);
         activeStaticReadSubstitution = saved;
@@ -8123,12 +8125,14 @@ class RustExpr {
                 if (map != null) {
                     return expr(map.receiver) + ".insert(" + rustMapKey(map.key) + ", " + rustMapValue(r) + ")";
                 }
-                // A RefCell guard static assigns inside the with-closure:
-                // the borrow_mut guard must not outlive it.
-                // (RefCellStaticGuardScope)
+                // A RefCell static assigns inside the with-closure: the
+                // borrow_mut guard must not outlive it. The same form carries
+                // a reassignable ThreadAffine handle static, whose slot is
+                // re-assigned inside the owner-thread cell.
+                // (RefCellStaticGuardScope, StaticRealization)
                 final refCellPath = refCellGuardStaticPath(l);
                 if (refCellPath != null) {
-                    final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
+                    final staticValue = if (StaticFieldHelper.isNullableType(l.t) || isNullBackedStaticRead(l)) {
                         isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
                             ? "Some(" + ownedNullInterfaceAssignValue(r, getNullInnerType(l.t)) + ")"
                             : "Some(" + staticOwnedValue(r) + ")");
@@ -9528,21 +9532,18 @@ class RustExpr {
                 // handle-static read and let staticRef name the function item.
                 // (StaticMethodValueReference)
                 if (cf.get().kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
-                    // A container static mutates its contents in place; the
-                    // read yields the mutable guard itself. (RcContainerStatic)
-                    if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
-                        return "(*" + staticItemPath(cls, name) + ").lock().unwrap()";
-                    // The Mutex lowering serializes every read: the
-                    // SingleThread deref guard rejects concurrent access from
-                    // live threads, so a clone outside the lock races the Rc
-                    // refcount under a parallel test harness.
+                    // A ThreadAffine handle static lives in the owner thread's
+                    // slot; the read clones the slot value out of it. The
+                    // clone of an Rc handle keeps the object identity, and a
+                    // container static yields the container value.
+                    // (StaticRealization, RcContainerStatic)
                     final staticPath = staticItemPath(cls, name);
                     final nullBacked = RustDecl.isNullBackedPlainClassStatic(cf.get(), types.of(cf.get().type));
                     if (activeStaticReadSubstitution != null && activeStaticReadSubstitution.exists(staticPath))
-                        return activeStaticReadSubstitution.get(staticPath) + (nullBacked ? ".clone().unwrap()" : ".clone()");
-                    return "(*" + staticPath + ").lock().unwrap().clone()" + (nullBacked ? ".unwrap()" : "");
+                        return activeStaticReadSubstitution.get(staticPath) + (nullBacked ? ".unwrap()" : "");
+                    return handleStaticRead(cls, name) + (nullBacked ? ".unwrap()" : "");
                 }
-                if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
+                if (isImmutableLazyStatic(cls, cf.get())) {
                     // LazyLock owns its value. Static reads cross Haxe value
                     // boundaries, so clone the referent before passing it
                     // to constructors.
@@ -9855,9 +9856,51 @@ class RustExpr {
         return null;
     }
 
+    /** Whether the field's Rust slot is realized as a ThreadAffine
+        thread-local: the Haxe value is not Send+Sync (an Rc handle or an
+        Rc/Box trait object), so no process-global static can carry it.
+        (StaticRealization) */
+    function isThreadAffineStatic(field:ClassField):Bool {
+        final typeStr = types.of(field.type);
+        return RustDecl.isPlainClassHandleStaticType(typeStr) || RustDecl.isNonSendStaticType(typeStr);
+    }
+
+    /** A reassignable ThreadAffine handle static keeps its slot in a RefCell
+        so the owner thread can replace the value; a final static is never
+        reassigned and stores the value itself. (StaticRealization) */
+    function threadAffineHandleCell(field:ClassField):Bool {
+        return field.kind.match(FVar(_, _)) && !field.isFinal;
+    }
+
+    /** The owned read of a ThreadAffine handle static: the owner thread's
+        slot value, read out of the cell. The clone of an Rc handle keeps the
+        object identity, and every access runs on the owner thread.
+        (StaticRealization) */
+    function handleStaticRead(cls:ClassType, name:String):String {
+        final path = staticItemPath(cls, name);
+        final field = staticFieldOf(cls, name);
+        return (field != null && threadAffineHandleCell(field))
+            ? path + ".with(|__ta| __ta.borrow().clone())"
+            : path + ".with(|__ta| __ta.clone())";
+    }
+
+    /** Whether the field is realized as ImmutableLazy: an immutable value
+        carried by a LazyLock slot. Mirrors moduleStaticVarDecl's mode choice
+        so a read never assumes a wrapper the emitter did not write.
+        (StaticRealization) */
+    function isImmutableLazyStatic(cls:ClassType, field:ClassField):Bool {
+        final typeStr = types.of(field.type);
+        if (RustDecl.isPlainClassHandleStaticType(typeStr) || RustDecl.isNonSendStaticType(typeStr))
+            return false;
+        final init = StaticFieldHelper.initializer(field);
+        if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init))
+            return false;
+        return RustDecl.usesLazyLockStatic(cls, field, state);
+    }
+
     function isLazyStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
-        return field != null && RustDecl.usesLazyLockStatic(cls, field, state);
+        return field != null && isImmutableLazyStatic(cls, field);
     }
 
     /**
@@ -9870,7 +9913,7 @@ class RustExpr {
         final field = staticFieldOf(cls, name);
         if (field == null)
             return null;
-        if (!RustDecl.usesLazyLockStatic(cls, field, state))
+        if (!isImmutableLazyStatic(cls, field))
             return null;
         return "(*" + staticItemPath(cls, name) + ").clone()";
     }
@@ -9968,9 +10011,18 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)):
                 final field = staticFieldOf(c.get(), cf.get().name);
-                field != null && isGuardStaticField(c.get(), cf.get().name)
-                    && RustDecl.isNonSendStaticType(types.of(field.type))
-                    ? staticItemPath(c.get(), cf.get().name) : null;
+                if (field == null)
+                    null;
+                else if (isGuardStaticField(c.get(), cf.get().name)
+                    && RustDecl.isNonSendStaticType(types.of(field.type)))
+                    staticItemPath(c.get(), cf.get().name);
+                else if (RustDecl.isPlainClassHandleStaticType(types.of(field.type)) && threadAffineHandleCell(field))
+                    // A reassignable ThreadAffine handle static replaces the
+                    // owner-thread slot value inside the cell.
+                    // (StaticRealization)
+                    staticItemPath(c.get(), cf.get().name);
+                else
+                    null;
             case _: null;
         };
     }
@@ -10012,7 +10064,11 @@ class RustExpr {
                     return null;
                 final path = staticItemPath(cls, field.name);
                 final hoisted = activeStaticReadSubstitution != null ? activeStaticReadSubstitution.get(path) : null;
-                final guard = hoisted != null ? hoisted : staticGuard(cls, field.name);
+                // A ThreadAffine handle static reads its slot value; a guard
+                // static reads through its lock or its RefCell borrow.
+                // (StaticRealization)
+                final guard = hoisted != null ? hoisted
+                    : (nullableHandleStatic ? handleStaticRead(cls, field.name) : staticGuard(cls, field.name));
                 final nullable = StaticFieldHelper.isNullableType(field.type)
                     || RustDecl.isNullBackedPlainClassStatic(field, typeStr);
                 // A nullable plain-class static opens the Option and then the
@@ -10043,7 +10099,12 @@ class RustExpr {
             case TField(_, FStatic(c, cf)):
                 final path = staticItemPath(c.get(), cf.get().name);
                 final hoisted = activeStaticReadSubstitution != null ? activeStaticReadSubstitution.get(path) : null;
-                hoisted != null ? hoisted : "(*" + path + ").lock().unwrap().clone()";
+                if (hoisted != null)
+                    hoisted;
+                else if (RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type)))
+                    handleStaticRead(c.get(), cf.get().name);
+                else
+                    "(*" + path + ").lock().unwrap().clone()";
             case _: expr(e);
         };
     }
@@ -10760,27 +10821,29 @@ class RustExpr {
 
     /** The full field-write place through a mutable plain-class-handle
         static (h.field where h is a static var of Null<Holder>), or null
-        when the subject is not that shape. The MutexGuard derefs through
-        the SingleThread inner Option, the nullable slot unwraps, and the
-        handle borrows, so the rendered text is the place of the field of
-        the shared object. (HandleStaticWriteTarget) **/
+        when the subject is not that shape. The read of the owner-thread slot
+        yields the slot value, the nullable slot unwraps, and the handle
+        borrows, so the rendered text is the place of the field of the shared
+        object. (HandleStaticWriteTarget) **/
+    function staticHandleSlotPlace(subj:TypedExpr):Null<String> {
+        return switch (stripWrap(subj).expr) {
+            case TField(_, FStatic(c, scf)):
+                (!scf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(scf.get().type)))
+                    // The slot read yields an owned value, the nullable slot
+                    // unwraps into the handle, and the handle borrows, so the
+                    // caller reads and writes a place inside the shared
+                    // object. (HandleStaticWriteTarget, StaticRealization)
+                    ? handleStaticRead(c.get(), scf.get().name) + ".as_mut().unwrap().borrow_mut()"
+                    : null;
+            case _: null;
+        };
+    }
+
     function staticHandleFieldWritePlace(subj:TypedExpr):Null<String> {
         return switch (stripWrap(subj).expr) {
             case TField(s, FInstance(_, _, cf)):
-                final staticPath = switch (stripWrap(s).expr) {
-                    case TField(_, FStatic(c, scf)):
-                        (!scf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(scf.get().type)))
-                            ? staticItemPath(c.get(), scf.get().name)
-                            : null;
-                    case _: null;
-                };
-                staticPath == null ? null
-                    // The double deref opens the MutexGuard and the
-                    // SingleThread inner value with plain deref operators, so
-                    // no DerefMut trait import is needed at the write site.
-                    // (HandleStaticWriteTarget)
-                    : "(**(*" + staticPath + ").lock().unwrap_or_else(|e| e.into_inner())).as_mut().unwrap().borrow_mut()."
-                        + RustImports.toSnakeCase(cf.get().name);
+                final place = staticHandleSlotPlace(s);
+                place == null ? null : place + "." + RustImports.toSnakeCase(cf.get().name);
             case _: null;
         };
     }
@@ -10789,15 +10852,13 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
                 "*" + staticGuardMutable(c.get(), cf.get().name);
-            // A mutable plain-class static is LazyLock<Mutex<SingleThread<T>>>;
-            // write through the guard into the SingleThread inner value.
-            // (RcContainerStatic)
+            // A reassignable ThreadAffine handle static replaces its slot
+            // inside the owner-thread cell, so it has no assignable Rust
+            // place. The OpAssign path renders that write inside the
+            // with-closure; this function reports null so no other caller
+            // invents a place over the cell. (StaticRealization)
             case TField(_, FStatic(c, cf)) if (!cf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))):
-                // A mutable plain-class static is LazyLock<Mutex<SingleThread<T>>>;
-                // the assignment target derefs MutexGuard -> SingleThread -> T so
-                // the write reaches the inner value through the thread-affine
-                // guard. (RcContainerStatic)
-                "**(*" + staticItemPath(c.get(), cf.get().name) + ").lock().unwrap()";
+                null;
             case _: null;
         };
     }
@@ -10812,16 +10873,24 @@ class RustExpr {
         return path + ".lock().unwrap_or_else(|e| e.into_inner())";
     }
 
-    /** True when the expression reads any guard-static field anywhere. */
+    /** True when the expression reads any static whose access holds a lock
+        or a mutable cell borrow. Such a right side is hoisted into a local
+        before the target slot is written, so the write and the read never
+        hold two borrows of the same cell. (MutexGuardStatementScope,
+        RefCellStaticGuardScope) */
     function rhsMentionsGuardStatic(e:TypedExpr):Bool {
         var found = false;
         function walk(node:TypedExpr) {
             if (found)
                 return;
             switch (node.expr) {
-                case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                    found = true;
-                    return;
+                case TField(_, FStatic(c, cf)):
+                    final field = cf.get();
+                    if (isGuardStaticField(c.get(), field.name)
+                        || (field.kind.match(FVar(_, _)) && isThreadAffineStatic(field))) {
+                        found = true;
+                        return;
+                    }
                 case _:
             }
             haxe.macro.TypedExprTools.iter(node, walk);
@@ -11585,13 +11654,10 @@ class RustExpr {
     function mutableReceiver(subj:TypedExpr):String {
         // A field write through a mutable plain-class-handle static
         // (h.data[i] = v where h is a static var of Null<Holder>) must
-        // render the lock-guard place. A clone read out of the static
-        // is a value the DegradedLvalueGuard rightly refuses, and writing
-        // through it would
-        // not reach the shared object either. The guard derefs MutexGuard
-        // and SingleThread to &mut Option<Rc<RefCell<T>>>, unwraps the
-        // nullable slot, and borrows the handle so the field subscript is a
-        // place. (HandleStaticWriteTarget)
+        // render the place inside the shared object. The owner-thread slot
+        // read yields the nullable slot value, unwraps it, and borrows the
+        // handle, so the field subscript is a place that reaches the shared
+        // object. (HandleStaticWriteTarget, StaticRealization)
         final handleStaticPlace = staticHandleFieldWritePlace(subj);
         if (handleStaticPlace != null)
             return handleStaticPlace;
@@ -15334,7 +15400,15 @@ class RustExpr {
         return AssignTargetPlan.assignTarget(e, (arr, idx) -> optionContainerIndexAccess(arr, idx, true), e -> {
             final target = staticAssignmentTarget(e);
             return switch (e.expr) {
-                case TField(_, FStatic(c, cf)): target != null ? target : staticRef(c.get(), cf.get().name);
+                case TField(_, FStatic(c, cf)):
+                    // A ThreadAffine static has no assignable place: its
+                    // slot is replaced inside the owner-thread cell, which a
+                    // compound or increment form cannot express, and the raw
+                    // static name is never emitted as a target.
+                    // (StaticRealization)
+                    if (target == null && cf.get().kind.match(FVar(_, _)) && isThreadAffineStatic(cf.get()))
+                        fail(e, "a ThreadAffine static has no assignable Rust place; assign the field with = inside the owner-thread cell");
+                    target != null ? target : staticRef(c.get(), cf.get().name);
                 case _: fail(e, "assignment target has no Rust lowering");
             };
         }, (subj, kind, _) -> switch (kind) {
@@ -15345,6 +15419,12 @@ class RustExpr {
                 final staticHandlePlace = staticHandleFieldWritePlace(subj);
                 if (staticHandlePlace != null)
                     return staticHandlePlace;
+                // The receiver itself may be a mutable handle static
+                // (StaticX.current.field = v), whose slot place is the
+                // owner-thread value. (HandleStaticWriteTarget)
+                final staticSlotPlace = staticHandleSlotPlace(subj);
+                if (staticSlotPlace != null)
+                    return staticSlotPlace + "." + RustImports.toSnakeCase(cf.get().name);
                 // (IndexElementFieldWrite) A field assignment through an array
                 // element must reach the element in place, through the mutable
                 // index path, so the field write acts on the Vec element rather

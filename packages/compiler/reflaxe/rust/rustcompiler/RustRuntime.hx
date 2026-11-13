@@ -22,47 +22,7 @@ impl Exception {
 }
 ';
 
-    /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
-        live in a process-wide static. Every emitted static lowers as
-        LazyLock<Mutex<SingleThread<T>>>, so the Mutex owns exclusivity: reads
-        from a parallel test harness serialize, keeping the Rc refcount
-        race-free, and a legal serialized cross-thread read no longer trips a
-        thread-affine guard. SingleThread itself is a plain wrapper recording
-        the Haxe single-threaded value semantics. (SingleThreadStatic) */
-    public static final SINGLE_THREAD_SOURCE = '
-// SingleThread marks a value with Haxe single-threaded semantics (an Rc
-// handle) stored in a process-wide static. The emitting lowering always
-// wraps it in a Mutex (LazyLock<Mutex<SingleThread<T>>>), which serializes
-// every access -- including reads handed across threads by a parallel test
-// harness -- so an Rc<RefCell<T>> inside can never race.
-pub struct SingleThread<T> {
-    value: T,
-}
-
-impl<T> SingleThread<T> {
-    pub fn new(value: T) -> Self {
-        SingleThread { value }
-    }
-}
-
-impl<T> std::ops::Deref for SingleThread<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        &self.value
-    }
-}
-
-impl<T> std::ops::DerefMut for SingleThread<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.value
-    }
-}
-
-// SAFETY: SingleThread is only stored behind a Mutex, which provides the
-// synchronization a non-Send Rc payload needs for Send + Sync.
-unsafe impl<T> Send for SingleThread<T> {}
-unsafe impl<T> Sync for SingleThread<T> {}
-';    /** The Functional shim is precision-parameterized: sum_of_float keeps
+    /** The Functional shim is precision-parameterized: sum_of_float keeps
         the element binding at the Float width (f32 mode binds f32, f64 mode
         binds f64), but the accumulator is binary64 with one closing
         narrowing, matching std.Functional.sumOfFloat on the JVM/Kotlin

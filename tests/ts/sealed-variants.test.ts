@@ -217,9 +217,9 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.dart).toContain("static final instance = NoneDrawKind();");
     expect(trees.rust).not.toContain("#[allow(non_upper_case_globals)]");
-    // The static shape wraps the instance in the ruled LazyLock/Mutex/
-  // SingleThread container (target-semantic-policy.md:125).
-  expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: LazyLock<Mutex<SingleThread<Rc<RefCell<NoneDrawKind>>>>> = LazyLock::new(|| Mutex::new(SingleThread::new(NoneDrawKind::new())));");
+    // A class-handle static is ThreadAffine (target-semantic-policy.md
+  // P-1a): the owner-thread slot holds the Rc handle itself.
+  expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Rc<RefCell<NoneDrawKind>> = NoneDrawKind::new();");
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
@@ -267,7 +267,7 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(dart).toContain("DotDrawKind(dotDiameter=");
 
   expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-  expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: LazyLock<Mutex<SingleThread<Rc<RefCell<NoneDrawKind>>>>> = LazyLock::new(|| Mutex::new(SingleThread::new(NoneDrawKind::new())));");
+  expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Rc<RefCell<NoneDrawKind>> = NoneDrawKind::new();");
   expect(rust).toContain('return UString::from("NoneDrawKind").to_ustring();');
   expect(rust).toContain('"StripeDrawKind("');
   expect(rust).toContain('"DotDrawKind("');
