@@ -160,11 +160,11 @@ describe("default argument expansion generated tree", () => {
 
     // Method signatures carry clean typed parameter lists
     expect(content).toContain("pub fn default_args_ops_greet(name: &UStr, prefix: &UStr) -> UString");
-    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64");
-    expect(content).toContain("pub fn format_label(&self, label: Option<UString>, sep: &UStr) -> UString");
+    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: crate::TiqianFloat, flag: bool) -> crate::TiqianFloat");
+    expect(content).toContain("pub fn format_label(this: &Rc<RefCell<Self>>, label: Option<UString>, sep: &UStr) -> UString");
     expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &UStr, detail: Option<UString>) -> UString");
     expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> UString");
-    expect(content).toContain("pub fn default_args_ops_adjust(value: f64, step: f64) -> f64");
+    expect(content).toContain("pub fn default_args_ops_adjust(value: crate::TiqianFloat, step: crate::TiqianFloat) -> crate::TiqianFloat");
 
     // Rust normalizes parameter-reading defaults at entry in declaration order.
     expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &UStr, prefix: Option<UString>) -> UString");
@@ -178,40 +178,41 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32");
     expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::STATIC_STATE_OPS_LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
-    expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<UString>) -> UString");
-    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &UStr, q: Option<UString>) -> UString");
-    expect(content).toContain("let v = match &(p) { None => self.fallback_count, Some(__option4) => *__option4 };");
-    expect(content).toContain("let w = match &(q) { None => self.fallback_count, Some(__option5) => *__option5 };");
+    expect(content).toContain("pub fn instance_field_normalization(this: &Rc<RefCell<Self>>, p: Option<UString>) -> UString");
+    expect(content).toContain("pub fn earlier_local_normalization(this: &Rc<RefCell<Self>>, seed: &UStr, q: Option<UString>) -> UString");
+    expect(content).toContain("let v = match &(p) { None => this.borrow().fallback_count, Some(__option4) => *__option4 };");
+    expect(content).toContain("let w = match &(q) { None => this.borrow().fallback_count, Some(__option5) => *__option5 };");
 
 
     // Rust has no default syntax: omission is completed to None and each
     // entry point evaluates its sanctioned expression lazily.
-    expect(content).toContain("pub fn new(family_names: Option<Vec<UString>>) -> Self");
+    expect(content).toContain("pub fn new(family_names: Option<Vec<UString>>) -> Rc<RefCell<Self>>");
     expect(content).toContain("let family_names = family_names.unwrap_or_else(|| vec![]);");
-    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<f64>) -> f64");
-    expect(content).toContain("let value = value.unwrap_or_else(|| f64::INFINITY);");
+    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<crate::TiqianFloat>) -> crate::TiqianFloat");
+    expect(content).toContain("let value = value.unwrap_or_else(|| crate::TiqianFloat::INFINITY);");
     expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<UString, u32>>) -> HashMap<UString, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None) as crate::TiqianFloat;");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default(None);");
 
     // Call sites are fully expanded to full arity
     expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(UStr::new(&[65,100,97]), UStr::new(&[72,101,108,108,111]));');
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5f64, true);");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5f64, true);");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5f64, true);");
-    expect(content).toContain('return ops.format_label(Some(UString::from("item")), UStr::new(&[45]));');
-    expect(content).toContain('return ops.format_label(None, UStr::new(&[45]));');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5, true) as crate::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5, true) as crate::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5, true) as crate::TiqianFloat;");
+    expect(content).toContain('return DefaultArgsOps::format_label(&ops, Some(UString::from("item")), UStr::new(&[45]));');
+    expect(content).toContain('return DefaultArgsOps::format_label(&ops, None, UStr::new(&[45]));');
     expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(UStr::new(&[97,108,112,104,97]), Some(UString::from("extra")));');
     expect(content).toContain("return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0f64, -5.0f64);");
-    expect(content).toContain("return local_add(x, 100);");
-    expect(content).toContain("return local_add(x, 200);");
-    expect(content).toContain('return greeter.say(UStr::new(&[83,97,109]), UStr::new(&[85,115,101,114]));');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0, -5.0) as crate::TiqianFloat;");
+    expect(content).toContain("return local_add.borrow_mut()(x, 100);");
+    expect(content).toContain("return local_add.borrow_mut()(x, 200);");
+    // The interface receiver is a shared handle, so the call borrows it.
+    expect(content).toContain('return greeter.borrow().say(UStr::new(&[83,97,109]), UStr::new(&[85,115,101,114]));');
 
     // A coalescing default reading an earlier coalescing parameter enters
     // after the earlier parameter's entry binding.
-    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64");
+    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<crate::TiqianFloat>, value: Option<crate::TiqianFloat>) -> crate::TiqianFloat");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
     expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
     expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
@@ -219,7 +220,7 @@ describe("default argument expansion generated tree", () => {
     // The static initializer completes omitted coalescing arguments to
     // None exactly as function-body call sites do, because the per-
     // function pass never visits initializers.
-    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some(0.125), Some(0.5)));");
+    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some((0.125) as crate::TiqianFloat), Some((0.5) as crate::TiqianFloat)));");
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
@@ -228,26 +229,26 @@ describe("default argument expansion generated tree", () => {
     expect(fs.existsSync(swiftFile)).toBe(true);
     const content = fs.readFileSync(swiftFile, "utf8");
 
-    expect(content).toContain("public init(_ familyNames: TiqianArray<String> = TiqianArray())");
+    expect(content).toContain("public init(_ familyNames: BoringArray<[UInt16]> = BoringArray())");
     expect(content).toContain("static func infinityDefault(_ value: Double = Double.infinity) -> Double");
-    expect(content).toContain("static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]");
+    expect(content).toContain("public static func mapDefault(_ value: [[UInt16]: Int32] = [:]) -> [[UInt16]: Int32]");
     expect(content).toContain("return DefaultArgsOps.infinityDefault()");
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
-    expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
+    expect(content).toContain("public static func greetWithPrefix(_ name: [UInt16], _ prefix: [UInt16]? = nil) -> [UInt16]");
     expect(content).toContain("let prefix = prefix ?? name;");
-    expect(content).toContain("public static func fieldAccessSample(_ items: TiqianArray<String>, _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("public static func fieldAccessSample(_ items: BoringArray<[UInt16]>, _ count: Int32? = nil) -> Int32");
     expect(content).toContain("let count = count ?? Int32(items.count);");
-    expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
-    expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
-    expect(content).toContain("let normalized = normalized ?? text.uppercased();");
+    expect(content).toContain("public static func localeSample(_ lang: [UInt16], _ fallback: [UInt16]? = nil) -> [UInt16]");
+    expect(content).toContain("let fallback = fallback ?? (lang == Array(\"en\".utf16) ? Array(\"English\".utf16) : Array(\"Other\".utf16));");
+    expect(content).toContain("let normalized = normalized ?? Array(String(decoding: text, as: UTF16.self).uppercased().utf16);");
     expect(content).toContain("let clamped = clamped ?? DefaultArgsOps.clampBase(value);");
     expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("let offset = offset ?? value &+ 1;");
-    expect(content).toContain("func instanceFieldNormalization(_ p: String? = Optional<String>.none) -> String");
-    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String? = Optional<String>.none) -> String");
-    expect(content).toContain("let v: Int32? = p ?? self.fallbackCount");
-    expect(content).toContain("let w: Int32? = q ?? self.fallbackCount");
+    expect(content).toContain("public func instanceFieldNormalization(_ p: [UInt16]? = Optional<[UInt16]>.none) -> [UInt16]");
+    expect(content).toContain("public func earlierLocalNormalization(_ seed: [UInt16], _ q: [UInt16]? = Optional<[UInt16]>.none) -> [UInt16]");
+    expect(content).toContain("let v: Int32? = (p ?? self.fallbackCount)");
+    expect(content).toContain("let w: Int32? = (q ?? self.fallbackCount)");
 
     expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
     expect(content).toContain("let value = value ?? fallback;");
@@ -257,7 +258,11 @@ describe("default argument expansion generated tree", () => {
     // The field-carrying preset keeps constant coalescing defaults as
     // native Swift defaults and prints the labeled record text.
     expect(content).toContain("static let Default: CoalescingPreset = CoalescingPreset()");
-    expect(content).toContain('return "CoalescingPreset(base=\\(self.base), ceiling=\\(self.ceiling))"');
+    // The record text concatenates UTF-16 parts on this target (a Haxe String
+    // is a unit array), so the ruled text is asserted by its parts.
+    expect(content).toContain('Array("CoalescingPreset(".utf16)');
+    expect(content).toContain('Array("base=".utf16)');
+    expect(content).toContain('Array("ceiling=".utf16)');
     expect(content).not.toContain('return "CoalescingPreset"');
   });
 

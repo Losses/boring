@@ -19,6 +19,18 @@ import EmitSink;
     the storage-axis-only SAB refactor arrives with it.
 **/
 class SwiftCoerce {
+    /**
+        Nil-merge emission: the presence axis cannot express "replace an
+        absent value with this fallback", so the merge lives here beside
+        `coerce` and keeps the same single-site guarantee for the
+        outside-coerce guard. The fallback is rendered by the caller because
+        only it knows the sentinel the destination needs. (ResidentNilMerge)
+    **/
+    public static function coalesce(inner:String, fallback:String, pos:Null<Position>):String {
+        EmitSink.recordCoerce(pos, "Coalesce", "MaybeAbsent", false, "??");
+        return "(" + inner + " ?? " + fallback + ")";
+    }
+
     /** P5.2 forwarding entry (generic sites migrate in P5.4+). */
     public static function coerce(value:Lowered, dest:Destination):String {
         var out = value.text;

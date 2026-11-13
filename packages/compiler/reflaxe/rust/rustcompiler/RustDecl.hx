@@ -521,6 +521,7 @@ class RustDecl {
                 lines.push(l);
         }
         final printingMembers:Array<Array<String>> = [];
+        final contentComparingMembers:Array<Array<String>> = [];
         for (f in ordinaryFuncs) {
             if (f.isStatic) {
                 if (sep)
@@ -557,6 +558,8 @@ class RustDecl {
                     : instanceFuncDecl(cls, f, hasLifetime);
                 if (state.memberPrintsTypeParam) {
                     printingMembers.push(memberLines);
+                } else if (isSortedTableContentEquals(cls, f)) {
+                    contentComparingMembers.push(memberLines);
                 } else {
                     if (sep)
                         lines.push("");
@@ -576,6 +579,23 @@ class RustDecl {
                 if (debugSep)
                     lines.push("");
                 debugSep = true;
+                for (l in memberLines)
+                    lines.push(l);
+            }
+            lines.push("}");
+        }
+
+        if (contentComparingMembers.length > 0) {
+            final eqBoundList = hasLifetime
+                ? ["'a"].concat([for (n in classParams) n + ": Clone + PartialEq"])
+                : [for (n in classParams) n + ": Clone + PartialEq"];
+            final eqGenerics = eqBoundList.length > 0 ? "<" + eqBoundList.join(", ") + ">" : "";
+            lines.push("\nimpl" + eqGenerics + " " + emittedName + genericStr + " {");
+            var eqSep = false;
+            for (memberLines in contentComparingMembers) {
+                if (eqSep)
+                    lines.push("");
+                eqSep = true;
                 for (l in memberLines)
                     lines.push(l);
             }
@@ -2393,6 +2413,20 @@ class RustDecl {
         final methodGenericStr = finalMethodParams.length > 0 ? "<" + finalMethodParams.join(", ") + ">" : "";
         final head = '    ${effectiveVis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+    }
+
+    /**
+        True for the sorted-table content comparators. They compare the
+        resident's type parameters element by element, so their impl block
+        carries `PartialEq` on top of the Clone bound every other resident
+        member needs; the sort key's `get`/`has`/`size` reads keep the
+        Clone-only bound set. (SortedTableContentEq)
+    **/
+    static function isSortedTableContentEquals(cls:ClassType, f:reflaxe.data.ClassFuncData):Bool {
+        if (f.field.name != "contentEquals")
+            return false;
+        final name = RustImports.emittedTypeName(cls.name);
+        return name == "SortedMapTable" || name == "SortedSetTable";
     }
 
     /** True when the body names the local anywhere, read or assignment target. */

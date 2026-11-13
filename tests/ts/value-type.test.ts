@@ -122,16 +122,27 @@ describe("value wrapper generated trees", () => {
     expect(dart).toContain("FontFaceId makeFontFaceId(String value)");
 
     const rust = read("reference/rust/gen/boring/value_type_ops.rs");
-    expect(rust).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f64);");
-    expect(rust).not.toContain("pub struct Ic(pub f64);\n\nimpl Eq");
+    // The wrapper stores the crate's float alias, not a hard-coded width; the
+    // width itself is ruled once by the cfg-gated alias in lib.rs, so the two
+    // trees cannot drift apart in the struct body.
+    expect(rust).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub crate::TiqianFloat);");
+    expect(rust).not.toContain("pub struct Ic(pub f64);");
+    expect(rust).not.toContain("pub struct Ic(pub f32);");
+    expect(rust).not.toContain("pub struct Ic(pub crate::TiqianFloat);\n\nimpl Eq");
+    const rustLib = read("reference/rust/gen/lib.rs");
+    expect(rustLib).toContain('#[cfg(feature = "f32")]\npub type TiqianFloat = f32;');
+    expect(rustLib).toContain('#[cfg(not(feature = "f32"))]\npub type TiqianFloat = f64;');
     expect(rust).toContain("impl std::ops::Add for Ic");
     expect(rust).toContain("impl std::ops::Neg for Ic");
     expect(rust).toContain("impl std::fmt::Display for FontFaceId");
     expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub UString);");
 
     const rustF32 = read("reference/rust-f32/gen/boring/value_type_ops.rs");
-    expect(rustF32).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f32);");
-    expect(rustF32).not.toContain("pub struct Ic(pub f32);\n\nimpl Eq");
+    expect(rustF32).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub crate::TiqianFloat);");
+    expect(rustF32).not.toContain("pub struct Ic(pub f32);");
+    expect(rustF32).not.toContain("pub struct Ic(pub crate::TiqianFloat);\n\nimpl Eq");
+    const rustF32Lib = read("reference/rust-f32/gen/lib.rs");
+    expect(rustF32Lib).toContain('#[cfg(feature = "f32")]\npub type TiqianFloat = f32;');
   });
 
   test("rejects each invalid marker shape with the ruled error on every target", () => {

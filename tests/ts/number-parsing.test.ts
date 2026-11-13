@@ -40,14 +40,19 @@ describe("number parsing renderings", () => {
     const rust = read("reference/rust/gen/boring/number_parsing_ops.rs");
     expect(rust).toContain("u_string::parse_f64(&(value))"); expect(rust).toContain("u_string::parse_i32(&(value))");
     expect(rust).toContain("-> Option<i32>"); expect(rust).not.toContain("parse::<");
-    expect(read("reference/rust-f32/gen/boring/number_parsing_ops.rs")).toContain("u_string::parse_f32(&(value))");
+    // The parse edge keeps the binary64 protocol width in both feature
+    // settings (RustRuntime.hx parse_f64 comment) and the closing cast names
+    // the TiqianFloat alias, so the f32 tree reads the same entry.
+    expect(read("reference/rust-f32/gen/boring/number_parsing_ops.rs")).toContain("u_string::parse_f64(&(value)) as crate::TiqianFloat");
     expect(read("reference/kotlin-f32/gen/boring/NumberParsingOps.kt")).toContain("toFloatOrNull");
     withTargetTree("swift-f32", "number-parsing: all target trees use the validated implementation (swift-f32)", () => {
       const swiftF32 = read("reference/swift-f32/gen/boring/NumberParsingOps.swift");
       const swiftF32Runtime = read("reference/swift-f32/gen/Runtime.swift");
       expect(swiftF32Runtime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
       expect(swiftF32Runtime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
-      expect(swiftF32).toContain("return parseIntRuntime(value)");
+      // Same host-edge conversion as the f64 tree: the module converts the
+      // [UInt16] argument to a native String before the scan.
+      expect(swiftF32).toContain("return parseIntRuntime(String(decoding: value, as: UTF16.self))");
       expect(swiftF32Runtime).not.toContain("import Foundation"); expect(swiftF32Runtime).not.toContain("NSRegularExpression");
     });
   });

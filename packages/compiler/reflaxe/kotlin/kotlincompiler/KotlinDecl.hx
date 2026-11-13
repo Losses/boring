@@ -525,8 +525,11 @@ class KotlinDecl {
         }
         final fieldName = first.name;
         final representation = types.of(info.representation);
+        // features/02-abstract-types.md:197 rules the Kotlin representation:
+        // "@JvmInline value class Name(val field: Rep)" with the declared
+        // members, so the wrapper stays unboxed at the primitive boundary.
         final lines:Array<String> = [
-            "data class " + info.name + "(val " + fieldName + ": " + representation + ") {"
+            "@JvmInline\nvalue class " + info.name + "(val " + fieldName + ": " + representation + ") {"
         ];
 
         if (ctor != null && ValueTypeSupport.constructorThrows(abs)) {

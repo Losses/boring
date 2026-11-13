@@ -6601,7 +6601,7 @@ class SwiftExpr {
         final optional = swiftPresence(leaf) != Present;
         final nilText = "Array(\"null\".utf16)";
         if (isStringLeafType(leaf.t)) {
-            return optional ? "(" + expr(leaf) + " ?? " + nilText + ")" : expr(leaf);
+            return optional ? SwiftCoerce.coalesce(expr(leaf), nilText, leaf.pos) : expr(leaf);
         }
         if (isUnitArrayTyped(leaf)) {
             return expr(leaf);

@@ -41,8 +41,10 @@ test("a null-guarded ternary arm laundered by a transparent cast unwraps", async
   expect(source, "cast-laundered array-element arm unwraps").toContain(
     "(LitCastOptionalOps.edges()[Int(0)].inlineStart == nil ? -1.0 : (LitCastOptionalOps.edges()[Int(0)].inlineStart)!)",
   );
-  // A local subject is a nil-merge site.
-  expect(source, "local subject coalesces").toContain("return e.inlineStart ?? -1.0");
+  // A local subject is a nil-merge site. The merge renders parenthesised
+  // (SwiftExpr.hx anchor for the coalescing arm), which is the same claim:
+  // the arm merges instead of unwrapping in a ternary.
+  expect(source, "local subject coalesces").toContain("return (e.inlineStart ?? -1.0)");
   // The whole expression stays optional here, so neither arm may unwrap.
   expect(source, "optional whole keeps both arms optional").toContain(
     "(LitCastOptionalOps.edges()[Int(0)].inlineStart == nil ? nil : LitCastOptionalOps.edges()[Int(0)].inlineStart)",

@@ -145,12 +145,15 @@ class SortedMapTable<K, V> {
         differ) and expensive.
     **/
     public function contentEquals(other:SortedMapTable<K, V>):Bool {
-        if (other == null || size() != other.size()) {
+        // The parameter is non-optional in the lowering, so a nil test folds
+        // to false and the Swift target warns on it (NonOptionalNilComparison).
+        // Call sites pass a table field, never nil, so the guard is dropped
+        // rather than folded in one target and live in another.
+        if (size() != other.size()) {
             return false;
         }
-        final total = size();
         var index = 0;
-        while (index < total) {
+        while (index < keys.length) {
             if (keyAt(index) != other.keyAt(index) || valueAt(index) != other.valueAt(index)) {
                 return false;
             }
@@ -347,12 +350,13 @@ class SortedSetTable<K> {
         printed forms.
     **/
     public function contentEquals(other:SortedSetTable<K>):Bool {
-        if (other == null || size() != other.size()) {
+        // Non-optional parameter, so the nil test folds to false in the
+        // lowered targets; see SortedMapTable.contentEquals.
+        if (size() != other.size()) {
             return false;
         }
-        final total = size();
         var index = 0;
-        while (index < total) {
+        while (index < keys.length) {
             if (at(index) != other.at(index)) {
                 return false;
             }

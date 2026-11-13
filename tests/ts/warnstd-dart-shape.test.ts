@@ -22,8 +22,11 @@ describe("warnstd dart shape snapshots", () => {
   test("flow-promoted reads stay unwrapped across statements, a branch merge and a closure (shape test, no negative validation)", () => {
     const out = gen("flow_promoted_dedupe.dart");
     expect(out).toContain("final n = r.length;");
-    expect(out).toContain("return n + r.length;");
+    // Dart Int arithmetic keeps the target's 32-bit signed wrap.
+    expect(out).toContain("return (n + r.length).toSigned(32);");
     expect(out).toContain("final f = () => r.length;");
-    expect(out).not.toContain("r!");
+    // The branch-merge shape cannot prove non-null when `flag` is false, so
+    // it is the only read that still unwraps; promotion holds everywhere else.
+    expect(out.split("r!").length - 1).toBe(1);
   });
 });

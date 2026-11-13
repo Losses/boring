@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Collected guard for the per-character units hoisting of the Rust target.
 #
-# Why this fixture exists: `u_string::units` materializes the receiver's UTF-16
-# vector, and on a `&str`-backed runtime `u_string::unit_at` rescans the source
-# up to the read index. Both are O(n) in the string length, so a per-character
-# walk that re-materializes them once per step is quadratic. Two shapes used to
-# do exactly that and both are asserted here:
+# Why this fixture exists: on a `&str`-backed runtime `u_string::unit_at`
+# rescans the source up to the read index, which is O(n) in the string length,
+# so a per-character walk that rescans once per step is quadratic. The runtime
+# now stores UTF-16 units, and the target hoists one borrowed view of them
+# (`let __units = <receiver>.as_slice();`) plus one unit count per function, so
+# every step reads O(1) through `u_string::unit_at_from(__units, i)`. The early
+# form copied the vector with `u_string::units(&receiver)`; the count below is
+# therefore of hoist statements, not of that copy. Two shapes used to re-scan
+# per step and both are asserted here:
 #
 #   1. a per-character loop nested inside another per-character loop over the
 #      same receiver re-materialized the vector on every entry into the inner
@@ -15,14 +19,12 @@
 #      through the interval path, which had no per-character hoist at all, so
 #      every step called `u_string::unit_at(&s, i)`.
 #
-# The assertions are per-function `u_string::units(` counts, which is what makes
-# them discriminating. Measured on this fixture before
-# the fix (RustExpr.hx @ 45743ba4): strip_whole_fraction 3, while_dot_count 2,
-# while_local_dot_count 1, for_range_dot_count 1, for_range_local_dot_count 0,
-# file total 7. After: 1, 1, 1, 1, 1, total 5. The two functions whose count did
-# not move (while_local_dot_count, for_range_dot_count) are kept on purpose:
-# they prove the scan is counting the emitted hoists, so a "1" elsewhere
-# is not a vacuous zero.
+# The assertions are per-function hoist counts -- `let __unitsN = ....as_slice();`
+# statements, which is what makes them discriminating. Every root function in
+# this fixture hoists exactly one view and reads through it, so the expected
+# count is 1/1 (one view, one unit count) everywhere and 5 module-wide. The
+# vacuity controls (while_local_dot_count, for_range_dot_count) stay: if the
+# scan stopped matching the emitted hoist they would report 0, not pass.
 #
 # A missing toolchain is environment-not-reached and is reported as such, never
 # silently skipped (house convention, cf. tests/haxe/rust-resident-dataclass).
@@ -74,10 +76,10 @@ check_fn() { # <function> <expected units count> <expected unit_count count>
         FAILED=1
         return
     fi
-    got_units="$(count_in "$block" 'u_string::units(')"
+    got_units="$(count_in "$block" '\.as_slice();')"
     got_count="$(count_in "$block" 'u_string::unit_count(')"
     if [ "$got_units" != "$want_units" ] || [ "$got_count" != "$want_count" ]; then
-        echo "FAIL: $name has $got_units u_string::units( and $got_count u_string::unit_count(, expected $want_units/$want_count"
+        echo "FAIL: $name has $got_units .as_slice(); hoists and $got_count u_string::unit_count(, expected $want_units/$want_count"
         echo "----- $name -----"
         printf '%s\n' "$block"
         echo "------------------"
@@ -108,7 +110,7 @@ if printf '%s\n' "$RANGE_LOCAL" | grep -q 'u_string::unit_at(&'; then
     echo "FAIL: the interval walk still rescans the source with u_string::unit_at(&s, i)"
     FAILED=1
 fi
-if ! printf '%s\n' "$RANGE_LOCAL" | grep -q 'u_string::unit_at_from(&__units'; then
+if ! printf '%s\n' "$RANGE_LOCAL" | grep -q 'u_string::unit_at_from(__units'; then
     echo "FAIL: the interval walk does not read from a hoisted unit vector"
     FAILED=1
 fi
@@ -117,12 +119,12 @@ if ! printf '%s\n' "$RANGE_LOCAL" | grep -qE 'for i in [^.]*\.\.__count'; then
     FAILED=1
 fi
 
-TOTAL="$(count_in "$(cat "$GEN")" 'u_string::units(')"
+TOTAL="$(count_in "$(cat "$GEN")" '\.as_slice();')"
 if [ "$TOTAL" != "5" ]; then
-    echo "FAIL: the module materializes $TOTAL unit vectors, expected 5 (one per root function)"
+    echo "FAIL: the module hoists $TOTAL unit views, expected 5 (one per root function)"
     FAILED=1
 else
-    echo "ok: module-wide u_string::units( count = $TOTAL"
+    echo "ok: module-wide .as_slice(); hoist count = $TOTAL"
 fi
 
 [ "$FAILED" -eq 0 ] || { echo "FAILED"; exit 1; }

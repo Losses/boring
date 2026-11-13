@@ -33,7 +33,7 @@ describe("sorted dataClass key generated trees", () => {
     expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain("locale: string | null =");
     expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain("locale: String? =");
     withTargetTree("swift", "sorted-dataclass-keys: pins nullable folded constructor defaults", () => {
-      expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain("_ locale: String? = nil");
+      expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain("_ locale: [UInt16]? = nil");
     });
     expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain("[String? locale]");
   });

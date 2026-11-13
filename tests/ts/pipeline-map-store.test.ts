@@ -15,6 +15,8 @@ describe("Dart pipeline map store lowering", () => {
       path.resolve(__dirname, "../../reference/dart/gen/lib/boring/pipeline_ops.dart"),
       "utf8",
     );
-    expect(pipeline).toContain("pipeline_result1.add(v2 * 10);");
+    // The mapped value keeps the Dart Int wrap the target rules for
+    // arithmetic (toSigned(32)); the write itself is still a growing-list add.
+    expect(pipeline).toContain("pipeline_result1.add((v2 * 10).toSigned(32));");
   });
 });

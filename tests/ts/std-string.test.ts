@@ -73,7 +73,7 @@ describe("Std.string lowering", () => {
       ["ts", "reference/ts/gen/boring/StdStringOps.ts", 'let out = "["', "const n =", "for (let i = 0; i < n; i += 1)"],
       ["kotlin", "reference/kotlin/gen/boring/StdStringOps.kt", "StringBuilder()", "val n =", "while (i < n)"],
       ["rust", "reference/rust/gen/boring/std_string_ops.rs", "String::new()", "let n =", 'write!(out, "{}"'],
-      ["swift", "reference/swift/gen/boring/StdStringOps.swift", 'var out = "["', "let n =", "while i < n"],
+      ["swift", "reference/swift/gen/boring/StdStringOps.swift", 'var out = Array("[".utf16)', "let n =", "while i < n"],
       ["dart", "reference/dart/gen/lib/boring/std_string_ops.dart", 'StringBuffer("[")', "final n =", "while (i < n)"],
     ] as const;
     for (const [target, file, accumulator, length, loop] of rows) {

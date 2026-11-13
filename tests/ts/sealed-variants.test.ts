@@ -82,6 +82,9 @@ async function generateSelfConstruction(
     "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
     `--macro ${target.compiler}`,
     `-D ${target.define}=${output}`,
+    // A consumer build that references the resident module needs the runtime
+    // package identity, exactly like examples/rust.hxml:19 supplies it.
+    ...(target.id === "rust" ? ["-D runtime-import=crate::runtime"] : []),
     ...(target.id === "dart" ? [`-D dart-test-output=${output}-tests`] : []),
     "boring.NoneDrawKind",
     "",
@@ -214,7 +217,9 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.dart).toContain("static final instance = NoneDrawKind();");
     expect(trees.rust).not.toContain("#[allow(non_upper_case_globals)]");
-    expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
+    // The static lane wraps the instance in the ruled LazyLock/Mutex/
+  // SingleThread container (target-semantic-policy.md:125).
+  expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: LazyLock<Mutex<SingleThread<Rc<RefCell<NoneDrawKind>>>>> = LazyLock::new(|| Mutex::new(SingleThread::new(NoneDrawKind::new())));");
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
@@ -247,8 +252,12 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
     // A Haxe String is Array<UInt16> on Swift (INTERFACE-REQUIREMENTS.md:235),
     // so the description literal renders as a UTF-16 unit array.
     expect(swift).toContain('return Array("NoneDrawKind".utf16)');
-    expect(swift).toContain("StripeDrawKind(strokeWidth=");
-    expect(swift).toContain("DotDrawKind(dotDiameter=");
+    // The record text is concatenated from UTF-16 parts on this target, so
+    // the ruled text is asserted as its class-name and field-name parts.
+    expect(swift).toContain('Array("StripeDrawKind(".utf16)');
+    expect(swift).toContain('Array("strokeWidth=".utf16)');
+    expect(swift).toContain('Array("DotDrawKind(".utf16)');
+    expect(swift).toContain('Array("dotDiameter=".utf16)');
   });
 
   expect(dart).toContain("abstract class DrawKind");
@@ -258,7 +267,7 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(dart).toContain("DotDrawKind(dotDiameter=");
 
   expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-  expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
+  expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: LazyLock<Mutex<SingleThread<Rc<RefCell<NoneDrawKind>>>>> = LazyLock::new(|| Mutex::new(SingleThread::new(NoneDrawKind::new())));");
   expect(rust).toContain('return UString::from("NoneDrawKind").to_ustring();');
   expect(rust).toContain('"StripeDrawKind("');
   expect(rust).toContain('"DotDrawKind("');
