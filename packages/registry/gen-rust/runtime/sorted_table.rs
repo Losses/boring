@@ -146,6 +146,22 @@ impl<K: Clone + std::fmt::Debug, V: Clone + std::fmt::Debug> SortedMapTable<K, V
     }
 }
 
+impl<K: Clone + PartialEq, V: Clone + PartialEq> SortedMapTable<K, V> {
+    pub fn content_equals(&self, other: SortedMapTable<K, V>) -> bool {
+        if u32::from_ne_bytes(((self.size()) as u32).to_ne_bytes()) != u32::from_ne_bytes(((other.size()) as u32).to_ne_bytes()) {
+            return false;
+        }
+        let mut index = 0i32;
+        while (index) < (i32::from_ne_bytes(u32::try_from((((self.keys).clone()).len()) & 4294967295).unwrap_or(0).to_ne_bytes())) {
+            if self.key_at(index) != other.key_at(index) || self.value_at(index) != other.value_at(index) {
+                return false;
+            }
+            index = i32::wrapping_add(index, 1);
+        }
+        return true;
+    }
+}
+
 #[derive(Clone)]
 pub struct SortedMapTableBuilder<K, V> {
     pub keys: Vec<K>,
@@ -316,6 +332,22 @@ impl<K: Clone + std::fmt::Debug> SortedSetTable<K> {
             i = i32::wrapping_add(i, 1);
         }
         return UString::from(format!("{}", { let mut __s = UString::new(); __s += out.as_ustr(); __s += &(UString::from("]")); __s }).as_str());
+    }
+}
+
+impl<K: Clone + PartialEq> SortedSetTable<K> {
+    pub fn content_equals(&self, other: SortedSetTable<K>) -> bool {
+        if u32::from_ne_bytes(((self.size()) as u32).to_ne_bytes()) != u32::from_ne_bytes(((other.size()) as u32).to_ne_bytes()) {
+            return false;
+        }
+        let mut index = 0i32;
+        while (index) < (i32::from_ne_bytes(u32::try_from((((self.keys).clone()).len()) & 4294967295).unwrap_or(0).to_ne_bytes())) {
+            if self.at(index) != other.at(index) {
+                return false;
+            }
+            index = i32::wrapping_add(index, 1);
+        }
+        return true;
     }
 }
 

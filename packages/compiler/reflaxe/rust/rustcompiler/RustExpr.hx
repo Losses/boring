@@ -2006,7 +2006,13 @@ class RustExpr {
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
                                 && !isTypeCopy(cf.get().type)):
-                                initStr += ".clone()";
+                                // A non-Copy field read through a borrowed base
+                                // already renders (recv.borrow().field).clone(),
+                                // which owns the value. A second clone copies it
+                                // again and changes nothing the local holds.
+                                // (LetBindingFieldClone)
+                                if (!StringTools.endsWith(initStr, ".clone()"))
+                                    initStr += ".clone()";
                             case _:
                         }
                         // A non-Copy field of an owned vec type moved into a

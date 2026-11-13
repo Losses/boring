@@ -394,7 +394,7 @@ impl Core {
             let mut vs: Vec<JsonField> = vec![];
             for r in &g {
                 let mut f = Core::core_fields((*r).clone());
-                let ru = (r.url).clone().clone();
+                let ru = (r.url).clone();
                 let u = match &(ru) { None => UString::from(""), Some(__option6) => __option6.to_ustring() };
                 f.push(JsonField { name: UString::from("dist").to_ustring(), value: Core::core_o(&vec![
     (JsonField { name: UString::from("tarball").to_ustring(), value: Core::core_s(u.as_ustr()) }).clone(),
@@ -420,9 +420,9 @@ impl Core {
             let g = Core::core_group(&a, UStr::new(&[112,117,98]), n.as_ustr())?;
             let mut vs: Vec<JsonValue> = vec![];
             for r in &g {
-                let ru = (r.url).clone().clone();
+                let ru = (r.url).clone();
                 let u = match &(ru) { None => UString::from(""), Some(__option7) => __option7.to_ustring() };
-                let rpp = (r.pubspec).clone().clone();
+                let rpp = (r.pubspec).clone();
                 vs.push(Core::core_o(&vec![
     (JsonField { name: UString::from("version").to_ustring(), value: Core::core_s((r.version).to_ustring().as_ustr()) }).clone(),
     (JsonField { name: UString::from("archive_url").to_ustring(), value: Core::core_s(u.as_ustr()) }).clone(),
@@ -481,7 +481,7 @@ impl Core {
             }
             Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("swift/")); __s += scope; __s += &(UString::from("/")); __s += n.as_ustr(); __s += &(UString::from(".json")); __s }).as_str()).as_ustr(), Json::json_write(Core::core_o(&vec![(JsonField { name: UString::from("releases").to_ustring(), value: Core::core_o(&rs) }).clone()])).as_ustr());
             for r in &g {
-                let rps = (r.package_swift).clone().clone();
+                let rps = (r.package_swift).clone();
                 let ps = match &(rps) { None => UString::from(""), Some(__option12) => __option12.to_ustring() };
                 Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("swift/")); __s += scope; __s += &(UString::from("/")); __s += n.as_ustr(); __s += &(UString::from("/")); __s += (r.version).to_ustring().as_ustr(); __s += &(UString::from(".json")); __s }).as_str()).as_ustr(), Json::json_write(Core::core_o(&vec![
     (JsonField { name: UString::from("id").to_ustring(), value: Core::core_s(UString::from(format!("{}", { let mut __s = UString::new(); __s += scope; __s += &(UString::from(".")); __s += n.as_ustr(); __s }).as_str()).as_ustr()) }).clone(),
@@ -562,7 +562,7 @@ Some(__option14) => (*__option14).clone() };
             if r.platform.to_ustring() == UString::from("maven") {
                 for fi in 0..match u32::try_from((r.artifacts).clone().len()) { Ok(value) => value, Err(_) => u32::MAX } {
                     let file = (r.artifacts[usize::try_from(fi).unwrap_or(0)]).clone();
-                    let rg = (r.group_id).clone().clone();
+                    let rg = (r.group_id).clone();
                     let gid = match &(rg) { None => UString::from(""), Some(__option15) => __option15.to_ustring() };
                     let maven_target = match &(r.repository) { None => UString::from(format!("{}", { let mut __s = UString::new(); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s }).as_str()),
 Some(__option16) => (*__option16).clone() };
