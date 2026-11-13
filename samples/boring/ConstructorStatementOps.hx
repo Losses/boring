@@ -4,6 +4,7 @@ package boring;
 
 using std.Functional;
 
+@:mainOnly
 class ConstructorStatementOps {
     public var filled:Array<Int>;
     public var mapped:Array<Int>;

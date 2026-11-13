@@ -6,6 +6,7 @@ enum ExtensionMode {
 }
 
 /** Native extension declarations backed by plain Haxe static calls. */
+@:mainOnly
 class ExtensionOps {
     @:extension
     public static function modeLabel(mode:ExtensionMode, suffix:String):String {

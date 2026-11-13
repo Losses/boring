@@ -5,6 +5,7 @@ package boring;
  * over record member synthesis on every target.
  */
 @:dataClass
+@:mainOnly
 class PrintedCustom {
     public final value:Int;
 

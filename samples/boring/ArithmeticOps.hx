@@ -3,6 +3,7 @@ package boring;
 import std.Arithmetic;
 import std.IntRange;
 
+@:mainOnly
 class ArithmeticOps {
     public static function checkWithinInt(value:Int, low:Int, high:Int):Bool {
         return Arithmetic.within(value, low, high);

@@ -1,6 +1,7 @@
 package boring;
 
 /** File-scope functions extracted from a marked static namespace. */
+@:mainOnly
 class FileLevelOps {
     @:topLevel
     public static function publicValue(value:Int):Int {

@@ -41,6 +41,7 @@ class FramePolicy {
     public static final generated:FramePolicy = new FramePolicy("generated", FrameMode.Plain, []);
 }
 
+@:mainOnly
 class ConstructedStateOps {
     public static function labels():String {
         return FramePolicy.weighted.label

@@ -14,6 +14,7 @@ enum ReverseTier {
     Earlier;
 }
 
+@:mainOnly
 class EnumSortedKeysOps {
     public static function describe():String {
         final b:SortedSetBuilder<EnumTier> = SortedSet.builder();
