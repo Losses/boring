@@ -115,9 +115,16 @@ reach every expression category the ruling below admits.
   TypeScript tree carries `static readonly` over the construction; the
   Kotlin tree carries `val name: FramePolicy = FramePolicy(`; the Swift
   tree carries `static let`; the Dart tree carries `static final`; the
-  Rust tree carries `LazyLock<`, `LazyLock::new`, and the
-  `#[allow(non_upper_case_globals)]` attribute, with reads rendering
-  `&*`.
+  Rust tree carries `LazyLock<`, `LazyLock::new`, and a `Mutex` inside the
+  slot (see the Mutex row above: the parallel test harness needs it), with
+  reads rendering `(*NAME).lock()`. The
+  `#[allow(non_upper_case_globals)]` attribute appears only when the emitted
+  name is not uniformly upper case. Two consequences follow from the row above
+  rather than from the current output: the `Mutex` is there because a
+  parallel `cargo test` reads the slot from several threads while the slot's
+  shared handle is an `Rc`, and the read form follows the `Mutex` — the guard
+  is what makes the read sound, so the read spells `(*NAME).lock()` instead of
+  the bare deref of a lock-free slot.
 - Mutation checks: a `static var` field with a construction initializer
   stops generation with the feature 30 text; a final field with a static
   function call at the root stops generation with the rule 3 final-field
