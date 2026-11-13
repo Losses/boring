@@ -6711,9 +6711,12 @@ class RustExpr {
                 final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
                 if (recorded != null)
                     return {name: recorded.name, module: recorded.module};
-                final messageOnly = state.messageOnlyExceptions.get(caught.module);
-                if (messageOnly != null)
-                    return {name: messageOnly, module: cls.get().module};
+                // The registry keeps one class per module, so its name is the
+                // last registered message-only exception of that module and
+                // not the one this clause catches. Classify the caught class.
+                if (state.messageOnlyExceptions.exists(caught.module)
+                    && RustDecl.isMessageOnlyException(caught))
+                    return {name: caught.name, module: caught.module};
                 final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
                 final enumModule = state.exceptionPayloads.get(classKey);
                 if (enumModule == null) {

@@ -3220,9 +3220,13 @@ class Compiler extends PluginCompiler<Compiler> {
                 final payload = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
                 if (payload != null)
                     return payload.name;
-                final messageOnly = state.messageOnlyExceptions.get(caught.module);
-                if (messageOnly != null)
-                    return messageOnly;
+                // Same shape one step further out: the message-only registry
+                // is keyed by module and keeps the last registered class, so
+                // reading the name back out named that class for every catch
+                // in the module. Ask the caught class itself.
+                if (state.messageOnlyExceptions.exists(caught.module)
+                    && RustDecl.isMessageOnlyException(caught))
+                    return caught.name;
                 final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
                 final enumModule = state.exceptionPayloads.get(classKey);
                 if (enumModule == null)

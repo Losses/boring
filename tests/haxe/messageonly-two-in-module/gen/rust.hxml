@@ -1,0 +1,13 @@
+# Cross-check boundary fixture: messageonly-two-in-module
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/messageonly-two-in-module
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/messageonly-two-in-module'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+msgonlyscope.MsgOnlyTwoProbe
