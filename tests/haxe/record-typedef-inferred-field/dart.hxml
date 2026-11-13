@@ -1,0 +1,22 @@
+# Dart generation input for the record-typedef shape-lookup fixture
+# (board t-mwficz03-x636). The caller supplies -D dart-output=<dir> and
+# -D dart-test-output=<dir>; this file is otherwise the complete generation
+# input. Run from the worktree root:
+#   haxe tests/haxe/record-typedef-inferred-field/dart.hxml #     -D dart-output=<dir> -D dart-test-output=<dir>
+#
+# -cp packages/compiler names this tree's emitter explicitly, so the fixture
+# always measures the tree it lives in; the workspace haxelib projection is
+# bypassed (PIT-376). runtime-emit=. writes runtime.dart inside the output
+# tree so dart analyze resolves it relatively.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/haxe/record-typedef-inferred-field
+--macro Intercept.run(['samples', 'tests/haxe/record-typedef-inferred-field'])
+--macro dartcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D dart-test-runner=native
+exposed.Records

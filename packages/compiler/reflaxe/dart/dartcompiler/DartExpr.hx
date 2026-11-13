@@ -4252,12 +4252,28 @@ class DartExpr {
         }
         return switch (Context.follow(t)) {
             case TType(d, _): d.get();
-            case TAnonymous(anon):
-                final def = DartDecl.structTypedefs.get(DartDecl.structureSignature(anon));
-                def == null ? null : def.get();
+            case TAnonymous(anon): resolveAnonymousRecordDef(anon);
             case TLazy(f): resolveRecordDef(f());
             case _: null;
         };
+    }
+
+    /**
+        A literal's anonymous structure against the shape registry: the exact
+        signature first, then the unification fallback that the Rust and
+        Kotlin backends already use. The fallback only differs by the type
+        the typer inferred for each field (e.g. a Null<String> literal field
+        against the typedef's String); the field-name sets must still be
+        equal and every field type must unify, and an ambiguous fit stays a
+        miss.
+    **/
+    function resolveAnonymousRecordDef(anon:Ref<AnonType>):Null<DefType> {
+        final def = DartDecl.structTypedefs.get(DartDecl.structureSignature(anon));
+        if (def != null) {
+            return def.get();
+        }
+        final unified = PolicyQueries.matchStructTypedefDefByUnification(anon, DartDecl.structTypedefs);
+        return unified == null ? null : unified.get();
     }
 
     /** The record's field names in declaration order, alias chains followed. */

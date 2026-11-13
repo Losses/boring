@@ -858,24 +858,66 @@ class PolicyQueries {
             final tdefAnon = typedefAnonFields(entry);
             if (tdefAnon == null)
                 continue;
-            final fields = tdefAnon.get().fields;
-            if (fields.length != lit.fields.length)
-                continue;
-            var ok = true;
-            for (f in fields) {
-                final litType = litTypes.get(f.name);
-                if (litType == null || !Context.unify(litType, f.type)) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (!ok)
+            if (!structUnifiesWith(lit, litTypes, tdefAnon.get()))
                 continue;
             if (best != null)
                 return null;
             best = entry;
         }
         return best;
+    }
+
+    /**
+        The same unification fallback for a registry that already holds the
+        typedef definition: the Dart and Swift shape registries keep
+        Ref<DefType>; the candidate's anonymous structure is therefore read
+        straight off the definition, with no module re-resolution. The rule
+        is the shared one: equal field-name sets, every literal field type
+        unifying with the declared one, and an ambiguous fit still a miss.
+    **/
+    public static function matchStructTypedefDefByUnification(anon:Ref<AnonType>, registry:Map<String, Ref<DefType>>):Null<Ref<DefType>> {
+        SharedModuleTrace.record("PolicyQueries");
+        final lit = anon.get();
+        final litTypes = [for (f in lit.fields) f.name => f.type];
+        var best:Null<Ref<DefType>> = null;
+        for (entry in registry) {
+            final tdefAnon = defTypeAnonFields(entry);
+            if (tdefAnon == null)
+                continue;
+            if (!structUnifiesWith(lit, litTypes, tdefAnon.get()))
+                continue;
+            if (best != null)
+                return null;
+            best = entry;
+        }
+        return best;
+    }
+
+    /**
+        One literal structure against one declared candidate: the field-name
+        sets must be equal and every literal field type must unify with the
+        declared field type. A field the candidate does not declare, or a
+        declared field the literal omits, is a miss.
+    **/
+    static function structUnifiesWith(lit:AnonType, litTypes:Map<String, Type>, tdef:AnonType):Bool {
+        final fields = tdef.fields;
+        if (fields.length != lit.fields.length)
+            return false;
+        for (f in fields) {
+            final litType = litTypes.get(f.name);
+            if (litType == null || !Context.unify(litType, f.type))
+                return false;
+        }
+        return true;
+    }
+
+    /** The anonymous structure behind one registered typedef definition, alias chains followed. */
+    static function defTypeAnonFields(entry:Ref<DefType>):Null<Ref<AnonType>> {
+        return switch (entry.get().type) {
+            case TAnonymous(an): an;
+            case TType(def, _): defTypeAnonFields(def);
+            case _: null;
+        };
     }
 
     static function typedefAnonFields(entry:{module:String, name:String}):Null<Ref<AnonType>> {
