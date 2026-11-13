@@ -144,16 +144,21 @@ class PackageArtifacts {
 
     /**
         Packs the recorded writes as the Swift zip artifact. Feature spec 25
-        (docs/specs/features/25-package-artifacts.md:22) states "no prefix" for
-        this archive too, so every member sits at the root and `Package.swift`
-        is a root entry.
+        (docs/specs/features/25-package-artifacts.md:22) requires exactly one
+        top-level directory: SwiftPM's registry client extracts the archive and
+        then calls `FileSystem.stripFirstLevel`
+        (swift-package-manager Sources/Basics/FileSystem/FileSystem+Extensions.swift),
+        which throws `stripFirstLevel requires single top level directory`
+        unless the extracted tree holds one directory. Every member therefore
+        sits under `<artifact stem>-<version>/`, the archive name without its
+        extension, with `Package.swift` inside that directory.
     **/
     public static function emitZip(outputDir:String):Void {
         SharedModuleTrace.record("PackageArtifacts");
         final stem = PackageShell.artifactStem() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
         final entries = [
-            for (entry in recordedEntries()) {name: entry.name, data: entry.data}
+            for (entry in recordedEntries()) {name: stem + "/" + entry.name, data: entry.data}
         ];
         sys.io.File.saveBytes(artifactPath, zipFromEntries(entries));
     }

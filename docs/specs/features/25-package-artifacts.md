@@ -19,7 +19,7 @@ through a define that names the executable.
 | --- | --- | --- | --- |
 | TypeScript | tar + gzip | `<name>-<version>.tgz` | `package/` prefix; `package.json` plus `dist/` with `.js` and `.d.ts` |
 | Rust | tar + gzip | `<name>-<version>.crate` | no prefix |
-| Swift | zip | `<name>-<version>.zip` | no prefix |
+| Swift | zip | `<name>-<version>.zip` | one top-level `<artifact stem>-<version>/` directory; `Package.swift` and the tree inside it |
 | Dart | tar + gzip | `<name>-<version>.tar.gz` | no prefix, `pubspec.yaml` at the root |
 | Kotlin | Maven directory | `maven/<groupId path>/<name>/<version>/<name>-<version>.{jar,pom}` | jar plus pom plus their `.sha1` files |
 
@@ -144,11 +144,18 @@ The registry generator packs from release checkouts.
 3. **Layouts follow the install formats.** npm installs a tarball whose
    entries sit under `package/`; cargo and Pub install archives with
    the tree at the root (`pubspec.yaml` at the root is Pub's
-   requirement); the Swift zip keeps the tree at the root because the
-   registry serves it as a source archive; Gradle and Maven resolve
-   files from a repository directory, so the Kotlin target writes
-   `maven/<groupId path>/<name>/<version>/` with the jar, the pom, and
-   their sha1 checksums. Entries sort by name in every format.
+   requirement); the Swift zip carries one top-level
+   `<artifact stem>-<version>/` directory because SwiftPM's registry
+   client extracts the archive and then calls
+   `FileSystem.stripFirstLevel`
+   (swift-package-manager, Sources/Basics/FileSystem/FileSystem+Extensions.swift),
+   which throws unless exactly one top-level directory exists; Gradle
+   and Maven resolve files from a repository directory, so the Kotlin
+   target writes `maven/<groupId path>/<name>/<version>/` with the jar,
+   the pom, and their sha1 checksums. The artifact stem defaults to the
+   manifest name, so the directory is `<name>-<version>/` unless a
+   consumer sets `package-artifact-stem`. Entries sort by name in every
+   format.
 4. **Determinism constants, scoped per target.** Tar entries carry mtime
    0, mode 0644, uid 0, gid 0, and empty owner names; the archive
    holds regular files only, no directory entries. The gzip stream
@@ -231,7 +238,9 @@ The registry generator packs from release checkouts.
   with the npm CLI from the `.tgz`, and runs a consumer under plain
   `node` through the retargeted `exports` map; the cargo `.crate` and
   the Pub `.tar.gz` list their trees at the root with the manifest
-  present; the Swift `.zip` lists the same entry set; the Kotlin target
+  present; the Swift `.zip` carries exactly one top-level
+  `<name>-<version>/` directory with `Package.swift` and the tree under
+  it; the Kotlin target
   writes the Maven directory with the pom fields, sha1 checksums that
   match the saved bytes, and a jar whose entries sort and carry the
   fixed zip date; two generations of the same inputs produce

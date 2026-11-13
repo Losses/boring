@@ -248,7 +248,7 @@ describe("package artifact emission", () => {
     // behavior.
   }, 180_000);
 
-  test("the Swift zip carries the tree at the root", async () => {
+  test("the Swift zip carries the tree under one top-level directory", async () => {
     const root = tempRoot("swift");
     try {
       const result = await runHaxe("package-artifacts-swift.hxml", rewriteHxml("swift.hxml", root));
@@ -258,10 +258,18 @@ describe("package artifact emission", () => {
       expect(fs.existsSync(archive)).toBe(true);
       const entries = zipList(archive);
       expect(entries).toEqual([...entries].sort());
-      expect(entries).toContain("Package.swift");
-      expect(entries).toContain("Runtime.swift");
-      expect(entries.some(entry => entry.startsWith("boring/"))).toBe(true);
-      expect(entries).not.toContain("_GeneratedFiles.txt");
+      // SwiftPM's RegistryClient calls FileSystem.stripFirstLevel after it
+      // extracts a registry archive, and that function throws
+      // "stripFirstLevel requires single top level directory" unless the
+      // archive holds exactly one. The directory is the archive name
+      // without its extension.
+      const topLevel = [...new Set(entries.map(entry => entry.split("/")[0]))];
+      expect(topLevel).toEqual(["generated-0.1.0"]);
+      expect(entries.every(entry => entry.startsWith("generated-0.1.0/"))).toBe(true);
+      expect(entries).toContain("generated-0.1.0/Package.swift");
+      expect(entries).toContain("generated-0.1.0/Runtime.swift");
+      expect(entries.some(entry => entry.startsWith("generated-0.1.0/boring/"))).toBe(true);
+      expect(entries.some(entry => entry.endsWith("_GeneratedFiles.txt"))).toBe(false);
       expect(entries.some(entry => entry.includes("gen-tests"))).toBe(false);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
