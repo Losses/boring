@@ -105,45 +105,57 @@ function canonicalDictKey(k: any): string {
   if (kind === "number") return "i" + formatFloatRuntime(k);
   if (kind === "boolean") return "b" + (k ? "1" : "0");
   if (kind !== "object") return "n";
+  // Indexed loops with hoisted bounds throughout: the loop-structure guard
+  // (tests/ts/loop-structure.test.ts) forbids functional iteration, for-of
+  // heads and a property read in a loop condition, and this runtime is
+  // emitted verbatim into every TypeScript tree.
   if (k instanceof Map) {
     const entries: string[] = [];
-    k.forEach((value: any, key: any): void => {
-      entries.push(canonicalDictKey(key) + "=" + canonicalDictKey(value));
-    });
+    const pairs: any[] = Array.from(k);
+    const pairCount: number = pairs.length;
+    for (let index = 0; index < pairCount; index++) {
+      entries.push(canonicalDictKey(pairs[index][0]) + "=" + canonicalDictKey(pairs[index][1]));
+    }
     entries.sort();
     return "m{" + entries.join(",") + "}";
   }
   if (Array.isArray(k)) {
     const items: string[] = [];
-    for (let index = 0; index < k.length; index++) {
+    const itemCount: number = k.length;
+    for (let index = 0; index < itemCount; index++) {
       items.push(canonicalDictKey(k[index]));
     }
     return "a[" + items.join(",") + "]";
   }
   if (k instanceof Uint8Array) {
     const items: string[] = [];
-    for (let index = 0; index < k.length; index++) {
+    const unitCount: number = k.length;
+    for (let index = 0; index < unitCount; index++) {
       items.push(String(k[index]));
     }
     return "u[" + items.join(",") + "]";
   }
   if (typeof SortedMapTable !== "undefined" && k instanceof SortedMapTable) {
     const entries: string[] = [];
-    for (let index = 0; index < k.size(); index++) {
+    const mapSize: number = k.size();
+    for (let index = 0; index < mapSize; index++) {
       entries.push(canonicalDictKey(k.keyAt(index)) + "=" + canonicalDictKey(k.valueAt(index)));
     }
     return "sm{" + entries.join(",") + "}";
   }
   if (typeof SortedSetTable !== "undefined" && k instanceof SortedSetTable) {
     const items: string[] = [];
-    for (let index = 0; index < k.size(); index++) {
+    const setSize: number = k.size();
+    for (let index = 0; index < setSize; index++) {
       items.push(canonicalDictKey(k.at(index)));
     }
     return "ss[" + items.join(",") + "]";
   }
   const fieldNames: string[] = Object.keys(k).sort();
   const fields: string[] = [];
-  for (const name of fieldNames) {
+  const fieldCount: number = fieldNames.length;
+  for (let index = 0; index < fieldCount; index++) {
+    const name: string = fieldNames[index];
     const value: any = k[name];
     if (typeof value === "function") continue;
     fields.push(JSON.stringify(name) + ":" + canonicalDictKey(value));
