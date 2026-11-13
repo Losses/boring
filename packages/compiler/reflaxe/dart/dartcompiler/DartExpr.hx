@@ -4860,6 +4860,10 @@ class DartExpr {
         return switch (stripWrap(stmts[stmts.length - 1]).expr) {
             case TReturn(_): true;
             case TThrow(_): true;
+            // continue/break leave the guarded path too: the null case never
+            // reaches the statements after the if. (GuardContinueBreak)
+            case TContinue: true;
+            case TBreak: true;
             case _: false;
         };
     }

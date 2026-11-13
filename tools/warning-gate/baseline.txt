@@ -1,5 +1,6 @@
-# Frozen warning baseline (recalibrated 2026-11-12: every target cleared to zero).
-# Scope note: full-scope measurement (gen + gen-tests trees, strict flags).
+# Frozen warning baseline (recalibrated 2026-11-12: every measured target cleared to zero).
+# Scope note: the gate measures reference/<target>/gen for dart/kotlin/rust and the
+# SwiftPM gen+gen-tests build for swift; the baseline records exactly that measured scope.
 dart	0	clean
 kotlin	0	clean
 rust	0	clean
