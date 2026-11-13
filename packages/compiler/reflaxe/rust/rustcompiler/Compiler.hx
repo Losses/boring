@@ -3436,7 +3436,13 @@ class Compiler extends PluginCompiler<Compiler> {
     function thrownPayloadEnum(thrown:TypedExpr):Null<{module:String, name:String}> {
         return switch (thrown.expr) {
             case TNew(c, _, args) if (args.length > 0):
-                if (state.messageOnlyExceptions.exists(c.get().module))
+                // The registry is keyed by module, so it answers whether a
+                // module hosts a message-only exception. This site needs
+                // whether the thrown class is one. Ask the class itself, the
+                // same way RustDecl.collectThrownPayloadEnums does, so the
+                // signature scan and the emitter agree on the thrown type.
+                if (state.messageOnlyExceptions.exists(c.get().module)
+                    && RustDecl.isMessageOnlyException(c.get()))
                     {module: c.get().module, name: c.get().name}
                 else if (state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) switch (stripDecorations(args[0]).expr) {
                     case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};

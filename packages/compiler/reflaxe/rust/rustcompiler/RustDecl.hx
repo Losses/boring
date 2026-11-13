@@ -2865,9 +2865,18 @@ class RustDecl {
                             switch (stripDecorations(t).expr) {
                                 case TNew(c, _, args) if (args.length > 0):
                                     final en = payloadEnumOfArg(args[0]);
-                                    final messageOnly = state.messageOnlyExceptions.get(c.get().module);
-                                    if (messageOnly != null && absorbed.indexOf(c.get().module) < 0)
-                                        out.push({name: messageOnly, module: c.get().module});
+                                    final thrown = c.get();
+                                    // The registry is keyed by module, so a second
+                                    // message-only exception in one Haxe module
+                                    // overwrites the first. Reading the name back out
+                                    // of it named the module's last registered class
+                                    // for every throw in that module. Classify the
+                                    // thrown class and push its own identity, which is
+                                    // what scanFallibility's thrownPayloadEnum records.
+                                    final messageOnly = state.messageOnlyExceptions.exists(thrown.module)
+                                        && isMessageOnlyException(thrown);
+                                    if (messageOnly && absorbed.indexOf(thrown.module) < 0)
+                                        out.push({name: thrown.name, module: thrown.module});
                                     else if (en != null && state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) {
                                         if (absorbed.indexOf(en.get().module) < 0)
                                             out.push({name: en.get().name, module: en.get().module});
