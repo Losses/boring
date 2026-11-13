@@ -25,10 +25,20 @@ describe("constructed static initializer trees", () => {
       "static final FramePolicy weighted = FramePolicy("
     );
     const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
-    expect(rust).toContain("LazyLock<FramePolicy>");
+    // Feature spec 35's judgment table keeps the `Mutex` row for Rust: the
+    // declared field is final, but `cargo test` reads statics from several
+    // threads and the slot's shared handle is an `Rc`, so the read has to be
+    // serialized. The pinned form is therefore the wrapper chain, not a bare
+    // `LazyLock<FramePolicy>`.
+    expect(rust).toContain("LazyLock<Mutex<SingleThread<");
     expect(rust).toContain("LazyLock::new");
+    expect(rust).toContain("FramePolicy");
     expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).clone()");
+    // The read lane takes the guard, clones the shared handle out of the
+    // SingleThread slot, and borrows the field: the lock is what makes the
+    // parallel harness read sound (see spec 35's Mutex row).
+    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).lock().unwrap().clone()");
+    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).lock().unwrap().clone().borrow().label");
   });
 });
 
