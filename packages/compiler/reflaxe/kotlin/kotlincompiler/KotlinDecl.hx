@@ -395,6 +395,13 @@ class KotlinDecl {
             }
             if (needsManualHash) {
                 final sortedNames:Map<String, Bool> = [];
+                // The field type decides whether a float hashes through the
+                // null arm: a constructor argument of type Null<Float> can
+                // still be normalized into a non-null field, and the emitted
+                // field is what this.hashX reads. (FloatHashFieldNullability)
+                final fieldTypes:Map<String, haxe.macro.Type.Type> = [];
+                for (f in cls.fields.get())
+                    fieldTypes.set(f.name, f.type);
                 for (a in constructorFunc.args) if (isSortedTable(a.type)) sortedNames.set(a.name, true);
                 final eqTerms:Array<String> = [];
                 final hashTerms:Array<String> = [];
@@ -411,7 +418,8 @@ class KotlinDecl {
                         hashTerms.push('this.' + name + '.size().hashCode()');
                     } else if (expr.isFloatType(a.type)) {
                         eqTerms.push('this.' + name + ' == other.' + name);
-                        hashTerms.push(floatHashBits('this.' + name, isNullableType(a.type)));
+                        final fieldType = fieldTypes.exists(a.name) ? fieldTypes.get(a.name) : a.type;
+                        hashTerms.push(floatHashBits('this.' + name, isNullableType(fieldType)));
                     } else {
                         eqTerms.push('this.' + name + ' == other.' + name);
                         hashTerms.push('this.' + name + '.hashCode()');

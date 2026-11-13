@@ -1289,6 +1289,14 @@ class KotlinExpr {
                 final extractAtDecl = extractsAtDecl || extractRenderedNullable;
                 final initLowered = lowerTextPresence(initText, extractAtDecl ? MaybeAbsent : Present, init.pos);
                 final initDest = assignmentDest("local", isNullType(v.t));
+                // (DeclaredLocalNonNull) A declaration that needs no extraction
+                // prints an initializer the presence model already reads as
+                // present; with no nullable annotation Kotlin infers the
+                // non-null type for the local. Register it so later reads are
+                // not asserted again.
+                if (!extractAtDecl && typeAnn.indexOf("?") < 0 && !bodyWritesLocal(v.id)
+                    && !blockShapedInit(init))
+                    extractedLocals.set(v.id, true);
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
                 // initializer is also extracted to non-null, the widening
@@ -2614,6 +2622,14 @@ class KotlinExpr {
                 // it may still use is retired only after it has rendered.
                 // (PIT-388)
                 dropProofsForWriteTarget(l);
+                switch (stripWrap(l).expr) {
+                    case TLocal(v) if (!isNullType(r.t) && !isNullLiteral(r)
+                        || isNonNullConstructedValue(r)):
+                        // Assigning a non-null value smart-casts the local for
+                        // the statements that follow. (AssignedNonNullPromotion)
+                        extractedLocals.set(v.id, true);
+                    case _:
+                }
                 if (map == null) {
                     // A Haxe Array index write grows the array when the index
                     // reaches past the end, so it needs the growth guard.
@@ -3779,6 +3795,27 @@ class KotlinExpr {
         field policy for a field read, and nothing for any other form. A field
         read never takes its root's presence as its own value's proof.
     **/
+    /**
+        Whether an initializer is a value-producing block or switch. Those read
+        as present in the presence model while one branch can still yield null
+        (a bounds-checked read lowers to a block whose else arm is null), so
+        Kotlin infers a nullable local and a later assertion stays required.
+        (DeclaredLocalNonNullExcludesBlocks)
+    **/
+    function blockShapedInit(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TBlock(_): true;
+            case TSwitch(_, _, _): true;
+            // A String code-unit read lowers to a bounds-checked block whose
+            // miss arm is null, so the declaration infers Int?.
+            case TCall({expr: TField(_, FInstance(_, _, cf))}, _)
+                if (cf.get().name == "charCodeAt" || cf.get().name == "codeAt"): true;
+            case TCall({expr: TField(_, FStatic(_, cf))}, _)
+                if (cf.get().name == "charCodeAt" || cf.get().name == "codeAt"): true;
+            case _: false;
+        };
+    }
+
     function valueProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(v): localPresent(e) || targetEntryLegal(e) || extractedLocals.exists(v.id);
@@ -3877,9 +3914,45 @@ class KotlinExpr {
                     case _: false;
                 }
             case TBlock(stmts):
-                stmts.length > 0 && nullDefaultsBranch(stmts[stmts.length - 1], v);
+                // The arm's LAST assignment to the local decides: an earlier
+                // non-null write can be overwritten by a later nullable one,
+                // and the arm may keep working around the assignment after it.
+                // (NullArmAssignPromotion)
+                armLeavesNonNull(stmts, v);
             case _: false;
         };
+    }
+
+    /** Whether an assigned value is constructed here, so it cannot be null
+        regardless of the type Haxe unified into the target. (AssignedNonNullPromotion) **/
+    function isNonNullConstructedValue(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TArrayDecl(_): true;
+            case TObjectDecl(_): true;
+            case TNew(_, _, _): true;
+            case TConst(_): true;
+            case TFunction(_): true;
+            case TTypeExpr(_): true;
+            case _: false;
+        };
+    }
+
+    /** The verdict of the arm's last assignment to v (false when the arm
+        never assigns it). (NullArmAssignPromotion) **/
+    function armLeavesNonNull(stmts:Array<TypedExpr>, v:TVar):Bool {
+        var found = false;
+        for (s in stmts) {
+            switch (stripWrap(s).expr) {
+                case TBinop(OpAssign, lhs, rhs):
+                    switch (stripWrap(lhs).expr) {
+                        case TLocal(lv) if (lv.id == v.id):
+                            found = !isNullType(rhs.t) && !isNullInitialized(rhs) && !isNullLiteral(rhs);
+                        case _:
+                    }
+                case _:
+            }
+        }
+        return found;
     }
 
     function provenNonNull(e:TypedExpr):Bool {
