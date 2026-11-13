@@ -5,6 +5,7 @@ enum QueryMode {
     Write;
 }
 
+@:mainOnly
 class EnumQueriesOps {
     public static function directCount():Int
         return Type.allEnums(FloatWidth).length;

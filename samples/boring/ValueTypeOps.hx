@@ -7,6 +7,7 @@ package boring;
  * from another module.
  */
 @:valueType
+@:mainOnly
 abstract Ic(Float) from Float {
     public inline function new(count:Float)
         this = count;

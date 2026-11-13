@@ -12,6 +12,7 @@ import std.Process;
  * lowering of the five targets so a single Haxe test file can assert the
  * same output everywhere.
  */
+@:mainOnly
 class PlatformOps {
     /** Whether a path exists. */
     public static function exists(path:String):Bool {

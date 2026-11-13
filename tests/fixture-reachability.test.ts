@@ -67,7 +67,25 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * guard's rule demands ("must not drift while nobody is looking");
  * wiring them in is deferred to a follow-up task.
  */
-const RECORDED_UNCOLLECTED = 43; // +1: tests/haxe/rustGatedValueCopy (TraitIdentityAdapter pure-assertion runner)
+// 42, corrected from 43.
+ *
+ * The +1 counted tests/haxe/rustGatedValueCopy as runner-bearing, but that
+ * fixture carries no runner file this guard's own criterion can see: its
+ * directory holds only GatedValueCopyAssertions.hx -- no run.sh, no *.hxml.
+ * Its assertions are invoked from package.json (bun run test:requirements
+ * compiles that class with
+ * `haxe -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions`), and a
+ * script entry is not a fixture runner under this guard's definition.
+ *
+ * So the fixture does not belong in this count at all -- not because the
+ * measured number disagreed with the record, but because counting it widened
+ * the record past the domain the guard measures (the same observation-domain
+ * error this file's header already documents for the 36 -> 34 correction).
+ * Lowering the constant to the measured 42 is that correction. The fixture
+ * stays watched by its script; this note is the pointer so nobody re-adds a
+ * phantom +1.
+ */
+const RECORDED_UNCOLLECTED = 42;
 
 interface Fixture {
   readonly name: string;

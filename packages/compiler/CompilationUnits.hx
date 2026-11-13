@@ -189,9 +189,20 @@ class CompilationUnits {
         }
         for (module in reclassified) {
             units.set(module, Tests);
-            Context.warning("compilation unit: module " + module
-                + " reclassified to tests (every referencer is a test module)",
-                Context.currentPos());
+            // Silenced by default, on purpose. This is an internal accounting
+            // decision, not a defect in the compiled program, and the line
+            // lands on the same stderr the package tooling treats as the
+            // compile result: PackageArtifacts captures the child's stderr and
+            // the package-artifact tests require it to be empty. -D
+            // compilation_units_verbose restores the per-module account for a
+            // build that wants to audit the closure; the durable record of the
+            // same decision is -D compilation_units_dump (dumpIfRequested
+            // below), which writes module<TAB>unit.
+            if (Context.defined("compilation_units_verbose")) {
+                Context.warning("compilation unit: module " + module
+                    + " reclassified to tests (every referencer is a test module)",
+                    Context.currentPos());
+            }
         }
     }
 

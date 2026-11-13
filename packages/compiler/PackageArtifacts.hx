@@ -482,8 +482,8 @@ class PackageArtifacts {
             final configured = Sys.getEnv("TMPDIR");
             configured == null || configured == "" ? "/tmp" : configured;
         };
-        final outPath = haxe.io.Path.join([tempRoot, "boring-tool-" + stamp + ".out"]);
-        final errPath = haxe.io.Path.join([tempRoot, "boring-tool-" + stamp + ".err"]);
+        final outPath = haxe.io.Path.join([tempRoot, "package-tool-" + stamp + ".out"]);
+        final errPath = haxe.io.Path.join([tempRoot, "package-tool-" + stamp + ".err"]);
         final parts:Array<String> = [shellQuote(command)];
         for (arg in args) parts.push(shellQuote(arg));
         final line = parts.join(" ") + " > " + shellQuote(outPath) + " 2> " + shellQuote(errPath);

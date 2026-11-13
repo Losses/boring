@@ -44,6 +44,7 @@ class RecordOrderAligned {
  * Read functions over the two record-order classes: the printed forms and
  * an equality check.
  */
+@:mainOnly
 class RecordOrderOps {
     public static function shiftedPrinted():String {
         return new RecordOrderShifted(1, "x", 5).toString();

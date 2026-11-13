@@ -17,6 +17,7 @@ class BuiltInNameResolver implements NameResolver {
     }
 }
 
+@:mainOnly
 class FnValuesOps {
     public var styleAt:(index:Int) -> String;
 

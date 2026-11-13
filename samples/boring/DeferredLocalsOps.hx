@@ -1,5 +1,6 @@
 package boring;
 
+@:mainOnly
 class DeferredLocalsOps {
     public function new() {}
 
