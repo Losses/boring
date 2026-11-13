@@ -155,7 +155,7 @@ function canonicalDictKey(k: any): string {
   const fields: string[] = [];
   const fieldCount: number = fieldNames.length;
   for (let index = 0; index < fieldCount; index++) {
-    const name: string = fieldNames[index];
+    const name: string = fieldNames[index] as string;
     const value: any = k[name];
     if (typeof value === "function") continue;
     fields.push(JSON.stringify(name) + ":" + canonicalDictKey(value));

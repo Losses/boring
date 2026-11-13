@@ -341,8 +341,8 @@ describe("package shell emission", () => {
 
     // The manifest now carries the generated workspace member list (one entry
     // per generated test crate), so the byte pin lives beside the test as a
-    // fixture instead of a 780-line literal. Refresh the fixture whenever the
-    // emitter legitimately changes the manifest.
+    // fixture; a 780-line literal in the test would be unreadable. Refresh the
+    // fixture whenever the emitter legitimately changes the manifest.
     expect(fs.readFileSync(path.join(REPO_ROOT, "reference/rust/gen/Cargo.toml"), "utf8")).toBe(
       fs.readFileSync(path.join(__dirname, "fixtures/rust-gen-Cargo.toml"), "utf8"),
     );

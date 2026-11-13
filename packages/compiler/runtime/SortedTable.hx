@@ -147,8 +147,8 @@ class SortedMapTable<K, V> {
     public function contentEquals(other:SortedMapTable<K, V>):Bool {
         // The parameter is non-optional in the lowering, so a nil test folds
         // to false and the Swift target warns on it (NonOptionalNilComparison).
-        // Call sites pass a table field, never nil, so the guard is dropped
-        // rather than folded in one target and live in another.
+        // Call sites pass a table field, never nil, so the guard is dropped.
+        // The fold makes it dead code; keeping it would warn in one target.
         if (size() != other.size()) {
             return false;
         }

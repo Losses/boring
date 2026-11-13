@@ -164,8 +164,8 @@ describe("committed package registry", () => {
       expect(fs.readFileSync(path.join(first, "swift/acme/acme-core/1.1.0/Package.swift"), "utf8")).toBe("// Package acme-core 1.1.0\n");
       expect(JSON.parse(fs.readFileSync(path.join(first, "swift/identifiers"), "utf8"))).toEqual([]);
       const pub = JSON.parse(fs.readFileSync(path.join(first, "pub/api/packages/acme-core"), "utf8")) as Record<string, unknown>;
-      // The hosted pub API puts the latest version entry here, not its
-      // version string (registry/Core.hx writes the whole entry).
+      // The hosted pub API puts the latest version entry here; the version
+      // string lives in its `version` field (registry/Core.hx writes it).
       expect((pub.latest as { version?: string }).version).toBe("1.1.0");
       expect((pub.latest as { archive_sha256?: string }).archive_sha256).toBeDefined();
       expect((pub.versions as Array<Record<string, unknown>>)[0]?.pubspec).toHaveProperty("environment");

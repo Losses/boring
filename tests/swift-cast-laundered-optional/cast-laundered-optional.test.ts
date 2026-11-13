@@ -43,7 +43,7 @@ test("a null-guarded ternary arm laundered by a transparent cast unwraps", async
   );
   // A local subject is a nil-merge site. The merge renders parenthesised
   // (SwiftExpr.hx anchor for the coalescing arm), which is the same claim:
-  // the arm merges instead of unwrapping in a ternary.
+  // the arm merges; a ternary force-unwrap would be the failing shape.
   expect(source, "local subject coalesces").toContain("return (e.inlineStart ?? -1.0)");
   // The whole expression stays optional here, so neither arm may unwrap.
   expect(source, "optional whole keeps both arms optional").toContain(

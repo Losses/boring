@@ -122,9 +122,9 @@ describe("value wrapper generated trees", () => {
     expect(dart).toContain("FontFaceId makeFontFaceId(String value)");
 
     const rust = read("reference/rust/gen/boring/value_type_ops.rs");
-    // The wrapper stores the crate's float alias, not a hard-coded width; the
-    // width itself is ruled once by the cfg-gated alias in lib.rs, so the two
-    // trees cannot drift apart in the struct body.
+    // The wrapper stores the crate's float alias, so the width cannot be
+    // pinned in the struct body; it is ruled once by the cfg-gated alias in
+    // lib.rs, which keeps the two trees from drifting apart.
     expect(rust).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub crate::TiqianFloat);");
     expect(rust).not.toContain("pub struct Ic(pub f64);");
     expect(rust).not.toContain("pub struct Ic(pub f32);");

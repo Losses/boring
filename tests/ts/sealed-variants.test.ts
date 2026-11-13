@@ -217,7 +217,7 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.dart).toContain("static final instance = NoneDrawKind();");
     expect(trees.rust).not.toContain("#[allow(non_upper_case_globals)]");
-    // The static lane wraps the instance in the ruled LazyLock/Mutex/
+    // The static shape wraps the instance in the ruled LazyLock/Mutex/
   // SingleThread container (target-semantic-policy.md:125).
   expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: LazyLock<Mutex<SingleThread<Rc<RefCell<NoneDrawKind>>>>> = LazyLock::new(|| Mutex::new(SingleThread::new(NoneDrawKind::new())));");
   } finally {

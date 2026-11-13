@@ -8,7 +8,7 @@
 # (`let __units = <receiver>.as_slice();`) plus one unit count per function, so
 # every step reads O(1) through `u_string::unit_at_from(__units, i)`. The early
 # form copied the vector with `u_string::units(&receiver)`; the count below is
-# therefore of hoist statements, not of that copy. Two shapes used to re-scan
+# therefore of hoist statements. Two shapes used to re-scan
 # per step and both are asserted here:
 #
 #   1. a per-character loop nested inside another per-character loop over the
@@ -24,7 +24,7 @@
 # this fixture hoists exactly one view and reads through it, so the expected
 # count is 1/1 (one view, one unit count) everywhere and 5 module-wide. The
 # vacuity controls (while_local_dot_count, for_range_dot_count) stay: if the
-# scan stopped matching the emitted hoist they would report 0, not pass.
+# scan stopped matching the emitted hoist they would report 0 and fail.
 #
 # A missing toolchain is environment-not-reached and is reported as such, never
 # silently skipped (house convention, cf. tests/haxe/rust-resident-dataclass).
