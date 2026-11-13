@@ -1347,8 +1347,14 @@ class KotlinExpr {
                 // present; with no nullable annotation Kotlin infers the
                 // non-null type for the local. Register it so later reads are
                 // not asserted again.
+                // The annotation says nothing when it is absent, so the
+                // initializer decides what Kotlin infers. A `Null<T>` binding
+                // keeps the initializer's type, so it is non-null only when the
+                // initializer itself renders non-null: a guarded ternary or a
+                // coalescing default does, a bare nullable read or a nullable
+                // call does not. (DeclaredLocalNonNull)
                 if (!extractAtDecl && typeAnn.indexOf("?") < 0 && !bodyWritesLocal(v.id)
-                    && !blockShapedInit(init))
+                    && !blockShapedInit(init) && declarationRendersNonNull(init))
                     extractedLocals.set(v.id, true);
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
@@ -3902,6 +3908,24 @@ class KotlinExpr {
                 if (cf.get().name == "charCodeAt" || cf.get().name == "codeAt"): true;
             case _: false;
         };
+    }
+
+    /**
+        Whether a declaration initializer renders a non-null Kotlin value, so
+        the local Kotlin infers from it is non-null too. The presence model
+        answers for a plain read or call; a ternary whose arms are non-null
+        under the condition's own proof answers through its arm proofs; and a
+        coalescing default renders `value ?: default`, which is non-null
+        unless the default is the null literal (that fold is the value itself).
+        (DeclaredLocalNonNull)
+    **/
+    function declarationRendersNonNull(init:TypedExpr):Bool {
+        if (presenceOf(init) == Present)
+            return true;
+        if (guardedNonNullTernary(init))
+            return true;
+        final coalescing = coalescingSiteFor(init);
+        return coalescing != null && !isNullLiteral(coalescing.defaultExpr);
     }
 
     function valueProven(e:TypedExpr):Bool {
