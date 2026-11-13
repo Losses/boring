@@ -37,20 +37,27 @@ const COERCE_FILE = "KotlinCoerce.hx";
 const EXPR_FILE = "KotlinExpr.hx";
 
 /**
- * Known outside-coerce + "!!" emission sites on the current tree.  Each
- * entry is File.hx:line, one per line that emits x + "!!" (postfix non-null
- * assertion) outside the coerce function body.
+ * Known outside-coerce + "!!" emission sites on the current tree, named by
+ * their occurrence index inside the file (0 = first matching line).
  *
  * These two KotlinExpr.hx sites are the "!!." access-extraction decision
  * sites: the renderer embeds the "!!" into the receiver text there (before
  * the "." member operator is appended), so they are legitimately outside
- * KotlinCoerce.coerce.  When a migration removes a site, the guard reports
- * "expected site migrated/removed"; when a new bypass is added, it reports
- * "new bypass outside coerce".
+ * KotlinCoerce.coerce.  Both lines are textually identical, so a line number
+ * moves whenever anything above them changes and a text signature cannot
+ * tell them apart.  The occurrence index is stable under unrelated edits and
+ * still catches a new site: an extra match shifts the ordinals, and an
+ * inserted bypass reports its own line.
+ *
+ * When a migration removes a site, the guard reports "expected site
+ * migrated/removed"; when a new bypass is added, it reports "new bypass
+ * outside coerce".
  */
-const KNOWN_OUTSIDE: string[] = [
-  "KotlinExpr.hx:4591", // receiverText for ?.length access extraction
-  "KotlinExpr.hx:4662", // receiverText for property access extraction
+type KnownOutside = { file: string; occurrence: number };
+
+const KNOWN_OUTSIDE: KnownOutside[] = [
+  { file: "KotlinExpr.hx", occurrence: 0 }, // receiverText for ?.length access extraction
+  { file: "KotlinExpr.hx", occurrence: 1 }, // receiverText for property access extraction
 ];
 
 // Postfix non-null assertion: value + "!!".  Requires + BEFORE the literal;
@@ -137,24 +144,27 @@ function braceDelta(line: string): number {
   return delta;
 }
 
-// Collect every file:line in kotlincompiler *.hx whose text matches
+// Collect every + "!!" line in kotlincompiler *.hx whose text matches
 // POSTFIX_BANG, EXCLUDING the coerce function body range inside
-// KotlinCoerce.hx.  Returns a sorted array.
-function outsideCoerceSites(sources: Sources): string[] {
+// KotlinCoerce.hx.  Returns file -> ordered line numbers, so the caller can
+// address a site by its occurrence index.
+function outsideCoerceSites(sources: Sources): Map<string, number[]> {
   const range = coerceBodyRange(sources);
   const cs = range ? range[0] : -1;
   const ce = range ? range[1] : -1;
-  const sites = new Set<string>();
+  const sites = new Map<string, number[]>();
   for (const name of Object.keys(sources).sort()) {
     const lines = sources[name];
+    const found: number[] = [];
     lines.forEach((line, index) => {
       if (!POSTFIX_BANG.test(line)) return;
       const lineNo = index + 1;
       if (name === COERCE_FILE && cs <= lineNo && lineNo <= ce) return;
-      sites.add(name + ":" + lineNo);
+      found.push(lineNo);
     });
+    if (found.length > 0) sites.set(name, found);
   }
-  return Array.from(sites).sort();
+  return sites;
 }
 
 // Collect every KotlinExpr.hx line matching TEXT_SNIFF (KE only, per the
@@ -168,19 +178,32 @@ function textSniffSites(sources: Sources): string[] {
   return Array.from(sites).sort();
 }
 
-// Compare the found + "!!" set against KNOWN_OUTSIDE.  Empty array => rc=0.
-function violations(sites: string[], coerceCount: number): string[] {
+// Compare the found + "!!" sites against KNOWN_OUTSIDE by occurrence index.
+// Empty array => rc=0: every matching line in every file is sanctioned.
+function violations(sites: Map<string, number[]>, coerceCount: number): string[] {
   const v: string[] = [];
   if (coerceCount !== 1) {
     v.push("coerce exists " + coerceCount + " time(s) in " + COERCE_FILE + " (expected exactly 1; rename breaks guard)");
   }
-  const known = new Set(KNOWN_OUTSIDE);
-  const found = new Set(sites);
-  for (const site of found) {
-    if (!known.has(site)) v.push("new bypass outside coerce: " + site);
+  const allowed = new Map<string, Set<number>>();
+  for (const entry of KNOWN_OUTSIDE) {
+    if (!allowed.has(entry.file)) allowed.set(entry.file, new Set());
+    allowed.get(entry.file)!.add(entry.occurrence);
   }
-  for (const site of known) {
-    if (!found.has(site)) v.push("expected site migrated/removed (refresh allowlist): " + site);
+  for (const [file, lines] of sites) {
+    lines.forEach((lineNo, occurrence) => {
+      if (!allowed.get(file)?.has(occurrence)) {
+        v.push("new bypass outside coerce: " + file + ":" + lineNo);
+      }
+    });
+  }
+  for (const [file, occurrences] of allowed) {
+    const count = sites.get(file)?.length ?? 0;
+    for (const occurrence of occurrences) {
+      if (occurrence >= count) {
+        v.push("expected site migrated/removed (refresh allowlist): " + file + "#" + occurrence);
+      }
+    }
   }
   return v;
 }
