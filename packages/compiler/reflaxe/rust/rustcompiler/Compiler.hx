@@ -379,6 +379,14 @@ class Compiler extends PluginCompiler<Compiler> {
             final isTestUnit = isRustTestUnit(module);
             final isTestClass = state.testModules.exists(module);
             var content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+            // A module whose declarations all lower to a primitive or a
+            // built-in (ReadOnlyArray -> Vec<T>) produces no Rust items, yet
+            // it was still registered and would emit an empty .rs file plus a
+            // pub-use glob that rustc flags as an unused import. Skip the
+            // empty module so its file and its glob re-export never appear.
+            // (EmptyModuleSkip)
+            if (StringTools.trim(content).length == 0)
+                continue;
             if (isTestUnit) {
                 renderedTestModules.set(module, markTestSourceCratePaths(content));
                 if (isTestClass)

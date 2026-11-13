@@ -93,7 +93,7 @@ public final class BytesBuffer {
 /// side reads the display message through it. The base is open because
 /// the generated exception classes subclass it from another module
 /// (Swift requires the open modifier for cross-module inheritance).
-open class BoringException: Error {
+open class BoringException: Error, @unchecked Sendable {
     public let message: String
     public let cause: BoringException?
 

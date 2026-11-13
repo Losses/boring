@@ -935,8 +935,7 @@ class DartExpr {
                 // /tmp/warnstd/promo/t5.dart P2/P7/P8, t9.dart P9 (not-null
                 // guard with a terminating else arm).
                 if (guarded != null && f == null && !isNotNullGuard(c)
-                    && !mutated.exists(guarded.id) && branchTerminates(t)
-                    && branchRenderDepth == 0)
+                    && !mutated.exists(guarded.id) && branchTerminates(t))
                     flowPromotedNonNull.set(guarded.id, true);
                 // A null-defaulting branch promotes its local after the
                 // branch only when the then arm exits: on a fall-through
@@ -953,6 +952,13 @@ class DartExpr {
                 if (guarded != null && f == null && !isNotNullGuard(c)
                     && !mutated.exists(guarded.id) && branchTerminates(t)
                     && branchRenderDepth == 0)
+                    nonNullLocals.set(guarded.id, true);
+                // (NullDefaultAssignPromotion) if (x == null) x = default
+                // assigns a non-null value on the null path and falls
+                // through, so x is definitely non-null after the if, even
+                // when x was mutated earlier in the function.
+                if (guarded != null && f == null && !isNotNullGuard(c)
+                    && nullDefaultsBranch(t, guarded))
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
@@ -1535,7 +1541,7 @@ class DartExpr {
                 // Probes: /tmp/warnstd/dart6-probe/p1.dart, p5.dart.
                 // (GuardTernaryLocalPromotion)
                 final guardVar = nullGuardLocal(c);
-                final guardPromotes = guardVar != null && !mutated.exists(guardVar.id);
+                final guardPromotes = guardVar != null;
                 final provenIsThen = isNotNullGuard(c);
                 if (guardPromotes && provenIsThen)
                     flowPromotedNonNull.set(guardVar.id, true);
@@ -1912,6 +1918,14 @@ class DartExpr {
                 final orFlow = flowPromotedNonNull.copy();
                 final orL = operand(l, op, false);
                 final leftFlow = flowPromotedNonNull.copy();
+                // For a == null || Y, the right operand runs only when the
+                // left answered false, so a != null there; promote the guarded
+                // local for the right operand and drop the promotion at the
+                // boundary (the short-circuited path keeps a null).
+                // (OrChainGuardPromotion)
+                final orGuard = nullGuardLocal(l);
+                if (orGuard != null && !isNotNullGuard(l))
+                    flowPromotedNonNull.set(orGuard.id, true);
                 final orR = operand(r, op, true);
                 // The left operand runs on every path, the right only when
                 // the left answered false, so only the left's promotions
@@ -2106,7 +2120,15 @@ class DartExpr {
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
         };
-        if (nullableSubject && !PolicyQueries.isNullableType(fieldType) && !provenNonNull(subj)) {
+        // A subject already flow-promoted in this scope (a null guard
+        // earlier in the same expression) renders bare: dart reads the
+        // promoted local without a redundant !.
+        // (InstanceFieldReceiverFlowPromoted)
+        final flowPromoted = switch (stripWrap(subj).expr) {
+            case TLocal(v): flowPromotedNonNull.exists(v.id);
+            case _: false;
+        };
+        if (nullableSubject && !PolicyQueries.isNullableType(fieldType) && !provenNonNull(subj) && !flowPromoted) {
             // A null guard on the subject promotes it for the whole guarded
             // block; Dart reads the promoted local bare and reports a `!` on
             // it as having no effect. (GuardPromotedReceiverUnwrap)
@@ -4838,6 +4860,25 @@ class DartExpr {
         return switch (stripWrap(stmts[stmts.length - 1]).expr) {
             case TReturn(_): true;
             case TThrow(_): true;
+            case _: false;
+        };
+    }
+
+    /**
+        Whether a then-arm assigns a non-null value to the guarded local
+        (the null-defaulting form if (x == null) x = default). The
+        local is definitely non-null after the if even when it was
+        mutated earlier in the function. (NullDefaultAssignPromotion)
+    **/
+    function nullDefaultsBranch(e:TypedExpr, v:TVar):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpAssign, lhs, rhs):
+                switch (stripWrap(lhs).expr) {
+                    case TLocal(lv): lv.id == v.id && !isNullLeafType(rhs.t) && !optionalValued(rhs) && !isNullLiteral(rhs);
+                    case _: false;
+                }
+            case TBlock(stmts):
+                stmts.length > 0 && nullDefaultsBranch(stmts[stmts.length - 1], v);
             case _: false;
         };
     }

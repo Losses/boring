@@ -209,6 +209,12 @@ class SwiftDecl {
             for (i in cls.interfaces) {
                 conformances.push(i.t.get().name);
             }
+            // A non-final exception subclass must restate the base's
+            // @unchecked Sendable conformance; Swift 6 rejects an open class
+            // that inherits it without the marker. (OpenExceptionSendable)
+            if (depth >= 1) {
+                conformances.push("@unchecked Sendable");
+            }
             // A Haxe module-private type stays file-scoped in Swift; the
             // same type name declared in another module would otherwise
             // make every bare reference ambiguous.

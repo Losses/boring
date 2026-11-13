@@ -1324,26 +1324,33 @@ class KotlinExpr {
             case TIf(c, t, f):
                 final condition = KotlinCoerce.coerce(lower(c), conditionDest());
                 final base = proofSnapshot();
-                addProofs(conditionProofs(c).thenPath);
-                final out = [indent(depth) + "if (" + condition + ") {"];
                 // Arms render in their own dominance scope: an assertion
                 // inside one arm must not suppress a sibling read.
                 // (ExtractionSuppressesRepeat)
                 final armExtractions = extractionSnapshot();
+                final thenProofs = conditionProofs(c).thenPath;
+                addProofs(thenProofs);
+                addLocalProofs(thenProofs);
+                final out = [indent(depth) + "if (" + condition + ") {"];
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
                 restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
                 final afterElse = if (f != null) {
-                    addProofs(conditionProofs(c).elsePath);
+                    final elseProofs = conditionProofs(c).elsePath;
+                    addProofs(elseProofs);
+                    addLocalProofs(elseProofs);
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
                         out.push(l);
                     restoreExtractions(armExtractions);
                     proofSnapshot();
                 } else {
-                    addProofs(conditionProofs(c).elsePath);
+                    final elseProofs = conditionProofs(c).elsePath;
+                    addProofs(elseProofs);
+                    addLocalProofs(elseProofs);
+                    restoreExtractions(armExtractions);
                     proofSnapshot();
                 };
                 // A branch whose block terminates (return/throw) contributes no
@@ -1351,6 +1358,14 @@ class KotlinExpr {
                 final thenTerminates = blockTerminates(t);
                 final elseTerminates = f != null && blockTerminates(f);
                 restoreProofs(if (thenTerminates != elseTerminates) (thenTerminates ? afterElse : afterThen) else intersectProofs(base, afterThen, afterElse));
+                // (NullDefaultAssignPromotion) if (x == null) x = default
+                // assigns a non-null value on the null path and falls
+                // through, so x is definitely non-null after the if, even
+                // when x was mutated earlier in the function.
+                final defaultGuarded = nullGuardLocal(c);
+                if (defaultGuarded != null && f == null && !isNotNullGuard(c)
+                    && nullDefaultsBranch(t, defaultGuarded))
+                    extractedLocals.set(defaultGuarded.id, true);
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
@@ -2064,15 +2079,19 @@ class KotlinExpr {
                 }
                 final condition = KotlinCoerce.coerce(lower(c), conditionDest());
                 final base = proofSnapshot();
-                addProofs(conditionProofs(c).thenPath);
                 // Arms render in their own dominance scope.
                 // (ExtractionSuppressesRepeat)
                 final armExtractions = extractionSnapshot();
+                final thenProofs = conditionProofs(c).thenPath;
+                addProofs(thenProofs);
+                addLocalProofs(thenProofs);
                 final thenText = expr(t);
                 restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
-                addProofs(conditionProofs(c).elsePath);
+                final elseProofs = conditionProofs(c).elsePath;
+                addProofs(elseProofs);
+                addLocalProofs(elseProofs);
                 final elseText = expr(f);
                 restoreExtractions(armExtractions);
                 final afterElse = proofSnapshot();
@@ -2962,6 +2981,17 @@ class KotlinExpr {
         for (k in p.fields)
             nonNullFields.set(k, true);
     }
+    /**
+        Applies the local half of a condition proof to the extraction set,
+        so a local the condition smart-casts renders bare inside the arm.
+        The caller scopes it with extractionSnapshot/restoreExtractions.
+        (ConditionLocalProof)
+    **/
+    function addLocalProofs(p:{locals:Array<Int>, fields:Array<String>}):Void {
+        for (k in p.locals)
+            extractedLocals.set(k, true);
+    }
+
 
     function intersectProofs(base:{locals:Map<Int, Bool>, fields:Map<String, Bool>}, a:{locals:Map<Int, Bool>, fields:Map<String, Bool>},
             b:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
@@ -3133,15 +3163,24 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (receiverProven(subj)))) {
+            // A condition proof (a null guard in the same expression) smart
+            // casts even a mutated local within the expression's scope, so
+            // the extraction is redundant there. (ConditionProofSmartCast)
+            final conditionProven = switch (stripWrap(subj).expr) {
+                case TLocal(v): extractedLocals.exists(v.id);
+                case _: false;
+            };
+            if (!conditionProven) {
 #if (kotlin_fold_debug || kotlin_emit_origins)
-            emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
+                emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
-            // Decision only: no registration here. nullableAccess is also
-            // consulted as a pure query (presenceOf, nullableChainHop),
-            // and a write on that path would let a probe render register a
-            // proof before the real emission decides. The emission sites
-            // that actually print "!!." register instead. (PureAccessDecision)
-            return "!!.";
+                // Decision only: no registration here. nullableAccess is also
+                // consulted as a pure query (presenceOf, nullableChainHop),
+                // and a write on that path would let a probe render register a
+                // proof before the real emission decides. The emission sites
+                // that actually print "!!." register instead. (PureAccessDecision)
+                return "!!.";
+            }
         }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
         // own type is the non-null target, so look through it before
@@ -3729,7 +3768,7 @@ class KotlinExpr {
     **/
     function receiverProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
-            case TLocal(_): localPresent(e) || targetEntryLegal(e);
+            case TLocal(v): localPresent(e) || targetEntryLegal(e) || extractedLocals.exists(v.id);
             case TField(_, _): fieldGuarded(e);
             case _: false;
         }
@@ -3742,7 +3781,7 @@ class KotlinExpr {
     **/
     function valueProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
-            case TLocal(_): localPresent(e) || targetEntryLegal(e);
+            case TLocal(v): localPresent(e) || targetEntryLegal(e) || extractedLocals.exists(v.id);
             case TField(_, _): fieldProven(e);
             case _: false;
         }
@@ -3814,6 +3853,32 @@ class KotlinExpr {
                         }
                 }
             case _: null;
+        };
+    }
+
+    function isNotNullGuard(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpNotEq, _, _): true;
+            case _: false;
+        };
+    }
+
+    /**
+        Whether a then-arm assigns a non-null value to the guarded local
+        (the null-defaulting form if (x == null) x = default). The local
+        is definitely non-null after the if even when it was mutated
+        earlier in the function. (NullDefaultAssignPromotion)
+    **/
+    function nullDefaultsBranch(e:TypedExpr, v:TVar):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpAssign, lhs, rhs):
+                switch (stripWrap(lhs).expr) {
+                    case TLocal(lv): lv.id == v.id && !isNullType(rhs.t) && !isNullInitialized(rhs) && !isNullLiteral(rhs);
+                    case _: false;
+                }
+            case TBlock(stmts):
+                stmts.length > 0 && nullDefaultsBranch(stmts[stmts.length - 1], v);
+            case _: false;
         };
     }
 
@@ -3960,8 +4025,12 @@ class KotlinExpr {
             case OpBoolAnd:
                 final leftText = operand(l, op, false);
                 final saved = proofSnapshot();
-                addProofs(conditionProofs(l).thenPath);
+                final savedExtractions = extractionSnapshot();
+                final andProofs = conditionProofs(l).thenPath;
+                addProofs(andProofs);
+                addLocalProofs(andProofs);
                 final rightText = operand(r, op, true);
+                restoreExtractions(savedExtractions);
                 restoreProofs(saved);
                 return leftText + " && " + rightText;
             case OpGt | OpGte | OpLt | OpLte:
@@ -4033,8 +4102,12 @@ class KotlinExpr {
                 // so the right operand renders under that proof.
                 final leftText = operand(l, op, false);
                 final saved = proofSnapshot();
-                addProofs(conditionProofs(l).elsePath);
+                final savedExtractions = extractionSnapshot();
+                final orProofs = conditionProofs(l).elsePath;
+                addProofs(orProofs);
+                addLocalProofs(orProofs);
                 final rightText = operand(r, op, true);
+                restoreExtractions(savedExtractions);
                 restoreProofs(saved);
                 return leftText + " || " + rightText;
             case OpShl:
@@ -5971,7 +6044,7 @@ class KotlinExpr {
             // A rendered if-expression already branches on the null case:
             // its arms smart-cast the subject, so the wrapping elvis would
             // always read the left side. (IfExpressionCoversNull)
-            if (StringTools.startsWith(text, "if ("))
+            if (StringTools.startsWith(text, "if (") || StringTools.startsWith(text, "(if ("))
                 return text;
             // A null default is an identity: `x ?: null` equals x for
             // every value, so the wrap only warns. (NullDefaultIdentityFold)

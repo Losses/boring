@@ -1041,7 +1041,7 @@ class SwiftExpr {
         // 'if let x = x {' makes the Swift binding non-optional inside the
         // branch, so value uses render bare.
         final shadow = ifLetLocalGuard(c);
-        final header = shadow == null ? folded : "let " + shadow.name + " = " + shadow.name;
+        final header = shadow == null ? folded : (bodyUsesLocal(statementsOf(t), shadow.id) ? "let " + shadow.name + " = " + shadow.name : "let _ = " + shadow.name);
         final out = [indent(depth) + "if " + header + " {"];
         final trueSnapshot = saveNarrowed();
         applyNarrowed(c, true);
@@ -1269,6 +1269,25 @@ class SwiftExpr {
                 }
             case _: null;
         };
+    }
+
+    /** Whether a statement list reads the given local binding. An 'if let
+        x = x' whose body never reads x binds an unused value, which Swift
+        warns about; the binding takes '_' instead. (UnusedIfLetBinding) */
+    function bodyUsesLocal(stmts:Array<TypedExpr>, id:Int):Bool {
+        var found = false;
+        function scan(e:TypedExpr):Void {
+            if (found || e == null)
+                return;
+            switch (e.expr) {
+                case TLocal(v) if (v.id == id): found = true;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, scan);
+        }
+        for (st in stmts)
+            scan(st);
+        return found;
     }
 
     /** The local operand of a two-sided comparison whose other side is null. */
@@ -6702,6 +6721,12 @@ class SwiftExpr {
                 if (SwiftFallibility.isStringBufMethodCall(subj, name)) {
                     return false;
                 }
+                // A getter-only property renders as a computed property whose
+                // accessor traps with try!; the call site reads a plain
+                // property and never throws. (GetterPropertyTraps)
+                if (getterOnlyPropertyName(c.get(), name) != null) {
+                    return false;
+                }
                 return SwiftFallibility.isThrowing(c.get().module, c.get().name, name, false);
             case TLocal(v):
                 // A local function closure is not a class field, so its
@@ -7228,7 +7253,14 @@ class SwiftExpr {
             if (assignedLocalNames.exists(v.id)) {
                 return assignedLocalNames.get(v.id);
             }
-            final base = swiftUnusedLocals.exists(v.id) ? "_" + SwiftNameEscape.escape(v.name) : SwiftNameEscape.escape(v.name);
+            if (swiftUnusedLocals.exists(v.id)) {
+                // Swift only treats the bare underscore as intentionally
+                // unused; a name like _v still warns. Multiple _ bindings
+                // are legal. (UnusedLocalNaming)
+                assignedLocalNames.set(v.id, "_");
+                return "_";
+            }
+            final base = SwiftNameEscape.escape(v.name);
             if (!localNameAssigned(base)) {
                 assignedLocalNames.set(v.id, base);
                 return base;

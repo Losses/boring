@@ -232,6 +232,15 @@
             shellHook = ''
               export HAXELIB_PATH="$PWD/.haxelib"
               mkdir -p "$HAXELIB_PATH"
+              # SwiftPM writes its user-level cache under Foundation's home
+              # directory. A sandboxed home is read-only, so point
+              # Foundation at a writable scratch dir; otherwise every
+              # swift build prints two "not accessible or not writable"
+              # warnings that the warning gate counts.
+              export CFFIXED_USER_HOME="$PWD/.scratch/swiftpm-home"
+              mkdir -p "$CFFIXED_USER_HOME"
+              export XDG_CACHE_HOME="$CFFIXED_USER_HOME/.cache"
+              mkdir -p "$XDG_CACHE_HOME"
               haxelib dev reflaxe "${reflaxe}" >/dev/null
               if [ -f "$PWD/haxelib.json" ] && [ -d "$PWD/packages/compiler" ]; then
                 boring_source="$PWD"
