@@ -19,6 +19,7 @@ interface TargetConfig {
   define: string;
   file: string;
   id: string;
+  runtimeImport: string;
   shadow: string;
   signature: string;
   testDefine?: string;
@@ -69,6 +70,7 @@ const mutationTargets: TargetConfig[] = [
     define: "ts-output",
     file: "boring/PrintedRecord.ts",
     id: "ts",
+    runtimeImport: "./runtime",
     shadow: "packages/compiler/reflaxe/ts/std-shadow",
     signature: "public toString(): string",
   },
@@ -77,6 +79,7 @@ const mutationTargets: TargetConfig[] = [
     define: "swift-output",
     file: "boring/PrintedRecord.swift",
     id: "swift",
+    runtimeImport: "@boring/runtime",
     shadow: "packages/compiler/reflaxe/swift/std-shadow",
     signature: "func toString() -> [UInt16]",
   },
@@ -85,6 +88,7 @@ const mutationTargets: TargetConfig[] = [
     define: "dart-output",
     file: "lib/boring/printed_record.dart",
     id: "dart",
+    runtimeImport: "@boring/runtime",
     shadow: "packages/compiler/reflaxe/dart/std-shadow",
     signature: "String toString()",
     testDefine: "dart-test-output",
@@ -94,6 +98,7 @@ const mutationTargets: TargetConfig[] = [
     define: "rust-output",
     file: "boring/printed_record.rs",
     id: "rust",
+    runtimeImport: "crate::runtime",
     shadow: "packages/compiler/reflaxe/rust/std-shadow",
     signature: "pub fn to_string(&self) -> UString",
   },
@@ -126,8 +131,12 @@ function outerClass(content: string): string {
 function sourceVariant(kind: "removed-marker" | "explicit-member"): string {
   const source = read("samples/boring/PrintedRecord.hx");
   if(kind === "removed-marker") {
-    const variant = source.replace("@:dataClass\nclass PrintedRecord", "class PrintedRecord");
-    expect(variant).not.toContain("@:dataClass\nclass PrintedRecord");
+    // The sample stacks @:mainOnly under @:dataClass, so the marker line is
+    // matched by its position before the PrintedRecord declaration rather
+    // than by the literal "@:dataClass\nclass PrintedRecord" pair.
+    const variant = source.replace(/@:dataClass\n(?=(?:@:[^\n]*\n)*class PrintedRecord)/, "");
+    expect(variant).not.toBe(source);
+    expect(variant).toContain("@:dataClass\nclass PrintedInner");
     return variant;
   }
   const variant = source.replace(
@@ -154,16 +163,19 @@ async function generateMutation(
     "-lib boring",
     `-cp ${path.join(root, target.shadow)}`,
     `-cp ${path.join(root, target.shadow.replace("/std-shadow", ""))}`,
-    // The mutated source must shadow the sample: with `-cp samples` first,
-    // Haxe resolves boring.PrintedRecord from samples/boring/PrintedRecord.hx
-    // and the variant never compiles, so the "removed marker" control could
-    // not fail. (The removed-marker run still carried the synthesized member.)
-    `-cp ${sourceRoot}`,
+    // Haxe resolves a module from the last matching class path, so the
+    // mutated source must come after samples/ to shadow it. With the order
+    // reversed the sample wins, the compiled module sits outside the
+    // Intercept.run roots, and the target emits nothing at all.
     `-cp ${path.join(root, "samples")}`,
+    `-cp ${sourceRoot}`,
     `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
     `--macro ${target.compilerClass}`,
     `-D ${target.define}=${output}`,
+    // A compilation that references a runtime symbol must name the runtime
+    // package; the identity has no source inside the compilation.
+    `-D runtime-import=${target.runtimeImport}`,
     ...(target.testDefine == null ? [] : [`-D ${target.testDefine}=${path.join(rootDir, variant, `${target.id}-tests`)}`]),
     "boring.PrintedRecord",
     "",
