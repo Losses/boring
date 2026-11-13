@@ -127,7 +127,19 @@ fi
 printf '%s\n' "zero TypeScript diagnostics" >"$RUN/typecheck-categories.verdict"
 
 # Generated test tree: fixed zero-failure mode.
-run_stage bun-test bun test "$RUN/gen-tests"
+# The tree lives under out/, which .gitignore covers, and bun skips ignored
+# paths even when one is named explicitly. Run from inside the tree with an
+# explicit file list so the stage cannot pass by discovering nothing.
+TEST_FILES=()
+while IFS= read -r generated; do
+    TEST_FILES+=("$generated")
+done < <(cd "$RUN/gen-tests" && find . -name '*.test.ts' | sort)
+[ "${#TEST_FILES[@]}" -gt 0 ] || {
+    printf '%s\n' "generated test tree holds no test file" >"$RUN/bun-test-empty.reason"
+    exit 1
+}
+run_stage bun-test bash -c 'cd "$1" && shift && exec bun test "$@"' \
+    _ "$RUN/gen-tests" "${TEST_FILES[@]}"
 if [ "$?" -ne 0 ]; then
     printf '%s\n' "generated test tree must exit 0" >"$RUN/bun-test.reason"
     exit 1
