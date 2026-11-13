@@ -15,13 +15,24 @@ describe("string buffer generated tree", () => {
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
 
+    // docs/specs/stdlib/08-string-buffer.md:74-84 rules the TypeScript buffer
+    // as a CHUNK-ARRAY builder: `new StringBuf()` emits an empty string
+    // array, `add` emits the pairing check and pushes the part, `length`
+    // emits `join("").length`, `toString` emits the dangling-lead check and
+    // `join("")`, and the pairing check "reads the last code unit of the last
+    // chunk". The same paragraph names the form these assertions previously
+    // pinned -- "The earlier form accumulated one `string` with `+=` and read
+    // the tail with `buf.charCodeAt(buf.length - 1)`" -- and gives the reason
+    // it was dropped (the read flattens the cons-string on every append, so
+    // the append is quadratic). Pinning the earlier form checked a shape the
+    // spec had already retired.
     expect(content).not.toContain("new StringBuf");
     expect(content).not.toContain("std.StringBuf");
-    expect(content).toContain('let buf = "";');
-    expect(content).toContain("buf += a;");
-    expect(content).toContain("buf += String.fromCharCode(codeA);");
-    expect(content).toContain("return buf.length;");
-    expect(content).toContain("buf.charCodeAt(buf.length - 1)");
+    expect(content).toContain("const buf: string[] = [];");
+    expect(content).toContain("buf.push(a);");
+    expect(content).toContain('return buf.join("")');
+    expect(content).toContain('join("").length');
+    expect(content).toContain("buf[buf.length - 1]!.charCodeAt(buf[buf.length - 1]!.length - 1)");
     expect(content).toContain('throw new UStringException({ kind: "UnpairedSurrogate", unit: tail });');
   });
 
