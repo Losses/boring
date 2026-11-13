@@ -7,7 +7,6 @@ enum ArrayRootKind {
     Weighted(value:Int);
 }
 
-@:mainOnly
 class ArrayRootStateOps {
     public function new() {}
 

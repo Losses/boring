@@ -4,6 +4,7 @@ import * as path from "node:path";
 
 describe("arithmetic helpers generated tree", () => {
   const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
+  const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
   const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
@@ -19,7 +20,7 @@ describe("arithmetic helpers generated tree", () => {
   });
 
   test("TS inlines arithmetic helpers and abstracts into native comparison operators and ternaries", () => {
-    const tsFile = path.join(tsGenDir, "boring/ArithmeticOps.ts");
+    const tsFile = path.join(tsGenTestsDir, "boring/ArithmeticOps.test.ts");
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
 

@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
 describe("number parsing renderings", () => {
   test("all target trees use the validated implementation", () => {
-    const ts = read("reference/ts/gen/boring/NumberParsingOps.ts");
+    const ts = read("reference/ts/gen-tests/boring/NumberParsingOps.test.ts");
     expect(ts).toContain("Number.parseFloat");
     expect(ts).toContain("Number.parseInt");
     expect(ts).toContain("charCodeAt");

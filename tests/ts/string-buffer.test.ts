@@ -6,12 +6,12 @@ import { installTargetTreeReport, targetTreeUnavailable } from "../support/targe
 installTargetTreeReport(import.meta.path);
 
 describe("string buffer generated tree", () => {
-  const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
+  const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
   const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
   test("TS lowers StringBuf to primitive strings with inline pairing checks", () => {
-    const tsFile = path.join(tsGenDir, "boring/StringBufOps.ts");
+    const tsFile = path.join(tsGenTestsDir, "boring/StringBufOps.test.ts");
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
 

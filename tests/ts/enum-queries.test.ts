@@ -14,7 +14,7 @@ const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: tru
 describe("enum value queries generated trees", () => {
   test("TypeScript emits frozen values, collection and lookup with a literal loop bound", () => {
     const decl = read("../../reference/ts/gen/boring/FloatWidth.ts");
-    const ops = read("../../reference/ts/gen/boring/EnumQueriesOps.ts");
+    const ops = read("../../reference/ts/gen-tests/boring/EnumQueriesOps.test.ts");
     expect(decl).toContain("export const FloatWidth = Object.freeze({");
     expect(decl.match(/Object\.freeze\(\{ kind:/g)?.length).toBe(3);
     expect(decl).toContain("export const FLOAT_WIDTH_ALL = Object.freeze([FloatWidth.F64, FloatWidth.F32, FloatWidth.F16]);");

@@ -11,7 +11,6 @@ import std.UStringFault;
  * fallible shape here either returns through its own fault or catches
  * the fault into a classified value.
  */
-@:mainOnly
 class StringBufOps {
     public static function buildEmpty():String {
         final buf = new StringBuf();

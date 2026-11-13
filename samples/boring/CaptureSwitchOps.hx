@@ -13,7 +13,6 @@ enum CaptureSwitchValue {
     Number(value:Int);
 }
 
-@:mainOnly
 class CaptureSwitchOps {
     /** Return position: a single-case captured switch forwards its payload. */
     public static function describe(error:NoSuchElementError):String {

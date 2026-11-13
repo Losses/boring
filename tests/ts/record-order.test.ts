@@ -42,7 +42,7 @@ interface MemberTree {
 }
 
 const memberTrees: MemberTree[] = [
-  { target: "ts", file: "reference/ts/gen/boring/RecordOrderOps.ts", signature: "public toString(): string" },
+  { target: "ts", file: "reference/ts/gen-tests/boring/RecordOrderOps.test.ts", signature: "public toString(): string" },
   { target: "swift", file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
   { target: "swift-f32", file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
   { target: "dart", file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },

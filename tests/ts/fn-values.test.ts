@@ -26,7 +26,7 @@ function read(relative: string): string {
 }
 
 const targetTrees: ReadonlyArray<{ readonly target: TargetId; readonly file: string }> = [
-  { target: "ts", file: "reference/ts/gen/boring/FnValuesOps.ts" },
+  { target: "ts", file: "reference/ts/gen-tests/boring/FnValuesOps.test.ts" },
   { target: "kotlin", file: "reference/kotlin/gen/boring/FnValuesOps.kt" },
   { target: "swift", file: "reference/swift/gen/boring/FnValuesOps.swift" },
   { target: "dart", file: "reference/dart/gen/lib/boring/fn_values_ops.dart" },
@@ -43,7 +43,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("TypeScript, Kotlin, Swift, and Dart keep static function storage", () => {
-    const ts = read("reference/ts/gen/boring/FnValuesOps.ts");
+    const ts = read("reference/ts/gen-tests/boring/FnValuesOps.test.ts");
     expect(ts).toContain("public static defaultTag: (id: number) => string =");
     expect(ts).toContain("defaultTag");
 

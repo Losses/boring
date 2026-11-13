@@ -5,7 +5,6 @@ package boring;
  * (docs/specs/features/31-record-tostring-member.md).
  */
 @:dataClass
-@:mainOnly
 class PrintedRecord {
     public final count:Int;
     public final ratio:Float;

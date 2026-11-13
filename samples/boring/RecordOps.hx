@@ -9,7 +9,6 @@ typedef ItemRecord = {
     final active:Bool;
 };
 
-@:mainOnly
 class RecordOps {
     public static function makeItem(id:Int, name:String, score:Int, active:Bool):ItemRecord {
         return {

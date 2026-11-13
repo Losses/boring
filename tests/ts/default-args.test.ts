@@ -6,14 +6,14 @@ import { installTargetTreeReport, targetTreeUnavailable } from "../support/targe
 installTargetTreeReport(import.meta.path);
 
 describe("default argument expansion generated tree", () => {
-  const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
+  const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
   const swiftGenDir = path.resolve(__dirname, "../../reference/swift/gen");
   const dartGenDir = path.resolve(__dirname, "../../reference/dart/gen");
   const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
   test("TS generated tree emits full-arity calls and clean method signatures", () => {
-    const tsFile = path.join(tsGenDir, "boring/DefaultArgsOps.ts");
+    const tsFile = path.join(tsGenTestsDir, "boring/DefaultArgsOps.test.ts");
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
 

@@ -231,7 +231,7 @@ test("the sanctioned self-construction static uses each target lane", async () =
 
 test("sealed variant sample trees carry the ruled declaration and printed forms", () => {
   const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
-  const ts = read("reference/ts/gen/boring/SealedVariantOps.ts");
+  const ts = read("reference/ts/gen-tests/boring/SealedVariantOps.test.ts");
   const kotlin = read("reference/kotlin/gen/boring/SealedVariantOps.kt");
   const dart = read("reference/dart/gen/lib/boring/sealed_variant_ops.dart");
   const rust = read("reference/rust/gen/boring/sealed_variant_ops.rs");

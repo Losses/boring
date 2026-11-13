@@ -10,7 +10,6 @@ class StaticRefStatics {
     }
 }
 
-@:mainOnly
 class StaticRefOps {
     public static function render(code:Int):String {
         return "code:" + code;

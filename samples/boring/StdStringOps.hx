@@ -2,7 +2,6 @@ package boring;
 
 import std.ReadOnlyArray;
 
-@:mainOnly
 class StdStringOps {
     public static function concatString(value:String):String
         return "string=" + Std.string(value);

@@ -10,7 +10,7 @@ const read = (file: string): string => fs.readFileSync(path.join(root, file), "u
 
 describe("small static array initializer trees", () => {
   test("each target uses the ruled array declaration", () => {
-    expect(read("reference/ts/gen/boring/ArrayRootStateOps.ts")).toContain(
+    expect(read("reference/ts/gen-tests/boring/ArrayRootStateOps.test.ts")).toContain(
       "public static readonly readOnlyInts: readonly number[] = [10, 20, 30];",
     );
 

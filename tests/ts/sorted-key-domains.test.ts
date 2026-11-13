@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 describe("sorted key domains generated tree", () => {
-  const genDir = path.resolve(__dirname, "../../reference/ts/gen");
+  const genTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
 
   test("TS generated tree exports comparison function for structure keys", () => {
-    const clusterTagsPath = path.join(genDir, "boring/ClusterTags.ts");
+    const clusterTagsPath = path.join(genTestsDir, "boring/ClusterTags.test.ts");
     expect(fs.existsSync(clusterTagsPath)).toBe(true);
     const content = fs.readFileSync(clusterTagsPath, "utf8");
     expect(content).toContain("export function compareClusterTag(");
@@ -14,14 +14,14 @@ describe("sorted key domains generated tree", () => {
   });
 
   test("Structure key builder call site injects the comparator reference", () => {
-    const clusterTagsPath = path.join(genDir, "boring/ClusterTags.ts");
+    const clusterTagsPath = path.join(genTestsDir, "boring/ClusterTags.test.ts");
     const content = fs.readFileSync(clusterTagsPath, "utf8");
     expect(content).toContain("SortedTable.mapBuilder<ClusterTag, number>(compareClusterTag)");
     expect(content).toContain("SortedTable.setBuilder<ClusterTag>(compareClusterTag)");
   });
 
   test("Int key builder call site binds the resident comparator", () => {
-    const codePointNamesPath = path.join(genDir, "boring/CodePointNames.ts");
+    const codePointNamesPath = path.join(genTestsDir, "boring/CodePointNames.test.ts");
     expect(fs.existsSync(codePointNamesPath)).toBe(true);
     const content = fs.readFileSync(codePointNamesPath, "utf8");
     expect(content).toContain("SortedTable.mapBuilder<number, string>(SortedTable.compareInts)");
@@ -29,7 +29,7 @@ describe("sorted key domains generated tree", () => {
   });
 
   test("String key builder call site binds the resident comparator", () => {
-    const scriptNamesPath = path.join(genDir, "boring/ScriptNames.ts");
+    const scriptNamesPath = path.join(genTestsDir, "boring/ScriptNames.test.ts");
     expect(fs.existsSync(scriptNamesPath)).toBe(true);
     const content = fs.readFileSync(scriptNamesPath, "utf8");
     expect(content).toContain("SortedTable.mapBuilder<string, number>(SortedTable.compareStrings)");

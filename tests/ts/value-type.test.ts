@@ -94,7 +94,7 @@ describe("value wrapper generated trees", () => {
     expect(ts).toContain("export function makeFontFaceId(value: string): FontFaceId");
     expect(ts).not.toContain("class Ic");
 
-    const tsConsumer = read("reference/ts/gen/boring/ValueTypeConsumer.ts");
+    const tsConsumer = read("reference/ts/gen-tests/boring/ValueTypeConsumer.test.ts");
     expect(tsConsumer).toContain("const total = plus(first, ZERO);");
     expect(tsConsumer).toContain("return toString(id);");
 

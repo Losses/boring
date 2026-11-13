@@ -49,11 +49,11 @@ run_stage generate \
 
 # The typecheck below must see this attempt's tree. Refuse an empty or
 # incomplete generation before any verdict is computed.
-[ -s "$RUN/gen/boring/PlatformOps.ts" ] || {
-    printf '%s\n' "generated tree misses PlatformOps.ts" >"$RUN/generate.reason"
+[ -s "$RUN/gen-tests/boring/PlatformOps.test.ts" ] || {
+    printf '%s\n' "generated tree misses PlatformOps.test.ts" >"$RUN/generate.reason"
     exit 1
 }
-gen_files=$(find "$RUN/gen" -name '*.ts' | wc -l)
+gen_files=$(find "$RUN/gen" "$RUN/gen-tests" -name '*.ts' | wc -l)
 [ "$gen_files" -gt 100 ] || {
     printf '%s\n' "generated tree suspiciously small: $gen_files files" \
         >"$RUN/generate.reason"
@@ -78,7 +78,7 @@ printf '%s\n' "no phantom module imports" >"$RUN/phantom-scan.verdict"
 # Negative control for the scan itself: an injected phantom import must be
 # detected, so a silent scanner cannot pass this suite.
 sed '2a import { Env } from "./../std/Env.ts";' \
-    "$RUN/gen/boring/PlatformOps.ts" >"$RUN/injected-phantom.ts"
+    "$RUN/gen-tests/boring/PlatformOps.test.ts" >"$RUN/injected-phantom.ts"
 if ! grep -qE "$PATTERN" "$RUN/injected-phantom.ts"; then
     printf '%s\n' "scan failed to detect an injected phantom import" \
         >"$RUN/scan-negative.reason"
@@ -108,11 +108,11 @@ if [ "$status" -ne 0 ]; then
 fi
 cat "$RUN/typecheck.stdout" "$RUN/typecheck.stderr" >"$RUN/typecheck.combined"
 # The file list proves tsc actually read this attempt's generated sources.
-grep -q "gen/boring/PlatformOps.ts" "$RUN/typecheck.stdout" || {
-    printf '%s\n' "typecheck file list misses PlatformOps.ts" >"$RUN/typecheck.reason"
+grep -q "gen-tests/boring/PlatformOps.test.ts" "$RUN/typecheck.stdout" || {
+    printf '%s\n' "typecheck file list misses PlatformOps.test.ts" >"$RUN/typecheck.reason"
     exit 1
 }
-seen=$(grep -c "gen/" "$RUN/typecheck.stdout" || true)
+seen=$(grep -cE "gen(-tests)?/" "$RUN/typecheck.stdout" || true)
 [ "$seen" -ge 100 ] || {
     printf '%s\n' "typecheck covered only $seen generated files" \
         >"$RUN/typecheck.reason"

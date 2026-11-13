@@ -18,7 +18,6 @@ typedef ClusterTag = {
  * Sample demonstrating std.SortedMap and std.SortedSet with structure keys
  * (docs/specs/stdlib/07-sorted-keyed-tables.md).
  */
-@:mainOnly
 class ClusterTags {
     public static function createMap():SortedMap<ClusterTag, Int> {
         final b:SortedMapBuilder<ClusterTag, Int> = SortedMap.builder();

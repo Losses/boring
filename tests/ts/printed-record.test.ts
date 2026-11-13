@@ -28,7 +28,7 @@ interface TargetConfig {
 const memberTrees: MemberTree[] = [
   {
     target: "ts",
-    file: "reference/ts/gen/boring/PrintedRecord.ts",
+    file: "reference/ts/gen-tests/boring/PrintedRecord.test.ts",
     signature: "public toString(): string",
     fields: ["this.count", "this.ratio", "this.inner"],
   },

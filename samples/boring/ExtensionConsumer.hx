@@ -3,7 +3,6 @@ package boring;
 import boring.ExtensionOps.ExtensionMode;
 
 /** Cross-module consumer whose Haxe calls remain plain static calls. */
-@:mainOnly
 class ExtensionConsumer {
     public static function enumResult():String {
         return ExtensionOps.modeLabel(ExtensionMode.Hot, "!");

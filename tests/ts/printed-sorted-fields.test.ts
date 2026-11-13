@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, "../..");
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 
 const trees = [
-  ["ts", "reference/ts/gen/boring/PrintedSortedFields.ts"],
+  ["ts", "reference/ts/gen-tests/boring/PrintedSortedFields.test.ts"],
   ["swift", "reference/swift/gen/boring/PrintedSortedFields.swift"],
   ["rust", "reference/rust/gen/boring/printed_sorted_fields.rs"],
   ["dart", "reference/dart/gen/lib/boring/printed_sorted_fields.dart"],

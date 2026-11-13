@@ -14,15 +14,15 @@ function read(relativePath: string): string {
 describe("top-level and extension function lowering", () => {
   test("TypeScript extracts file functions and keeps the receiver first", () => {
     const fileLevel = read("reference/ts/gen/boring/FileLevelOps.ts");
-    const fileConsumer = read("reference/ts/gen/boring/FileLevelConsumer.ts");
+    const fileConsumer = read("reference/ts/gen-tests/boring/FileLevelConsumer.test.ts");
     const extensions = read("reference/ts/gen/boring/ExtensionOps.ts");
-    const extensionConsumer = read("reference/ts/gen/boring/ExtensionConsumer.ts");
+    const extensionConsumer = read("reference/ts/gen-tests/boring/ExtensionConsumer.test.ts");
 
     expect(fileLevel).toContain("export function publicValue(value: number): number");
     expect(fileLevel).toContain("function privateValue(value: number): number");
     expect(fileLevel).not.toContain("class FileLevelOps");
     expect(fileLevel).toContain("return privateValue(value);");
-    expect(fileConsumer).toContain("import { publicValue, publicWithPrivate } from \"./FileLevelOps.ts\";");
+    expect(fileConsumer).toContain("import { publicValue, publicWithPrivate } from \"../../gen/boring/FileLevelOps.ts\";");
     expect(fileConsumer).toContain("return publicValue(7);");
     expect(fileConsumer).not.toMatch(/\bFileLevelOps\.(?:publicValue|publicWithPrivate)\(/u);
 

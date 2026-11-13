@@ -1,6 +1,5 @@
 package boring;
 
-@:mainOnly
 class StringConvOps {
     public static function hexZero():String
         return StringTools.hex(0);

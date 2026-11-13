@@ -31,7 +31,6 @@ class DotDrawKind implements DrawKind {
     }
 }
 
-@:mainOnly
 class SealedVariantOps {
     public static function labelOf(kind:DrawKind):String {
         if (Std.isOfType(kind, NoneDrawKind)) {

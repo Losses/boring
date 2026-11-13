@@ -1,6 +1,5 @@
 package boring;
 
-@:mainOnly
 class NumberClassifyOps {
     public static function finite(value:Float):Bool
         return Math.isFinite(value);

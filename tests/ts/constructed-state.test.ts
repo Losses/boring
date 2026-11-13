@@ -10,7 +10,7 @@ const read = (file: string): string => fs.readFileSync(path.join(root, file), "u
 
 describe("constructed static initializer trees", () => {
   test("each target uses its ruled declaration and Rust read lane", () => {
-    expect(read("reference/ts/gen/boring/ConstructedStateOps.ts")).toContain(
+    expect(read("reference/ts/gen-tests/boring/ConstructedStateOps.test.ts")).toContain(
       "public static readonly weighted: FramePolicy = new FramePolicy("
     );
     expect(read("reference/kotlin/gen/boring/ConstructedStateOps.kt")).toContain(

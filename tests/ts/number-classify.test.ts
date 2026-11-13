@@ -6,7 +6,7 @@ import { installTargetTreeReport, withTargetTree } from "../support/target-trees
 installTargetTreeReport(import.meta.path);
 
 describe("number classification generated tree", () => {
-  const tsFile = path.resolve(__dirname, "../../reference/ts/gen/boring/NumberClassifyOps.ts");
+  const tsFile = path.resolve(__dirname, "../../reference/ts/gen-tests/boring/NumberClassifyOps.test.ts");
   const kotlinFile = path.resolve(__dirname, "../../reference/kotlin/gen/boring/NumberClassifyOps.kt");
   const rustFile = path.resolve(__dirname, "../../reference/rust/gen/boring/number_classify_ops.rs");
   const swiftFile = path.resolve(__dirname, "../../reference/swift/gen/boring/NumberClassifyOps.swift");

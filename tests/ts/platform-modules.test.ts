@@ -13,15 +13,15 @@ import * as path from "node:path";
  * lowered branch shape by textual assertion on the generated tree.
  */
 
-const genDir = path.resolve(__dirname, "../../reference/ts/gen");
+const genTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
 
-function readGenerated(relative: string): string {
-  return fs.readFileSync(path.join(genDir, relative), "utf8");
+function readGeneratedTest(relative: string): string {
+  return fs.readFileSync(path.join(genTestsDir, relative), "utf8");
 }
 
 describe("std.Fs lowering", () => {
   test("node:fs loads lazily through the host module probe inside each call body", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain('probe("node:fs")');
     expect(source).toContain('globalThis as Record<string, unknown>');
     expect(source).toContain(".getBuiltinModule");
@@ -32,14 +32,14 @@ describe("std.Fs lowering", () => {
   });
 
   test("a host without the module probe raises FsException(Unavailable)", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain(
       'throw new FsException({ kind: "Unavailable", operation: "readText", path: p })',
     );
   });
 
   test("a host failure maps to the normalized FsError kind", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain('if (code === "ENOENT") { throw new FsException({ kind: "NotFound"');
     expect(source).toContain('if (code === "ENOTDIR") { throw new FsException({ kind: "NotDirectory"');
     expect(source).toContain('if (code === "EACCES" || code === "EPERM")');
@@ -48,12 +48,12 @@ describe("std.Fs lowering", () => {
   });
 
   test("isDirectory answers false for every stat failure and never raises", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain("try { return fs.statSync(p).isDirectory(); } catch { return false; }");
   });
 
   test("isDirectory reports a missing path as false instead of letting the host error escape", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     // The ruling (2026-10-05): a missing path is not a directory, so the
     // predicate returns false; the guard covers only the stat call, and
     // the unavailability throw above still escapes a host without node:fs.
@@ -63,7 +63,7 @@ describe("std.Fs lowering", () => {
 
 describe("std.Env lowering", () => {
   test("a browser host maps to localStorage with a null missing key", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain('typeof localStorage !== "undefined"');
     expect(source).toContain("localStorage.getItem(k)");
     // The absent key reads as null (the direct Null<String> match).
@@ -71,7 +71,7 @@ describe("std.Env lowering", () => {
   });
 
   test("a node host maps to process.env behind a presence probe", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain('typeof process !== "undefined"');
     expect(source).toContain("process.env[k]");
   });
@@ -79,7 +79,7 @@ describe("std.Env lowering", () => {
 
 describe("std.Process.args lowering", () => {
   test("reads process.argv.slice(2) lazily behind a presence probe", () => {
-    const source = readGenerated("boring/PlatformOps.ts");
+    const source = readGeneratedTest("boring/PlatformOps.test.ts");
     expect(source).toContain("process.argv");
     expect(source).toContain(".slice(2)");
   });

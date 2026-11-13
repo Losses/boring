@@ -8,7 +8,6 @@ import std.UStringFault;
  * statement, return, initializer, and handler-return positions every target
  * lowers, plus the payload and message accessors on the caught variable.
  */
-@:mainOnly
 class TryOps {
     static function throwingCodec(count:Int):Int {
         if (count > 10) {

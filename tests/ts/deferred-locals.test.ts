@@ -13,7 +13,7 @@ function read(relative: string): string {
 }
 
 test("deferred locals retain each target's sanctioned declaration form", () => {
-  expect(read("reference/ts/gen/boring/DeferredLocalsOps.ts")).toContain("let tier: number;");
+  expect(read("reference/ts/gen-tests/boring/DeferredLocalsOps.test.ts")).toContain("let tier: number;");
   expect(read("reference/kotlin/gen/boring/DeferredLocalsOps.kt")).toContain("var tier: Int");
   withTargetTree("swift", "deferred-locals: deferred locals retain each target's sanctioned declaration form", () => {
     expect(read("reference/swift/gen/boring/DeferredLocalsOps.swift")).toContain("var tier: Int32");

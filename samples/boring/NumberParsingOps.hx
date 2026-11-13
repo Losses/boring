@@ -1,6 +1,5 @@
 package boring;
 
-@:mainOnly
 class NumberParsingOps {
     #if boring_oracle
     private static function isTrim(code:Int):Bool {

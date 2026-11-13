@@ -13,7 +13,6 @@ class OptionalIcRecord {
     }
 }
 
-@:mainOnly
 class ValueTypeConsumer {
     public static function arithmetic():Float {
         final first:Ic = new Ic(2.0);

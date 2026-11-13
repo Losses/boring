@@ -6,7 +6,6 @@ import std.SortedMap;
 import std.SortedSet;
 
 @:dataClass
-@:mainOnly
 class PrintedSortedFields {
     public final marks:SortedSet<Int>;
     public final points:SortedSet<PrintedPoint>;

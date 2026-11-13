@@ -33,7 +33,7 @@ describe("Std.string lowering", () => {
   });
 
   test("enum operands use each target constructor-name read", () => {
-    const ts = fs.readFileSync(path.join(root, "reference/ts/gen/boring/StdStringOps.ts"), "utf8");
+    const ts = fs.readFileSync(path.join(root, "reference/ts/gen-tests/boring/StdStringOps.test.ts"), "utf8");
     const kotlin = fs.readFileSync(path.join(root, "reference/kotlin/gen/boring/StdStringOps.kt"), "utf8");
     const rust = fs.readFileSync(path.join(root, "reference/rust/gen/boring/std_string_ops.rs"), "utf8");
     const dart = fs.readFileSync(path.join(root, "reference/dart/gen/lib/boring/std_string_ops.dart"), "utf8");
@@ -70,7 +70,7 @@ describe("Std.string lowering", () => {
 
   test("array operands use one single-pass builder in every target", () => {
     const rows = [
-      ["ts", "reference/ts/gen/boring/StdStringOps.ts", 'let out = "["', "const n =", "for (let i = 0; i < n; i += 1)"],
+      ["ts", "reference/ts/gen-tests/boring/StdStringOps.test.ts", 'let out = "["', "const n =", "for (let i = 0; i < n; i += 1)"],
       ["kotlin", "reference/kotlin/gen/boring/StdStringOps.kt", "StringBuilder()", "val n =", "while (i < n)"],
       ["rust", "reference/rust/gen/boring/std_string_ops.rs", "String::new()", "let n =", 'write!(out, "{}"'],
       ["swift", "reference/swift/gen/boring/StdStringOps.swift", 'var out = Array("[".utf16)', "let n =", "while i < n"],

@@ -17,7 +17,6 @@ typedef ItemKeyVal = {
  * Functional collection pipeline samples (docs/specs/features/21-functional-idiom-expansion.md).
  * Covers map, filter, forEach, associate, and sortedBy on Array<T>.
  */
-@:mainOnly
 class PipelineOps {
     public static function doubleScores(items:Array<Item>):Array<Int> {
         return items.map(function(item:Item):Int {

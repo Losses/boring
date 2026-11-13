@@ -10,7 +10,7 @@ describe("enum sorted key generated trees", () => {
   const read = (relative: string) => fs.readFileSync(path.resolve(__dirname, "../../reference", relative), "utf8");
 
   test("pins parameterless enum comparator definitions", () => {
-    expect(read("ts/gen/boring/EnumSortedKeysOps.ts")).toContain(`export function compareEnumTier(a: EnumTier, b: EnumTier): number {
+    expect(read("ts/gen-tests/boring/EnumSortedKeysOps.test.ts")).toContain(`export function compareEnumTier(a: EnumTier, b: EnumTier): number {
   if (a === b) return 0;
   if (a.kind === "Low") return 0 - (b.kind === "Low" ? 0 : 0);
   if (a.kind === "Mid") return 1 - (b.kind === "Mid" ? 1 : 0);
