@@ -516,7 +516,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final ctx = contexts.get(module);
             final body = parts.get(module).join("\n\n");
             final seqEq = ctx.needsSeqEquals() ? "\n\n" + DartDecl.seqEqualsSource() : "";
-            final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + seqEq + "\n";
+            final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput, body) + "\n" + body + seqEq + "\n";
             PackageArtifacts.saveTreeFile(output, savedPath, content);
             writeOriginSidecar(savedPath, content);
         }
@@ -679,7 +679,7 @@ class Compiler extends PluginCompiler<Compiler> {
         is the file's define-based location; every specifier walks from
         it so relative steps across the two output trees stay correct.
     **/
-    function importBlockOf(ctx:DartDecl, filePath:String, dartOutput:String, testOutput:String):String {
+    function importBlockOf(ctx:DartDecl, filePath:String, dartOutput:String, testOutput:String, body:String):String {
         final lines:Array<String> = [];
         if (ctx.imports.usesTypedData()) {
             lines.push("import 'dart:typed_data';");
@@ -732,11 +732,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("import '" + importSpecifier(filePath, dartOutput + "/" + runtimeEmitPath("runtime.dart")) + "' as runtime;");
             }
         }
-        if (ctx.imports.usesRuntimeTest()) {
+        // The host entry is imported only by a module whose emitted body
+        // actually calls it: a test module that lowers everything onto the
+        // composite assertion helper would otherwise carry a dead import the
+        // analyzer reports. (TestHostImportOnUse)
+        if (ctx.imports.usesRuntimeTest() && body != null && body.indexOf("test_host.") >= 0) {
             lines.push("import '" + importSpecifier(filePath, testOutput + "/test_host.dart") + "' as test_host;");
-            if (ctx.imports.usesTestHelper()) {
-                lines.push("import '" + importSpecifier(filePath, testOutput + "/test_helper.dart") + "' as test_helper;");
-            }
+        }
+        if (ctx.imports.usesTestHelper()) {
+            lines.push("import '" + importSpecifier(filePath, testOutput + "/test_helper.dart") + "' as test_helper;");
         }
         return lines.join("\n");
     }

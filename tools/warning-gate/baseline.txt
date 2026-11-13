@@ -1,6 +1,11 @@
 # Frozen warning baseline (recalibrated 2026-11-12: every measured target cleared to zero).
-# Scope note: the gate measures reference/<target>/gen for dart/kotlin/rust and the
-# SwiftPM gen+gen-tests build for swift; the baseline records exactly that measured scope.
+# Scope note: the gate measures reference/<target>/gen for dart/kotlin/rust, the
+# SwiftPM BoringSwiftTests build (gen + gen-tests) for swift, and tsc -p for
+# typescript. These five zeros are exactly that measured scope - not a claim about
+# trees the gate never runs a compiler over. Of those outside trees, dart's
+# gen-tests was cleared to zero as well (the fixes it needed sit in the dart
+# emitter, so they also cover the gen tree); the kotlin gen-tests tree is outside
+# the gate and still carries pre-existing warnings on its own (see the task note).
 dart	0	clean
 kotlin	0	clean
 rust	0	clean

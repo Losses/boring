@@ -33,6 +33,7 @@ import LoweredValue.Presence;
 import Destination.Destination;
 import Destination.DestinationRole;
 import dartcompiler.DartCoerce;
+import DeadLocalElimination;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Dart.
@@ -110,6 +111,14 @@ class DartExpr {
         escape is sound only at statement level, never inside a branch whose
         merge the null path can still reach. (BranchPromotionScope) */
     var branchRenderDepth:Int = 0;
+    // Assignments that still come AFTER the statement being rendered, within
+    // the enclosing statement list. A Dart flow promotion survives until an
+    // assignment kills it, so "this local is assigned somewhere in the
+    // function" is too strong a blocker: it drops the promotion an early-exit
+    // null guard or a non-null initializer establishes, and the later "!" then
+    // reports no effect. (AssignmentAfterPromotion)
+    final futureAssigned:Map<Int, Bool> = [];
+    var futureAssignedKnown:Bool = false;
     var probeTextEmitted:Bool = false;
 
     /** Optional parameters materialized by default expansion. */
@@ -184,7 +193,7 @@ class DartExpr {
     /** Statements at library top level (the framework's expression entry). */
     public function topLevelStatements(e:TypedExpr):String {
         scanLocals(e);
-        return blockLines(statementsOf(e), 0).join("\n");
+        return blockLines(statementsOf(e), 0, true).join("\n");
     }
 
     /** One expression at current-statement position (the framework's expression entry). */
@@ -458,7 +467,7 @@ class DartExpr {
 
         scanLocals(f.expr);
         scanClassValueAliasReads(f.expr);
-        final result = blockLines(statementsOf(f.expr), depth);
+        final result = blockLines(statementsOf(f.expr), depth, true);
         currentReturnType = null;
         return result;
     }
@@ -888,8 +897,16 @@ class DartExpr {
                         DefaultArgExpander.withoutNull(v.t)
                     else
                         v.t;
-                    if (coalescing != null && !isNullLeafType(localType))
-                        nonNullLocals.set(v.id, true);
+                    if (!isNullLeafType(localType)) {
+                        if (coalescing != null)
+                            nonNullLocals.set(v.id, true);
+                        // (DeclaredNonNullLocal) The declaration names a
+                        // non-nullable type, so Dart's static type already
+                        // proves the local non-null while it stays unassigned:
+                        // a later "!" on it reports no effect.
+                        if (!mutated.exists(v.id))
+                            flowPromotedNonNull.set(v.id, true);
+                    }
                     var initText = switch (init.expr) {
                         case TFunction(fn): functionLiteralNamed(v.name, fn);
                         default: expr(init);
@@ -913,19 +930,33 @@ class DartExpr {
                 return [indent(depth) + types.of(v.t) + " " + localName(v)];
             case TBlock(stmts):
                 final out = [indent(depth) + "{"];
-                for (l in blockLines(stmts, depth + 1))
+                for (l in blockLines(stmts, depth + 1, true))
                     out.push(l);
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                final guarded = nullGuardLocal(c);
-                if (guarded != null && f == null && isNotNullGuard(c)) {
+                final guarded = nullGuardLocal(c);                // (DeadNullGuard) A null comparison on a local Dart already sees
+                // as non-null is statically false, so the then-arm is
+                // unreachable and the statement has no effect. Dropping it keeps
+                // the analyzer's unnecessary_null_comparison and dead_code quiet
+                // after a declaration narrowing made the local non-null.
+                if (guarded != null && f == null && !isNotNullGuard(c)
+                    && promotionSafe(guarded)
+                    && (flowPromotedNonNull.exists(guarded.id) || nonNullLocals.exists(guarded.id)))
+                    return [];
+                if (guarded != null && isNotNullGuard(c)) {
                     final wasProven = nonNullLocals.exists(guarded.id);
-                    nonNullLocals.set(guarded.id, true);
-                    final lines = ifLines(c, t, f, depth);
-                    if (!wasProven)
-                        nonNullLocals.remove(guarded.id);
-                    return lines;
+                    if (f == null) {
+                        nonNullLocals.set(guarded.id, true);
+                        final lines = ifLines(c, t, f, depth);
+                        if (!wasProven)
+                            nonNullLocals.remove(guarded.id);
+                        return lines;
+                    }
+                    // (GuardThenArmWithElse) The proven arm of a not-null guard
+                    // promotes the local in Dart's flow whether or not an else
+                    // follows; the promotion must not leak into the else arm.
+                    return ifLines(c, t, f, depth, wasProven ? null : guarded);
                 }
                 final lines = ifLines(c, t, f, depth);
                 // (GuardReturnPromotion) `if (x == null)` whose then arm
@@ -935,8 +966,17 @@ class DartExpr {
                 // /tmp/warnstd/promo/t5.dart P2/P7/P8, t9.dart P9 (not-null
                 // guard with a terminating else arm).
                 if (guarded != null && f == null && !isNotNullGuard(c)
-                    && !mutated.exists(guarded.id) && branchTerminates(t))
+                    && promotionSafe(guarded) && branchTerminates(t))
                     flowPromotedNonNull.set(guarded.id, true);
+                // (OrGuardReturnPromotion) A chain guard whose null case exits
+                // leaves the local non-null after the if, even though
+                // nullGuardLocal cannot match the whole condition.
+                final orGuarded = nullGuardLocalAny(c);
+                if (orGuarded != null && f == null && branchTerminates(t)
+                    && promotionSafe(orGuarded) && branchRenderDepth == 0) {
+                    flowPromotedNonNull.set(orGuarded.id, true);
+                    nonNullLocals.set(orGuarded.id, true);
+                }
                 // A null-defaulting branch promotes its local after the
                 // branch only when the then arm exits: on a fall-through
                 // path the local may still be null, so promoting it here
@@ -950,9 +990,19 @@ class DartExpr {
                 // to consult `mutated` here (GuardThenReassign). Probe:
                 // tests/haxe/dc-null-guard-fallthrough p8/p10.
                 if (guarded != null && f == null && !isNotNullGuard(c)
-                    && !mutated.exists(guarded.id) && branchTerminates(t)
+                    && promotionSafe(guarded) && branchTerminates(t)
                     && branchRenderDepth == 0)
                     nonNullLocals.set(guarded.id, true);
+                // (NullArmAssignPromotion) if (x == null) { x = nonNull; ... }
+                // assigns the null path a non-null value and falls through, so x
+                // is non-null after the if even when the arm does not end in a
+                // return and even though x was assigned earlier.
+                if (guarded != null && f == null && !isNotNullGuard(c)
+                    && promotionSafe(guarded) && !branchTerminates(t)
+                    && armAssignsNonNull(t, guarded) && branchRenderDepth == 0) {
+                    flowPromotedNonNull.set(guarded.id, true);
+                    nonNullLocals.set(guarded.id, true);
+                }
                 // (NullDefaultAssignPromotion) if (x == null) x = default
                 // assigns a non-null value on the null path and falls
                 // through, so x is definitely non-null after the if, even
@@ -968,7 +1018,7 @@ class DartExpr {
                 final savedLoopPromoted = flowPromotedNonNull.copy();
                 final out = [indent(depth) + "while (" + conditionText(c) + ") {"];
                 branchRenderDepth++;
-                for (l in blockLines(statementsOf(b), depth + 1))
+                for (l in blockLines(statementsOf(b), depth + 1, true))
                     out.push(l);
                 branchRenderDepth--;
                 flowPromotedNonNull.clear();
@@ -1042,6 +1092,18 @@ class DartExpr {
                 if (map == null && nullableValue(r) && !isNullLeafType(l.t))
                     rText = requiredValueText(r);
                 if (map == null) {
+                    switch (stripWrap(l).expr) {
+                        case TLocal(v):
+                            // (AssignedNonNullPromotion) Dart promotes a local
+                            // assigned a non-null value, and un-promotes it on a
+                            // nullable assignment; mirror that so a following
+                            // "!" in the same block is not emitted.
+                            if (!isNullLeafType(r.t) && !nullableValue(r) && !isNullLiteral(r))
+                                flowPromotedNonNull.set(v.id, true);
+                            else
+                                flowPromotedNonNull.remove(v.id);
+                        case _:
+                    }
                     final growth = arrayGrowthGuardLine(l, depth);
                     if (growth != null) {
                         return [growth, indent(depth) + assignTarget(l) + " = " + rText];
@@ -1068,12 +1130,21 @@ class DartExpr {
     }
 
     function conditionText(c:TypedExpr):String {
-        if (isNullLeafType(c.t))
-            return "(" + expr(c) + ") ?? false";
+        if (isNullLeafType(c.t)) {
+            // (BoolPromotionCondition) A nullable bool the enclosing guard
+            // already promoted (if (x != null) { ... }) is a plain bool in
+            // Dart's flow too, so "x ?? false" renders a dead right operand.
+            final promoted = switch (stripWrap(c).expr) {
+                case TLocal(v): promotionSafe(v) && (nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id));
+                case _: false;
+            };
+            if (!promoted)
+                return "(" + expr(c) + ") ?? false";
+        }
         return expr(c);
     }
 
-    function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
+    function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int, ?thenPromoted:TVar):Array<String> {
         // Dart's flow promotion inside the if arm does not reach the else
         // arm; the pre-if state is snapshotted so the else can restart.
         // The snapshot is taken AFTER the condition renders: the condition
@@ -1084,10 +1155,18 @@ class DartExpr {
         // dart read it as redundant. (ConditionRenderPromotionSurvives)
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
         final savedPromoted = flowPromotedNonNull.copy();
+        if (thenPromoted != null)
+            nonNullLocals.set(thenPromoted.id, true);
         branchRenderDepth++;
-        for (l in blockLines(statementsOf(t), depth + 1))
+        for (l in blockLines(statementsOf(t), depth + 1, true))
             out.push(l);
         branchRenderDepth--;
+        if (thenPromoted != null) {
+            // The guard promotes the local in the then arm only; the else arm
+            // and the merge point restart from the pre-if state.
+            nonNullLocals.remove(thenPromoted.id);
+            flowPromotedNonNull.remove(thenPromoted.id);
+        }
         if (f != null) {
             flowPromotedNonNull.clear();
             for (k in savedPromoted.keys())
@@ -1107,7 +1186,7 @@ class DartExpr {
             }
             out.push(indent(depth) + "} else {");
             branchRenderDepth++;
-            for (l in blockLines(elseStmts, depth + 1))
+            for (l in blockLines(elseStmts, depth + 1, true))
                 out.push(l);
             branchRenderDepth--;
         }
@@ -1177,12 +1256,38 @@ class DartExpr {
         return out.join("\n");
     }
 
-    function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
+    /**
+        Renders a statement list. scopeComplete says this list is the whole
+        scope of the locals it declares (no statement of it was moved elsewhere
+        for rendering), which is what lets the unused-local elimination read a
+        declaration as dead. (see DeadLocalElimination)
+    **/
+    function blockLines(stmts:Array<TypedExpr>, depth:Int, scopeComplete:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
+        // The Haxe analyzer inlines a read-only array literal into element
+        // locals and substitutes only the accessed element; the rest are
+        // assigned and never read, which dart analyze reports as
+        // unused_local_variable. Drop the dead declarations here, keeping any
+        // effectful initializer as an expression statement.
+        if (scopeComplete)
+            stmts = DeadLocalElimination.filterStmts(stmts,
+                init -> isTryRegion(init) || isStringBufToStringCall(init) || isSwitch(init));
+        // (AssignmentAfterPromotion) The promotion gates read the assignments
+        // that still follow the statement being rendered. A branch rendered in
+        // the middle of this list starts from its own after-set and restores
+        // this one on the way out.
+        final afterAssigns = futureAssignmentSets(stmts);
+        final savedFuture = futureAssigned.copy();
+        final savedFutureKnown = futureAssignedKnown;
         final out:Array<String> = [];
         var i = 0;
         while (i < stmts.length) {
+            futureAssignedKnown = true;
+            futureAssigned.clear();
+            if (i < afterAssigns.length)
+                for (k in afterAssigns[i].keys())
+                    futureAssigned.set(k, true);
             // Statements after one that ends control are unreachable text
             // the analyzer rejects, so emission stops at the terminator.
             if (TerminationAnalysis.alwaysTerminates(stmts[i])) {
@@ -1208,6 +1313,10 @@ class DartExpr {
                 out.push(l);
             i += 1;
         }
+        futureAssigned.clear();
+        for (k in savedFuture.keys())
+            futureAssigned.set(k, savedFuture.get(k));
+        futureAssignedKnown = savedFutureKnown;
         return out;
     }
 
@@ -1320,7 +1429,7 @@ class DartExpr {
             + "; "
             + name
             + "++) {"];
-        for (l in blockLines(loop.body, depth + 1))
+        for (l in blockLines(loop.body, depth + 1, true))
             out.push(l);
         out.push(indent(depth) + "}");
         return out;
@@ -1778,7 +1887,7 @@ class DartExpr {
                 case _:
             }
         }
-        return "(" + params + ") {\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
+        return "(" + params + ") {\n" + blockLines(bodyStmts, 1, true).join("\n") + "\n}";
     }
 
     function functionLiteralNamed(name:String, f:TFunc):String {
@@ -2134,7 +2243,7 @@ class DartExpr {
             // it as having no effect. (GuardPromotedReceiverUnwrap)
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
-                case TLocal(_): base + "!";
+                case TLocal(v):                    base + "!";
                 case _: "(" + base + ")!";
             };
         }
@@ -2285,9 +2394,81 @@ class DartExpr {
     **/
     function flowPromotedLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): !mutated.exists(v.id) && flowPromotedNonNull.exists(v.id);
+            case TLocal(v): promotionSafe(v) && flowPromotedNonNull.exists(v.id);
             case _: false;
         };
+    }
+
+    /**
+        Whether a promotion recorded for this local survives the statements
+        still to be rendered in the enclosing list. A later assignment kills a
+        Dart flow promotion, so the gate is "no assignment after this point",
+        not "never assigned" (see futureAssigned). Outside a statement list the
+        old whole-function reading is kept: it is the conservative one.
+    **/
+    function promotionSafe(v:TVar):Bool {
+        return futureAssignedKnown ? !futureAssigned.exists(v.id) : !mutated.exists(v.id);
+    }
+
+    /** Locals assigned per statement index: entry i holds the ids assigned by
+        the statements AFTER i. Built in one backwards pass. **/
+    function futureAssignmentSets(stmts:Array<TypedExpr>):Array<Map<Int, Bool>> {
+        final out:Array<Map<Int, Bool>> = [];
+        final acc = new Map<Int, Bool>();
+        var i = stmts.length;
+        while (i > 0) {
+            i--;
+            final snapshot = new Map<Int, Bool>();
+            for (k in acc.keys())
+                snapshot.set(k, true);
+            out[i] = snapshot;
+            collectAssignedIds(stmts[i], acc);
+        }
+        return out;
+    }
+
+    /** Adds every local id this expression assigns (plain, compound,
+        increment, decrement) to "into". **/
+    function collectAssignedIds(e:TypedExpr, into:Map<Int, Bool>):Void {
+        if (e == null)
+            return;
+        switch (e.expr) {
+            case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+                switch (stripWrap(t).expr) {
+                    case TLocal(v): into.set(v.id, true);
+                    case _:
+                }
+            case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+                switch (stripWrap(t).expr) {
+                    case TLocal(v): into.set(v.id, true);
+                    case _:
+                }
+            case _:
+        }
+        haxe.macro.TypedExprTools.iter(e, child -> collectAssignedIds(child, into));
+    }
+
+    /**
+        Whether a null-guard then-arm leaves the guarded local holding a
+        non-null value: the last assignment to it inside the arm is non-null
+        (the arm may do other work around it, e.g. use the fresh value).
+        (NullArmAssignPromotion)
+    **/
+    function armAssignsNonNull(branch:TypedExpr, v:TVar):Bool {
+        var found = false;
+        for (stmt in statementsOf(branch)) {
+            if (isVarAssigned(stmt, v.id)) {
+                found = switch (stripWrap(stmt).expr) {
+                    case TBinop(OpAssign, t, rhs):
+                        switch (stripWrap(t).expr) {
+                            case TLocal(lv): lv.id == v.id && !isNullLeafType(rhs.t) && !nullableValue(rhs) && !isNullLiteral(rhs);
+                            case _: false;
+                        }
+                    case _: false;
+                };
+            }
+        }
+        return found;
     }
 
     /** Restores the promotion registry to a snapshot (BooleanArmFlowScope). */
@@ -2335,8 +2516,7 @@ class DartExpr {
         final out = dartCoerce(lowered, dest);
         if (out != text) {
             switch (stripWrap(e).expr) {
-                case TLocal(v):
-                    flowPromotedNonNull.set(v.id, true);
+                case TLocal(v):                    flowPromotedNonNull.set(v.id, true);
                 case _:
             }
         }
@@ -2409,7 +2589,7 @@ class DartExpr {
         return switch (stripWrap(e).expr) {
             case TIf(c, t, f) if (f != null):
                 final guardVar = nullGuardLocal(c);
-                if (guardVar != null && !mutated.exists(guardVar.id))
+                if (guardVar != null && promotionSafe(guardVar))
                     // A null-comparison guard on an unmutated local promotes
                     // the subject in the proven arm, so the ternary's result
                     // reads null only through the other arm. Without this
@@ -2526,8 +2706,7 @@ class DartExpr {
             return base;
         }
         return switch (stripWrap(subj).expr) {
-            case TLocal(v):
-                flowPromotedNonNull.set(v.id, true);
+            case TLocal(v):                flowPromotedNonNull.set(v.id, true);
                 base + "!";
             case _: "(" + base + ")!";
         };
@@ -4158,7 +4337,7 @@ class DartExpr {
         }
         final out = [indent(depth) + "try {"];
         final savedTryPromoted = flowPromotedNonNull.copy();
-        for (l in blockLines(statementsOf(body), depth + 1))
+        for (l in blockLines(statementsOf(body), depth + 1, true))
             out.push(l);
         out.push(catchHeaderLine(c, clsName, depth));
         catchVars.set(c.v.id, true);
@@ -4169,7 +4348,7 @@ class DartExpr {
         flowPromotedNonNull.clear();
         for (k in savedTryPromoted.keys())
             flowPromotedNonNull.set(k, savedTryPromoted.get(k));
-        final handler = blockLines(statementsOf(c.expr), depth + 1);
+        final handler = blockLines(statementsOf(c.expr), depth + 1, true);
         catchVars.remove(c.v.id);
         for (l in handler)
             out.push(l);
@@ -4749,7 +4928,12 @@ class DartExpr {
             case TBinop(OpAdd, _, _): expr(leaf);
             case TBinop(_, _, _): "(" + expr(leaf) + ")";
             case TLocal(_) if (optionalValued(leaf)): expr(leaf);
-            case _: nullableStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
+            case _:
+                // A leaf already proven non-null in this flow scope (a null
+                // guard, a non-null initializer, an earlier unwrap) renders
+                // bare: dart reports the unwrap of a promoted local as having
+                // no effect. (TemplateLeafPromoted)
+                nullableStringLeaf(leaf) && !provenNonNull(leaf) && !flowPromotedLocal(leaf) ? expr(leaf) + "!" : expr(leaf);
         };
     }
 
@@ -4901,6 +5085,30 @@ class DartExpr {
                 flattenBoolAnd(l, into);
                 flattenBoolAnd(r, into);
             case _: into.push(stripWrap(e));
+        };
+    }
+
+    /**
+        The local a boolean-OR chain null-guards. The null case makes the whole
+        chain true, so a terminating then arm leaves the local non-null
+        afterwards. (OrGuardReturn)
+    **/
+    function nullGuardLocalAny(e:TypedExpr):Null<TVar> {
+        if (e == null)
+            return null;
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpBoolOr, l, r):
+                final left = nullGuardLocalAny(l);
+                left != null ? left : nullGuardLocalAny(r);
+            case TBinop(OpEq, l, r):
+                switch (stripWrap(r).expr) {
+                    case TConst(TNull): switch (stripWrap(l).expr) {
+                            case TLocal(v): v;
+                            case _: null;
+                        }
+                    case _: null;
+                }
+            case _: null;
         };
     }
 
