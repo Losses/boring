@@ -126,7 +126,25 @@
       "target": "rust",
       "precision": "f32",
       "compare": false,
-      "rootsFile": "examples/rust-f32.hxml"
+      "rootsFile": "examples/rust-f32.hxml",
+      // The crate selects its module float width through the generated
+      // [features] table (packageManifest: default = [], f32 = []), so the
+      // f32 tree only compiles as f32 when the feature reaches cargo. The
+      // precision define names the tree; without this flag cargo builds the
+      // f32 emission against TiqianFloat = f64, and tests/rust/vector_gen_f32.rs
+      // fails with "expected f64, found f32" at its `index as f32` site.
+      "build": {
+        "args": [
+          "--features",
+          "f32"
+        ]
+      },
+      "run": {
+        "cargoArgs": [
+          "--features",
+          "f32"
+        ]
+      }
     },
     {
       "id": "swift-f32",
