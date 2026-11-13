@@ -948,7 +948,8 @@ class KotlinExpr {
             rendersNullable: initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract,
             extractsAtDecl: extractsAtDecl,
             extractRenderedNullable: extractRenderedNullable,
-            nullInitExtract: nullInitExtract
+            nullInitExtract: nullInitExtract,
+            initNullType: isNullType(init.t)
         };
     }
 
@@ -1269,6 +1270,50 @@ class KotlinExpr {
         return kept;
     }
 
+    /**
+        The arm a statement-position null comparison always selects, when the
+        subject is a local whose Kotlin declaration the storage pass already
+        made non-null. The comparison is then a constant, kotlinc reports
+        "condition is always false" (or "always true" for the negated form),
+        and only the other arm can run. A local that is not a recorded
+        declaration (a parameter, a deferred binding) states no storage fact
+        and stays live, and a local the body or a capturing closure can rebind
+        is excluded so the fold never outlives the storage it reads.
+        (ConstantNullComparisonStatement)
+    **/
+    function constantNullComparisonStatement(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>):{folded:Bool, kept:Null<TypedExpr>} {
+        final live = {folded: false, kept: null};
+        final operand = switch (stripWrap(c).expr) {
+            case TBinop(OpEq, a, b) if (isNullLiteral(b)): {value: a, comparesNull: true};
+            case TBinop(OpEq, a, b) if (isNullLiteral(a)): {value: b, comparesNull: true};
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(b)): {value: a, comparesNull: false};
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(a)): {value: b, comparesNull: false};
+            case _: null;
+        };
+        if (operand == null)
+            return live;
+        final subject = stripWrap(operand.value);
+        final binding = switch (subject.expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        if (binding == null || bodyWritesLocal(binding.id) || closureWritesLocal(binding.id))
+            return live;
+        if (prepared == null)
+            return live;
+        final storage = prepared.declaredStorage(binding.id);
+        // The declared Kotlin type is non-null only when no nullable
+        // annotation was printed and the initializer cannot infer one: a
+        // Null<T> initializer keeps the nullable type even when the
+        // presence model reads the call as present.
+        if (storage == null || storage.nullInitialized || storage.rendersNullable || storage.initNullType)
+            return live;
+        final kept = operand.comparesNull ? f : t;
+        if (kept != null && mentionsLocal(kept, binding))
+            return live;
+        return {folded: true, kept: kept};
+    }
+
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
         switch (e.expr) {
             // A statement-position if whose one arm is the null literal
@@ -1361,7 +1406,11 @@ class KotlinExpr {
                 // initializer is also extracted to non-null, the widening
                 // must follow the extraction; a widening call placed first
                 // would apply to the nullable initializer receiver.
-                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)) {
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)
+                    && !floatRenderedBinops.exists(Std.string(init.pos))) {
+                    // A ternary that widened its own integer arms already
+                    // renders binary64, so the declaration would repeat the
+                    // conversion. (WideningIdempotence)
                     initText = intToFloatText(KotlinCoerce.coerce(initLowered, initDest));
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
@@ -1389,6 +1438,12 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
+                // A null comparison on a local whose Kotlin declaration is
+                // already non-null is constant, so only the live arm renders.
+                // (ConstantNullComparisonStatement)
+                final decided = constantNullComparisonStatement(c, t, f);
+                if (decided.folded)
+                    return decided.kept == null ? [] : blockLines(statementsOf(decided.kept), depth);
                 final condition = KotlinCoerce.coerce(lower(c), conditionDest());
                 final base = proofSnapshot();
                 // Arms render in their own dominance scope: an assertion
@@ -3191,6 +3246,52 @@ class KotlinExpr {
     }
 
     /**
+        Whether one instance field read yields a non-null Kotlin value even
+        though the Haxe field type is Null<T>: the primary constructor
+        parameter of the same name carries a registered default that lifts the
+        property to a non-null type, so the declaration prints
+        "val field: T = <default>" and every read is that non-null value.
+        `parameterText` and `buildPrimaryConstructor` make the same decision
+        for the declaration. (DeclaredNonNullPropertyRead)
+    **/
+    function declaredNonNullPropertyRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FInstance(c, _, cf)): declaredNonNullProperty(c.get(), cf.get());
+            case _: false;
+        }
+    }
+
+    function declaredNonNullProperty(cls:ClassType, field:ClassField):Bool {
+        if (!field.kind.match(FVar(_, _)) || !isNullType(field.type))
+            return false;
+        final ctor = cls.constructor;
+        if (ctor == null)
+            return false;
+        final ctorField = ctor.get();
+        final args = switch (ctorField.type) {
+            case TFun(args, _): args;
+            case _: return false;
+        };
+        for (i in 0...args.length) {
+            final a = args[i];
+            if (a.name != field.name)
+                continue;
+            final registered = DefaultArgExpander.defaultAt(cls, ctorField.name, i);
+            if (registered == null)
+                return false;
+            final parameterType = DefaultArgExpander.defaultParameterType(registered, a.t);
+            if (isNullType(parameterType))
+                return false;
+            return switch (registered) {
+                case VNull: false;
+                case VCoalescing(value): !DefaultArgExpander.coalescingCanBeNull(value);
+                case _: true;
+            };
+        }
+        return false;
+    }
+
+    /**
         True when an instance field is emitted as a nullable Kotlin property
         while its Haxe type is non-null. The primary constructor decides the
         property type the same way `parameterText` does: a `Null<T>` argument
@@ -3259,10 +3360,13 @@ class KotlinExpr {
         // guards already proved present reads through a plain dot even
         // when its declaration is null-initialized.
         // (NullInitRespectsProof)
-        // A closure-mutated local never smart-casts: its extraction stays
-        // even when the guards prove it present. (NullInitRespectsProof)
+        // A local a capturing closure writes never smart-casts: its
+        // extraction stays even when the guards prove it present. A local the
+        // body itself rebinds is smart-castable once the flow analysis proves
+        // the value present at this read, so only a captured write keeps the
+        // extraction. (NullInitRespectsProof)
         final stableSubject = switch (stripWrap(subj).expr) {
-            case TLocal(v): !bodyWritesLocal(v.id);
+            case TLocal(v): !closureWritesLocal(v.id);
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (receiverProven(subj)))) {
@@ -3512,8 +3616,23 @@ class KotlinExpr {
                 return MaybeAbsent;
             case null:
         }
+        // A local a straight-line assignment bound to a non-null value is
+        // smart-cast by Kotlin for the statements that follow, so the value it
+        // produces is present even though its declaration is null-initialized.
+        // A local a capturing closure can write keeps its extraction: Kotlin
+        // refuses that smart cast. (AssignedNonNullPresence)
+        switch (stripWrap(e).expr) {
+            case TLocal(v) if (assignedNonNullLocals.exists(v.id) && !closureWritesLocal(v.id)):
+                return Present;
+            case _:
+        }
         if (isNullType(e.t) && !valueProven(e)) {
             if (extractedNonNullFieldRead(e))
+                return Present;
+            // A property whose declaration type is non-null carries a
+            // non-null value whatever the Haxe field type says.
+            // (DeclaredNonNullPropertyRead)
+            if (declaredNonNullPropertyRead(e))
                 return Present;
             return MaybeAbsent;
         }
@@ -3562,6 +3681,14 @@ class KotlinExpr {
     **/
     function callPresence(fn:TypedExpr, args:Array<TypedExpr>):Presence {
         return switch (stripWrap(fn).expr) {
+            case TField(_, FInstance(c, _, cf))
+                if (c.get().name == "Array" && (cf.get().name == "splice" || cf.get().name == "insert")):
+                // Both lowerings read the receiver through a run block's own
+                // local before they touch it, and neither has a safe-call
+                // form: a null receiver throws exactly where the Haxe member
+                // call would, so the result is never null whatever the
+                // receiver's presence. (SpliceReceiverDereference)
+                Present;
             case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
                 (presenceOf(receiver) == MaybeAbsent && nullableAccess(receiver) == "?.") ? MaybeAbsent : Present;
             case TField(_, FStatic(cls, field))
@@ -5159,22 +5286,37 @@ class KotlinExpr {
         return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
     }
 
+    /** The block local that holds one stringified collection receiver. */
+    static function collectionReceiverName(depth:Int):String {
+        return depth == 0 ? "_a" : "_a" + depth;
+    }
+
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
         return switch (PolicyQueries.stdStringCategory(t)) {
             case IsString: value;
             case IsArray(element):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
-                'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
+                // The receiver renders once into a block local. A nullable
+                // receiver wrapped as "(x)!!" must not repeat the assertion:
+                // Kotlin smart-casts from the first printed "!!" for the rest
+                // of the block, so a second one warns as redundant. Binding
+                // also keeps one evaluation of the operand, which is what
+                // Haxe's single Std.string argument does.
+                // (ArrayStringReceiverBinding)
+                final receiver = collectionReceiverName(depth);
+                final item = stdStringType(element, receiver + "[" + index + "]", true, origin, depth + 1);
+                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'[\'); val n = ${receiver}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
             case IsSortedSet(element):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-                'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
+                final receiver = collectionReceiverName(depth);
+                final item = stdStringType(element, receiver + ".at(" + index + ")", true, origin, depth + 1);
+                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'[\'); val n = ${receiver}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
             case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
-                'run { val sb = StringBuilder(); sb.append(\'{\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
+                final receiver = collectionReceiverName(depth);
+                final itemKey = stdStringType(key, receiver + ".keyAt(" + index + ")", true, origin, depth + 1);
+                final itemVal = stdStringType(val, receiver + ".valueAt(" + index + ")", true, origin, depth + 1);
+                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'{\'); val n = ${receiver}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
             case IsHashMap(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
@@ -5658,14 +5800,22 @@ class KotlinExpr {
                         final func = unwrapLambda(args[1]);
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
-                            final valueExpr = expr(lambdaBody(func.expr));
+                            // A selector that already renders binary64 is the
+                            // widened value: the closing conversion would be a
+                            // redundant call. Only an Int-rendered selector
+                            // still widens. (SumOfFloatWideningIdempotence)
+                            final selectorBody = lambdaBody(func.expr);
+                            final selectorText = expr(selectorBody);
+                            final valueExpr = isIntOrLongType(emittedType(selectorBody))
+                                ? intToFloatText(selectorText)
+                                : selectorText;
                             // The selector widens to Double, so the accumulator
                             // is binary64 on both configurations; the closing
                             // narrowing is the binary32 module real only
                             // (feature spec 23 ruling 2, the dispatch
                             // intToFloatText uses).
                             final narrow = FloatPrecision.isF32() ? ".toFloat()" : "";
-                            return expr(receiver) + ".sumOf { " + paramName + " -> (" + valueExpr + ").toDouble() }" + narrow;
+                            return expr(receiver) + ".sumOf { " + paramName + " -> " + valueExpr + " }" + narrow;
                         }
                         return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }
@@ -5995,6 +6145,14 @@ class KotlinExpr {
                 // the empty delimiter.
                 if (name == "split" && isString(stripCast(subj)) && isEmptyDelimiterSplit(name, args))
                     return expr(subj) + nullableAccess(subj) + "chunked(1).toMutableList()";
+                // Kotlin resolves toString on a nullable receiver through the
+                // null-safe Any?.toString() extension in every compilation, so
+                // a call the guards already prove present reads through a
+                // plain dot: the same text, with no assertion to warn about,
+                // and no smart cast for the declaring-class clause to block.
+                // (AnyMemberNullSafeCall)
+                if (name == "toString" && receiverProven(subj))
+                    return expr(subj) + "." + name + "(" + renderedArgs + ")";
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
@@ -6286,7 +6444,7 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-                    if (StringTools.startsWith(text, "if ("))
+                    if (StringTools.startsWith(text, "if (") || StringTools.startsWith(text, "(if ("))
                         text;
                     else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
                         // A null default is an identity. (NullDefaultIdentityFold)
@@ -6351,6 +6509,18 @@ class KotlinExpr {
             case _: false;
         };
         if (assignedProof)
+            return false;
+        // A local read the source facts prove present at this exact
+        // occurrence is already smart-cast by Kotlin, so the argument needs no
+        // extraction even when its declaration is null-initialized or the body
+        // rebinds it elsewhere. A local a capturing closure can write is
+        // excluded because Kotlin refuses that smart cast.
+        // (SourcePresenceArgument)
+        final sourceProof = switch (stripWrap(e).expr) {
+            case TLocal(v): localPresent(e) && !closureWritesLocal(v.id);
+            case _: false;
+        };
+        if (sourceProof)
             return false;
         // A field read the typer widened to Null<T> whose rendering already
         // extracts the receiver and reads a non-null declared property

@@ -169,5 +169,9 @@ typedef KotlinDeclarationStorage = {
 
     /** A null-initialized family binding that extracts at its declaration. */
     final nullInitExtract:Bool;
+
+    /** The initializer's Haxe type is itself Null<T>, so Kotlin infers a
+        nullable declared type for a local that keeps no annotation. */
+    final initNullType:Bool;
 }
 #end
