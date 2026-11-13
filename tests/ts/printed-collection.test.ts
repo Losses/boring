@@ -23,8 +23,8 @@ describe("record collection printed members", () => {
     // receiver is cloned once for the whole read.
     const trees = [
       ["ts", "reference/ts/gen/boring/PrintedCollection.ts", "(() => { let out = \"[\"", "this.points[i]!.toString()"],
-      ["swift", "reference/swift/gen/boring/PrintedCollection.swift", "{ () -> String in var out = \"[\"", "self.points[i].toString()"],
-      ["swift-f32", "reference/swift-f32/gen/boring/PrintedCollection.swift", "{ () -> String in var out = \"[\"", "self.points[i].toString()"],
+      ["swift", "reference/swift/gen/boring/PrintedCollection.swift", "{ () -> [UInt16] in var out = Array(\"[\".utf16)", "self.points[i].toString()"],
+      ["swift-f32", "reference/swift-f32/gen/boring/PrintedCollection.swift", "{ () -> [UInt16] in var out = Array(\"[\".utf16)", "self.points[i].toString()"],
       ["dart", "reference/dart/gen/lib/boring/printed_collection.dart", "StringBuffer(\"[\")", "sb.write(this.points[i].toString())"],
       ["rust", "reference/rust/gen/boring/printed_collection.rs", "String::new()", "let arr = (self.points).clone();"],
       ["rust-f32", "reference/rust-f32/gen/boring/printed_collection.rs", "String::new()", "let arr = (self.points).clone();"],

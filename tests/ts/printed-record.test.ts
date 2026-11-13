@@ -34,13 +34,13 @@ const memberTrees: MemberTree[] = [
   {
     target: "swift",
     file: "reference/swift/gen/boring/PrintedRecord.swift",
-    signature: "func toString() -> String",
+    signature: "func toString() -> [UInt16]",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
     target: "swift-f32",
     file: "reference/swift-f32/gen/boring/PrintedRecord.swift",
-    signature: "func toString() -> String",
+    signature: "func toString() -> [UInt16]",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
@@ -78,7 +78,7 @@ const mutationTargets: TargetConfig[] = [
     file: "boring/PrintedRecord.swift",
     id: "swift",
     shadow: "packages/compiler/reflaxe/swift/std-shadow",
-    signature: "func toString() -> String",
+    signature: "func toString() -> [UInt16]",
   },
   {
     compilerClass: "dartcompiler.Compiler.use()",

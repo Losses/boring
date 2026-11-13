@@ -43,8 +43,8 @@ interface MemberTree {
 
 const memberTrees: MemberTree[] = [
   { target: "ts", file: "reference/ts/gen/boring/RecordOrderOps.ts", signature: "public toString(): string" },
-  { target: "swift", file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
-  { target: "swift-f32", file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
+  { target: "swift", file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
+  { target: "swift-f32", file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
   { target: "dart", file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },
   { target: "rust", file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
   { target: "rust-f32", file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
