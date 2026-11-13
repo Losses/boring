@@ -20,9 +20,9 @@ import haxe.macro.Type.TypedExpr;
     through `blockLines(..., scopeComplete: true)`.
 
     A dead binding whose initializer may have effects keeps its evaluation as an
-    expression statement - dart flags an unused local, not a bare expression
-    statement, and renaming cannot silence it (a leading underscore is not
-    exempt). An initializer with no expression-position lowering keeps its
+    expression statement: dart flags an unused local and ignores a bare
+    expression statement, and renaming cannot silence it (a leading underscore
+    is not exempt). An initializer with no expression-position lowering keeps its
     declaration through `keepDeclaration`.
 **/
 class DeadLocalElimination {
@@ -65,7 +65,7 @@ class DeadLocalElimination {
 
     /**
         Read count of one local inside an expression. A plain-assignment target
-        is a write, not a read; everything else counts, including the receiver
+        is a write and reads nothing; everything else counts, including the receiver
         and index of an indexed write target and the body of a closure.
     **/
     static function countReads(e:TypedExpr, id:Int):Int {
