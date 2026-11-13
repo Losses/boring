@@ -51,6 +51,17 @@ jobs:
       # generation chain.
       - name: Script-target existence check
         run: nix develop -c bash -c 'bun tools/check-script-targets.ts'
+      # Documentation style, as its own step before the generation chain.
+      # 74c2c790 made the git pre-commit hook zero-tolerance, but delivery runs
+      # through jj and jj has no hooks, so the local gate never fired; the CI
+      # copy of this check sat inside "Compile and test", which is skipped as
+      # soon as an earlier step fails. Measured on master 65bb887c1:
+      # "Generate all targets" fails at `bun run warning:gate`, so
+      # "Compile and test" never ran and six hits stayed on master. This step
+      # is static (bun plus git ls-files, no node_modules and no generation),
+      # so it fails fast and no later step can skip it.
+      - name: Documentation style check (independent of the generation chain)
+        run: nix develop -c bash -c 'bun run check:docs'
       - name: Generate all targets
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run warning:gate'
       - name: Emit invariants
@@ -163,6 +174,17 @@ jobs:
       # script-target existence check, fail-fast before the generation chain.
       - name: Script-target existence check
         run: nix develop -c bash -c 'bun tools/check-script-targets.ts'
+      # Documentation style, as its own step before the generation chain.
+      # 74c2c790 made the git pre-commit hook zero-tolerance, but delivery runs
+      # through jj and jj has no hooks, so the local gate never fired; the CI
+      # copy of this check sat inside "Compile and test", which is skipped as
+      # soon as an earlier step fails. Measured on master 65bb887c1:
+      # "Generate all targets" fails at `bun run warning:gate`, so
+      # "Compile and test" never ran and six hits stayed on master. This step
+      # is static (bun plus git ls-files, no node_modules and no generation),
+      # so it fails fast and no later step can skip it.
+      - name: Documentation style check (independent of the generation chain)
+        run: nix develop -c bash -c 'bun run check:docs'
       - name: Generate all targets
         # Echo the toolchain variables the darwin shellHook pins so the
         # log shows what SwiftPM actually saw if the manifest build fails.

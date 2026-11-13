@@ -386,3 +386,10 @@ anything besides the change itself.
 Run `bun tools/git-hooks/install.ts` once per clone. The hooks run the
 documentation style check before a commit and the message check before
 the message is stored; a failed check blocks the commit.
+
+A jj workspace runs no git hooks, and jj cannot have an alias replace a
+built-in command, so the hooks above are silent there. Commit in such a
+workspace through the jj entry point, which runs the same documentation style
+check first:
+
+    bun tools/commit/jj-commit.ts "feat(codec): add bounds encoding"

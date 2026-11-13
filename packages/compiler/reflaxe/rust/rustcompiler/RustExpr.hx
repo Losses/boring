@@ -11669,10 +11669,10 @@ class RustExpr {
                 final markedField = findStaticField(cls, name);
                 if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
                     // The declaration and this call site must agree on the
-                    // emitted form, so this reads the same predicate off the
-                    // callee's declared receiver type rather than the
-                    // argument's: an upcast argument would otherwise pick a
-                    // different form than the declaration emitted.
+                    // emitted form, so this reads the predicate from the
+                    // callee's declared receiver type. Reading that type from
+                    // the argument instead would let an upcast argument pick
+                    // a different form than the declaration emitted.
                     // (ExtensionReceiverOwnership)
                     final declaredReceiver = switch (Context.follow(cf.get().type)) {
                         case TFun(params, _): params.length > 0 ? params[0].t : null;

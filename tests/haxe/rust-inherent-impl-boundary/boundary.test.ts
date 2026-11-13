@@ -9,11 +9,11 @@ import { randomUUID } from "node:crypto";
  * An inherent impl is legal only on a type this crate declares and only for
  * one method of a given name, so:
  *   - a receiver that lowers to a handle (`Rc<RefCell<T>>`) cannot carry one
- *     at all — the base compiler emitted `impl Rc<RefCell<IntRange>>` and
+ *     at all: the base compiler emitted `impl Rc<RefCell<IntRange>>` and
  *     rustc answered E0116 "cannot define inherent impl for a type outside of
  *     the crate";
  *   - two extension classes claiming one method name for one receiver cannot
- *     both be inherent members — the base compiler emitted two
+ *     both be inherent members: the base compiler emitted two
  *     `impl LayoutResult { fn positioned_clusters }` blocks and rustc answered
  *     E0592 "duplicate definitions with name `positioned_clusters`".
  *
@@ -60,7 +60,7 @@ test("two extensions claiming one method name for one receiver stay distinct and
   const out = makeScratch("build");
   generate(out);
 
-  // Both halves keep the method's own name, in their own module: neither an
+  // Both parts keep the method's own name, in their own module: neither an
   // inherent impl (E0592) nor one module's method shadowing the other.
   expect(readGenerated(out, "layout_result_fns")).toContain(
     "pub fn positioned_clusters(result: LayoutResult) -> u32",
