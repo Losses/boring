@@ -244,7 +244,9 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   withTargetTree("swift", "sealed-variants: sealed variant sample trees carry the ruled declaration and printed forms", () => {
     const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
     expect(swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
-    expect(swift).toContain('return "NoneDrawKind"');
+    // A Haxe String is Array<UInt16> on Swift (INTERFACE-REQUIREMENTS.md:235),
+    // so the description literal renders as a UTF-16 unit array.
+    expect(swift).toContain('return Array("NoneDrawKind".utf16)');
     expect(swift).toContain("StripeDrawKind(strokeWidth=");
     expect(swift).toContain("DotDrawKind(dotDiameter=");
   });
