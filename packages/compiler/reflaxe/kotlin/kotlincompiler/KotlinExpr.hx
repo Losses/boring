@@ -5837,11 +5837,20 @@ class KotlinExpr {
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int. floor and
                     // ceil convert through kotlin.math (Float and Double
-                    // overloads); round reads java.lang.Math.round, whose
-                    // half-up ties match the TS Math.round exactly, while
-                    // kotlin.math.round sends ties toward zero.
-                    if (name == "round")
-                        return FloatPrecision.isF32() ? "Math.round(" + expr(args[0]) + ")" : "Math.round(" + expr(args[0]) + ").toInt()";
+                    // overloads). round keeps the half-up tie rule that the
+                    // TypeScript target's Math.round uses; kotlin.math.round
+                    // rounds ties to even, so the lowering spells the rule out
+                    // as floor(x + 0.5) and matches java.lang.Math.round
+                    // (float: (int) floor(f + 0.5f); double: (long) floor(d +
+                    // 0.5) narrowed to Int). Every call stays inside
+                    // kotlin.math, whose functions exist on every Kotlin
+                    // platform, so the shipped tree is not JVM-only.
+                    if (name == "round") {
+                        final arg = "(" + kotlinMathFloatArg(args[0]) + ")";
+                        return FloatPrecision.isF32()
+                            ? "(kotlin.math.floor(" + arg + " + 0.5f)).toInt()"
+                            : "(kotlin.math.floor(" + arg + " + 0.5)).toLong().toInt()";
+                    }
                     return "(kotlin.math." + name + "(" + kotlinMathFloatArg(args[0]) + ")).toInt()";
                 }
                 if (cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {

@@ -54,7 +54,7 @@ that round the decoded f64 to the module real at the decode point.
 | `Float` type | `f64` | `number` | `Double` | `Double` | `double` |
 | float literal | `2.5` (`.0` padded) | `2.5` | `2.5` | `2.5` | `2.5` |
 | `Math.NaN` | `f64::NAN` | `Number.NaN` | `Double.NaN` | `Double.nan` | `double.nan` |
-| `Math.floor(x)` | `f64::floor(x)` | `Math.floor(x)` | `Math.floor(x)` (`java.lang.Math`) | `(x).rounded(.down)` | `(x).floor()` |
+| `Math.floor(x)` | `f64::floor(x)` | `Math.floor(x)` | `(kotlin.math.floor(x)).toInt()` | `(x).rounded(.down)` | `(x).floor()` |
 | `FPHelper.i64ToDouble` | runtime `i64_to_double` (`f64::from_bits`) | runtime `i64ToDouble` | runtime `i64ToDouble` (`Double.fromBits`) | runtime `i64ToDouble` | runtime `i64ToDouble` |
 | `readF64():Float` | hardcoded `-> f64` return | `number` | `Double` | `Double` | `double` |
 | test assertion | `equals_f64` / `format_f64` | `formatValue(number)` | `Double` overloads | `Double` tags | `Double` tags |
@@ -219,15 +219,21 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    `Float.infinity` on Swift.
 6. **Math functions.** With `f32`, Rust renders `Math.<name>(x)` as
    `f32::<name>(x)`; the argument is already `f32` under the type
-   table. Kotlin renders `kotlin.math.<name>(x)` fully qualified; the
-   `kotlin.math` free functions carry `Float` overloads, so no import
-   is added and `java.lang.Math` (Double-only) is never referenced
-   under `f32`. On the default configuration both compilers keep their current
-   `f64::` / `java.lang.Math` renderings. Swift needs no separate
-   dispatch: the arithmetic and rounding members (`+`, `.rounded(.down)`,
-   `.squareRoot()`, `.isNaN`) come from the `FloatingPoint` protocol
-   `Float` and `Double` both implement, so the method renderings follow
-   the type table unchanged.
+   table. Kotlin renders `kotlin.math.<name>(x)` fully qualified on both
+   configurations: the `kotlin.math` free functions carry `Float` and
+   `Double` overloads, so no import is added, `java.lang.Math` is
+   never referenced, and the emitted tree compiles in a common
+   multiplatform source set. `Math.floor` and `Math.ceil` stay on
+   `kotlin.math` with `.toInt()`. `Math.round` keeps the half-up tie
+   rule of the TypeScript `Math.round`; `kotlin.math.round` rounds
+   ties to even, so the lowering spells the rule out as `floor(x + 0.5)`
+   in the configuration's real type and narrows the result to `Int`,
+   which is the value `java.lang.Math.round` produces. Rust keeps its
+   `f64::` rendering on the default configuration. Swift needs no
+   separate dispatch: the arithmetic and rounding members (`+`,
+   `.rounded(.down)`, `.squareRoot()`, `.isNaN`) come from the
+   `FloatingPoint` protocol `Float` and `Double` both implement, so
+   the method renderings follow the type table unchanged.
 7. **FPHelper and the wire boundary.** The FPHelper runtime keeps its
    64-bit bit-layout rule: `i64_to_double` and `double_to_i64` (and
    their Kotlin and TypeScript forms) stay f64. Under `f32` the call

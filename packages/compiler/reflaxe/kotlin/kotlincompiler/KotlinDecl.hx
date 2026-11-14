@@ -537,6 +537,12 @@ class KotlinDecl {
         // features/02-abstract-types.md:197 rules the Kotlin representation:
         // "@JvmInline value class Name(val field: Rep)" with the declared
         // members, so the wrapper stays unboxed at the primitive boundary.
+        // kotlin.jvm.JvmInline is an optional expectation available on every
+        // platform, but only the JVM target adds kotlin.jvm.* to the default
+        // imports; a common source set resolves the annotation only through
+        // this explicit import. Dropping the annotation is not an option: a
+        // value class without it is rejected outside JVM source sets.
+        imports.require("kotlin.jvm.JvmInline");
         final lines:Array<String> = [
             "@JvmInline\nvalue class " + info.name + "(val " + fieldName + ": " + representation + ") {"
         ];

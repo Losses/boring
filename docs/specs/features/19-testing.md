@@ -318,6 +318,19 @@ source-set split of the Kotlin ecosystem:
   `kotlinc`, adds `kotlin-test` to the compile classpath, and invokes
   a generated `TestMain` that runs the collection through
   `kotlin.test`; the `test:kotlin` script encodes this.
+- Test support by construction writes into the test root. A module
+  whose leaf name ends in `TestSupport`, or whose package carries a
+  `test` segment, is test support even when the reference closure
+  leaves it in main: a support cluster that references itself keeps
+  every member in main under the single-pass closure, because each
+  member still sees another member as a main referencer. The
+  construction rule matches the Rust `_test_support` leaf rule above.
+- The test host and the resident behind it write into the test root
+  when one is configured: the host object (runtime `test/Test.kt`)
+  and its resident (runtime `test/TestCore.kt`). The host reads the
+  runner's environment and appends to the runner's result file, edges
+  that a shipping source set compiled for every Kotlin platform cannot
+  carry. Both files keep one package across the two source sets.
 
 ```kotlin
 package tests

@@ -635,7 +635,35 @@ class Compiler extends PluginCompiler<Compiler> {
         into the test root and stay out of the shipping tree.
     **/
     function isTestModule(module:String):Bool {
-        return CompilationUnits.isTestModule(module);
+        return CompilationUnits.isTestModule(module) || isTestSupportModule(module);
+    }
+
+    /**
+        Test support by construction (feature spec 19): a module whose leaf
+        name ends in TestSupport, or whose package carries a test segment, is
+        support code for the test tree even when the reference closure cannot
+        see it. A support cluster that references itself keeps every member in
+        main under the single-pass closure, because each member still sees
+        another member as a main referencer; the construction rule lets the
+        Kotlin tree place the whole cluster in the test root, so JVM-only host
+        calls in test support never enter the shipping source set. This is the
+        Kotlin counterpart of the Rust target's _test_support leaf rule
+        (feature spec 19, Rust section).
+    **/
+    static function isTestSupportModule(module:String):Bool {
+        final segments = module.split(".");
+        if (segments.length == 0) {
+            return false;
+        }
+        if (StringTools.endsWith(segments[segments.length - 1], "TestSupport")) {
+            return true;
+        }
+        for (i in 0...(segments.length - 1)) {
+            if (segments[i] == "test") {
+                return true;
+            }
+        }
+        return false;
     }
 
     function generateTestMain(kotlinTestOutput:String, kotlinOutput:String):Void {
@@ -698,7 +726,7 @@ class Compiler extends PluginCompiler<Compiler> {
         configured runtime package. Bring-your-own mode writes nothing;
         the references already point at the consumer's package.
     **/
-    function emitShim(module:String, fileName:String, source:String, subPackage:String = ""):Void {
+    function emitShim(module:String, fileName:String, source:String, subPackage:String = "", intoTestRoot:Bool = false):Void {
         if (!state.shimsUsed.exists(module)) {
             return;
         }
@@ -711,7 +739,18 @@ class Compiler extends PluginCompiler<Compiler> {
         // test entry uses this so the general entry stays browser-loadable.
         final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
         final path = RuntimeConfig.emitPath(dir, fileName);
-        PackageArtifacts.saveTreeFile(output, path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
+        final content = "package " + pkg + "\n\n" + StringTools.trim(source) + "\n";
+        final testOutput = Context.definedValue("kotlin-test-output");
+        final mainOutput = Context.definedValue("kotlin-output");
+        if (intoTestRoot && testOutput != null && mainOutput != null) {
+            // A host file that only the test tree instantiates belongs beside
+            // the tests: it may name JVM-only APIs, and the shipping source
+            // set is compiled for every Kotlin platform.
+            final testPath = testOutput + "/" + path;
+            PackageArtifacts.saveTreeFile(output, computeRelativePath(mainOutput, testPath), content);
+            return;
+        }
+        PackageArtifacts.saveTreeFile(output, path, content);
     }
 
     /**
@@ -726,7 +765,11 @@ class Compiler extends PluginCompiler<Compiler> {
         if (!state.shimsUsed.exists(externModule)) {
             return;
         }
-        emitShim(externModule, "test/Test.kt", KotlinRuntime.testSource(), "test");
+        // The host reads the runner's result path and appends to its result
+        // file, so it is test-only. It writes into the test root when one is
+        // configured; a shipping source set compiled for every Kotlin
+        // platform cannot carry java.io.
+        emitShim(externModule, "test/Test.kt", KotlinRuntime.testSource(), "test", true);
     }
 
     /**
@@ -765,6 +808,16 @@ class Compiler extends PluginCompiler<Compiler> {
         final fileName = RuntimeResidents.isTestResident(module) ? "test/" + leaf : leaf;
         final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
         final path = RuntimeConfig.emitPath(dir, fileName);
+        final testOutput = Context.definedValue("kotlin-test-output");
+        final mainOutput = Context.definedValue("kotlin-output");
+        if (RuntimeResidents.isTestResident(module) && testOutput != null && mainOutput != null) {
+            // A test resident backs the test host and no shipping module
+            // references it, so it writes into the test root beside the host.
+            // The shipping source set is compiled for every Kotlin platform,
+            // and the resident's host edge is JVM-shaped.
+            PackageArtifacts.saveTreeFile(output, computeRelativePath(mainOutput, testOutput + "/" + path), content);
+            return;
+        }
         PackageArtifacts.saveTreeFile(output, path, content);
         writeOriginSidecar(path, content);
     }

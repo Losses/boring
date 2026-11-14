@@ -194,7 +194,7 @@ representation only`. Unmarked abstracts keep the erasure ruling above.
 
 | Target | Declaration |
 | --- | --- |
-| Kotlin | `@JvmInline value class Name(val field: Rep)` with the declared members; `@:op` members render as `operator fun`; static fields render inside `companion object`; construction sites render `Name(rep)`. |
+| Kotlin | `import kotlin.jvm.JvmInline` followed by `@JvmInline value class Name(val field: Rep)` with the declared members. The JVM target adds `kotlin.jvm.*` to its default imports; a common source set resolves the annotation only through the explicit import, and a value class without the annotation is rejected outside JVM source sets. `@:op` members render as `operator fun`; static fields render inside `companion object`; construction sites render `Name(rep)`. |
 | TypeScript | `export type Name = Rep;` and member functions in the module file with the value first, following the `@:extension` shape of `docs/specs/features/10-static-extension.md`; operators render as those functions and operator call sites render as direct calls to them; a validating constructor renders as a module function that validates, throws, and returns the representation. |
 | Swift | `struct Name: Equatable, Hashable` with the representation as a `let` field, the declared members, static operators as members of the struct, and `toString` as `CustomStringConvertible`; validation renders in `init`. |
 | Dart | `extension type Name(Rep field)` with the declared members and operators; `toString` renders as a declared `String toString()`; a validating constructor renders as a factory function that constructs, validates, and throws, and construction sites route through it. |
