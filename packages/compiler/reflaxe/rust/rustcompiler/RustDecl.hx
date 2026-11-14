@@ -1822,6 +1822,115 @@ class RustDecl {
         return typeStr.indexOf("Vec<") == 0 || typeStr.indexOf("HashMap<") == 0;
     }
 
+    /**
+        Whether the Rust lowering of a Haxe value carries an Rc/RefCell
+        handle anywhere inside it: an interface or a shared-interface
+        implementor (Rc<RefCell<dyn T>>), a plain-class handle, a function
+        value, or a value class, enum or container whose members reach one.
+        The rendered top-level type name cannot tell: a @:dataClass value
+        names its bare struct even when one of its fields holds a handle.
+        (StaticRealizationTransitive, policy P-1a)
+    **/
+    public static function valueHoldsHandle(t:Null<Type>):Bool {
+        return valueHoldsHandleDepth(t, []);
+    }
+
+    static function valueHoldsHandleDepth(t:Null<Type>, seen:Array<String>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs))
+                    valueHoldsHandleDepth(haxe.macro.TypeTools.applyTypeParameters(abs.type, abs.params, params), seen);
+                else switch (abs.name) {
+                    case "Int" | "Float" | "Bool" | "Void" | "haxe.Int64": false;
+                    case "Null" if (params.length == 1): valueHoldsHandleDepth(params[0], seen);
+                    case "ReadOnlyArray" if (params.length == 1): valueHoldsHandleDepth(params[0], seen);
+                    case _: valueHoldsHandleDepth(haxe.macro.TypeTools.applyTypeParameters(abs.type, abs.params, params), seen);
+                }
+            case TInst(c, params):
+                final cls = c.get();
+                if (cls.kind.match(KTypeParameter(_))
+                    || cls.isInterface
+                    || (!cls.isInterface && implementsSharedInterface(cls))
+                    || isPlainClassHandle(t)) {
+                    true;
+                } else switch (cls.pack.concat([cls.name]).join(".")) {
+                    case "String" | "std.StringBuf" | "StringBuf" | "haxe.io.Bytes" | "haxe.io.BytesBuffer": false;
+                    case "Array": params.length == 1 && valueHoldsHandleDepth(params[0], seen);
+                    case "std.HashMap" | "std.SortedMap" | "std.SortedMapBuilder" | "std.SortedSet" | "std.SortedSetBuilder":
+                        anyParamHoldsHandle(params, seen);
+                    case _: classMembersHoldHandle(cls, cls.params, params, seen);
+                }
+            case TEnum(e, params):
+                enumPayloadsHoldHandle(e.get(), params, seen);
+            case TFun(_, _): true;
+            case TType(d, params):
+                valueHoldsHandleDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), seen);
+            case TLazy(f): valueHoldsHandleDepth(f(), seen);
+            case _: false;
+        }
+    }
+
+    static function anyParamHoldsHandle(params:Array<Type>, seen:Array<String>):Bool {
+        for (param in params)
+            if (valueHoldsHandleDepth(param, seen))
+                return true;
+        return false;
+    }
+
+    static function classMembersHoldHandle(cls:ClassType, ownParams:Array<TypeParameter>, params:Array<Type>, seen:Array<String>):Bool {
+        final key = cls.module + "::" + cls.name;
+        if (seen.indexOf(key) >= 0)
+            return false;
+        seen.push(key);
+        for (field in cls.fields.get()) {
+            switch (field.kind) {
+                case FMethod(_): continue;
+                case _:
+            }
+            final fieldType = ownParams.length > 0 && params.length > 0
+                ? haxe.macro.TypeTools.applyTypeParameters(field.type, ownParams, params)
+                : field.type;
+            if (valueHoldsHandleDepth(fieldType, seen))
+                return true;
+        }
+        return false;
+    }
+
+    static function enumPayloadsHoldHandle(en:EnumType, params:Array<Type>, seen:Array<String>):Bool {
+        final key = en.module + "::" + en.name;
+        if (seen.indexOf(key) >= 0)
+            return false;
+        seen.push(key);
+        for (constructor in en.constructs) {
+            final ctorType = haxe.macro.TypeTools.applyTypeParameters(constructor.type, en.params, params);
+            switch (Context.follow(ctorType)) {
+                case TFun(args, _):
+                    for (arg in args)
+                        if (valueHoldsHandleDepth(arg.t, seen))
+                            return true;
+                case _:
+            }
+        }
+        return false;
+    }
+
+    /**
+        Whether one static field lowers to an owner-thread handle slot: the
+        rendered type names an Rc<RefCell<..>> handle directly or inside a
+        container (RcContainerStatic), or the Haxe value contains one
+        through its members (StaticRealizationTransitive). The emitter's
+        mode choice and every reader consult this one predicate, so the
+        emitted slot and the read form agree. (policy P-1a)
+    **/
+    public static function isHandleBackedStaticField(field:Null<ClassField>, typeStr:String):Bool {
+        if (isPlainClassHandleStaticType(typeStr))
+            return true;
+        return field != null && valueHoldsHandle(field.type);
+    }
+
     /** A mutable plain-class static whose declared Haxe type is non-null but
         whose initializer is the null literal. Haxe lets a class-typed static
         hold null, so the Rust slot carries Option<T> even though the Haxe
@@ -2115,7 +2224,7 @@ class RustDecl {
         final directIntArray = field.isFinal
             && StaticFieldHelper.isNonEmptyArrayLiteral(init)
             && StaticFieldHelper.isIntLiteralArray(init);
-        final handleBacked = isPlainClassHandleStaticType(typeStr);
+        final handleBacked = isHandleBackedStaticField(field, typeStr);
         final nonSend = !handleBacked && isNonSendStaticType(typeStr);
 
         // A large static array of string literals is a data table: the

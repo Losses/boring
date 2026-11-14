@@ -186,3 +186,93 @@ test("the serial harness is accepted and the parallel harness is rejected for Th
     rmSync(dir, { recursive: true, force: true });
   }
 }, 180000);
+
+/** A probe whose static holds a @:dataClass value that contains an interface
+ * field. The value's rendered top-level type is the bare struct name, so a
+ * check on that name alone misses the Rc<RefCell<..>> one of its fields
+ * carries; P-1a still requires the ThreadAffine slot, because no
+ * process-global Sync static can hold the value. (StaticRealizationTransitive) */
+const CONTAINER_PROBE_SOURCE = `package probe;
+
+enum ContainerError {
+    Blank;
+}
+
+class ContainerException extends haxe.Exception {
+    public final error:ContainerError;
+    public function new(error:ContainerError) {
+        this.error = error;
+        super(ContainerException.describe(error));
+    }
+    public static function describe(error:ContainerError):String {
+        return switch (error) {
+            case Blank: "blank";
+        }
+    }
+}
+
+interface Pattern {
+}
+
+class SolidPattern implements Pattern {
+    public static final instance:SolidPattern = new SolidPattern();
+    public function new() {}
+}
+
+@:dataClass
+class Paint {
+    public final pattern:Pattern;
+    public static final Default:Paint = new Paint(null);
+
+    public function new(?pattern:Null<Pattern>) {
+        this.pattern = pattern == null ? SolidPattern.instance : pattern;
+        if (this.pattern == null) {
+            throw new ContainerException(Blank);
+        }
+    }
+}
+`;
+
+function writeContainerProbe(): string {
+  const dir = join(REPO_ROOT, "out", "static-realization", "container");
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(join(dir, "probe"), { recursive: true });
+  writeFileSync(join(dir, "probe", "ContainerProbe.hx"), CONTAINER_PROBE_SOURCE);
+  writeFileSync(
+    join(dir, "gen.hxml"),
+    [
+      "-lib reflaxe",
+      "-lib boring",
+      "-cp packages/compiler",
+      "-cp packages/compiler/reflaxe/rust/std-shadow",
+      "-cp packages/compiler/reflaxe/rust",
+      "-cp samples",
+      "-cp samples/haxe",
+      "-cp " + dir,
+      "--macro Intercept.run(['" + dir + "'])",
+      "--macro rustcompiler.Compiler.use()",
+      "-D runtime-import=crate::runtime",
+      "-D runtime-emit=runtime",
+      "-D rust-output=" + join(dir, "gen"),
+      "probe.ContainerProbe",
+      "",
+    ].join(String.fromCharCode(10)),
+  );
+  return dir;
+}
+
+test("a static whose value contains a handle lowers as ThreadAffine", () => {
+  const dir = writeContainerProbe();
+  try {
+    const run = runHaxe([join(dir, "gen.hxml"), "-D", "rust-test-threads=serial"], REPO_ROOT);
+    expect(run.status, run.output).toBe(0);
+    const generated = readFileSync(join(dir, "gen", "probe", "container_probe.rs"), "utf8");
+    // The static is the owner-thread slot, never a process-global LazyLock:
+    // the value holds Rc<RefCell<dyn Pattern>> through its field.
+    expect(generated).toContain("thread_local! {");
+    expect(generated).toContain("pub static PAINT_DEFAULT: Paint =");
+    expect(generated).not.toContain("LazyLock<Paint>");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 180000);

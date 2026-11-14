@@ -821,7 +821,7 @@ class RustExpr {
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
-                    if (plainClassStaticField != null && plainClassStaticField.kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
+                    if (plainClassStaticField != null && plainClassStaticField.kind.match(FVar(_, _)) && RustDecl.isHandleBackedStaticField(plainClassStaticField, types.of(plainClassStaticField.type))) {
                         final value = handleStaticRead(cls, fieldName);
                         return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
                             ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + value + "; __shared_handle }" : value;
@@ -1600,7 +1600,7 @@ class RustExpr {
                 // example reads one container static twice in one statement.
                 if (RustDecl.isPlainClassHandleContainerStaticType(typeStr))
                     return null;
-                if (!RustDecl.isPlainClassHandleStaticType(typeStr))
+                if (!RustDecl.isHandleBackedStaticField(field, typeStr))
                     return null;
                 {path: staticItemPath(c.get(), field.name), read: handleStaticRead(c.get(), field.name)};
             case _: null;
@@ -9648,7 +9648,7 @@ class RustExpr {
                 // type still says Rc<RefCell<dyn FnMut>>, so skip the
                 // handle-static read and let staticRef name the function item.
                 // (StaticMethodValueReference)
-                if (cf.get().kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
+                if (cf.get().kind.match(FVar(_, _)) && RustDecl.isHandleBackedStaticField(cf.get(), types.of(cf.get().type))) {
                     // A ThreadAffine handle static lives in the owner thread's
                     // slot; the read clones the slot value out of it. The
                     // clone of an Rc handle keeps the object identity, and a
@@ -9979,7 +9979,7 @@ class RustExpr {
         (StaticRealization) */
     function isThreadAffineStatic(field:ClassField):Bool {
         final typeStr = types.of(field.type);
-        return RustDecl.isPlainClassHandleStaticType(typeStr) || RustDecl.isNonSendStaticType(typeStr);
+        return RustDecl.isHandleBackedStaticField(field, typeStr) || RustDecl.isNonSendStaticType(typeStr);
     }
 
     /** A reassignable ThreadAffine handle static keeps its slot in a RefCell
@@ -10007,7 +10007,7 @@ class RustExpr {
         (StaticRealization) */
     function isImmutableLazyStatic(cls:ClassType, field:ClassField):Bool {
         final typeStr = types.of(field.type);
-        if (RustDecl.isPlainClassHandleStaticType(typeStr) || RustDecl.isNonSendStaticType(typeStr))
+        if (RustDecl.isHandleBackedStaticField(field, typeStr) || RustDecl.isNonSendStaticType(typeStr))
             return false;
         final init = StaticFieldHelper.initializer(field);
         if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init))
@@ -10083,7 +10083,7 @@ class RustExpr {
             && !isDirectArrayStaticField(field)
             && !isLazyArrayStaticField(field)
             && !RustDecl.usesLazyLockStatic(cls, field, state)
-            && !RustDecl.isPlainClassHandleStaticType(types.of(field.type))
+            && !RustDecl.isHandleBackedStaticField(field, types.of(field.type))
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
     }
 
@@ -10133,7 +10133,7 @@ class RustExpr {
                 else if (isGuardStaticField(c.get(), cf.get().name)
                     && RustDecl.isNonSendStaticType(types.of(field.type)))
                     staticItemPath(c.get(), cf.get().name);
-                else if (RustDecl.isPlainClassHandleStaticType(types.of(field.type)) && threadAffineHandleCell(field))
+                else if (RustDecl.isHandleBackedStaticField(field, types.of(field.type)) && threadAffineHandleCell(field))
                     // A reassignable ThreadAffine handle static replaces the
                     // owner-thread slot value inside the cell.
                     // (StaticRealization)
@@ -10175,7 +10175,7 @@ class RustExpr {
                 if (!field.kind.match(FVar(_, _)))
                     return null;
                 final typeStr = types.of(field.type);
-                final nullableHandleStatic = RustDecl.isPlainClassHandleStaticType(typeStr)
+                final nullableHandleStatic = RustDecl.isHandleBackedStaticField(field, typeStr)
                     && (StaticFieldHelper.isNullableType(field.type) || RustDecl.isNullBackedPlainClassStatic(field, typeStr));
                 if (!isGuardStaticField(cls, field.name) && !nullableHandleStatic)
                     return null;
@@ -10218,7 +10218,7 @@ class RustExpr {
                 final hoisted = activeStaticReadSubstitution != null ? activeStaticReadSubstitution.get(path) : null;
                 if (hoisted != null)
                     hoisted;
-                else if (RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type)))
+                else if (RustDecl.isHandleBackedStaticField(cf.get(), types.of(cf.get().type)))
                     handleStaticRead(c.get(), cf.get().name);
                 else
                     "(*" + path + ").lock().unwrap().clone()";
@@ -10945,7 +10945,7 @@ class RustExpr {
     function staticHandleSlotPlace(subj:TypedExpr):Null<String> {
         return switch (stripWrap(subj).expr) {
             case TField(_, FStatic(c, scf)):
-                (!scf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(scf.get().type)))
+                (!scf.get().isFinal && RustDecl.isHandleBackedStaticField(scf.get(), types.of(scf.get().type)))
                     // The slot read yields an owned value, the nullable slot
                     // unwraps into the handle, and the handle borrows, so the
                     // caller reads and writes a place inside the shared
@@ -10974,7 +10974,7 @@ class RustExpr {
             // place. The OpAssign path renders that write inside the
             // with-closure; this function reports null so no other caller
             // invents a place over the cell. (StaticRealization)
-            case TField(_, FStatic(c, cf)) if (!cf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))):
+            case TField(_, FStatic(c, cf)) if (!cf.get().isFinal && RustDecl.isHandleBackedStaticField(cf.get(), types.of(cf.get().type))):
                 null;
             case _: null;
         };
