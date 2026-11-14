@@ -62,10 +62,10 @@ describe("StringTools conversions lowering", () => {
   test("each target uses its ruled native conversion spelling", () => {
     const rows = [
       ["ts", "reference/ts/gen-tests/boring/StringConvOps.test.ts", [".toString(16)", ".toUpperCase()", ".padStart(", ".toLowerCase()"]],
-      ["kotlin", "reference/kotlin/gen/boring/StringConvOps.kt", [".toString(16)", ".uppercase()", ".padStart(", ".lowercase()"]],
-      ["swift", "reference/swift/gen/boring/StringConvOps.swift", ["String(UInt32(bitPattern: 10), radix: 16, uppercase: true)", ".uppercased()", "s.count <", ".lowercased()"]],
-      ["dart", "reference/dart/gen/lib/boring/string_conv_ops.dart", [".toRadixString(16)", ".toUpperCase()", ".padLeft(", ".toLowerCase()"]],
-      ["rust", "reference/rust/gen/boring/string_conv_ops.rs", ["{:X}", "{:0w$X}", ".to_lowercase()", ".to_uppercase()"]],
+      ["kotlin", "reference/kotlin/gen-tests/boring/StringConvOps.kt", [".toString(16)", ".uppercase()", ".padStart(", ".lowercase()"]],
+      ["swift", "reference/swift/gen-tests/boring/StringConvOps.swift", ["String(UInt32(bitPattern: 10), radix: 16, uppercase: true)", ".uppercased()", "s.count <", ".lowercased()"]],
+      ["dart", "reference/dart/gen-tests/boring/string_conv_ops.dart", [".toRadixString(16)", ".toUpperCase()", ".padLeft(", ".toLowerCase()"]],
+      ["rust", "reference/rust/gen/tests/tests/string_conv_tests_support/boring/string_conv_ops.rs", ["{:X}", "{:0w$X}", ".to_lowercase()", ".to_uppercase()"]],
     ] as const;
     for (const [target, file, fragments] of rows) {
       withTargetTree(target, "stringtools-conv: each target uses its ruled native conversion spelling", () => {

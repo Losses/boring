@@ -36,7 +36,7 @@ describe("sorted key domains generated tree", () => {
   });
 
   test("Rust generated tree widens an int capacity bound without an error enum", () => {
-    const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/boring/cluster_tags.rs");
+    const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/tests/tests/sorted_key_domain_tests_support/boring/cluster_tags.rs");
     expect(fs.existsSync(clusterTagsPath)).toBe(true);
     const content = fs.readFileSync(clusterTagsPath, "utf8");
     // `set.size()` is a resident call returning the i32 domain; the

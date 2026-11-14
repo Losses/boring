@@ -25,7 +25,7 @@ describe("enum value queries generated trees", () => {
 
   test("Kotlin uses enum class, entries and element iteration", () => {
     const decl = read("../../reference/kotlin/gen/boring/FloatWidth.kt");
-    const ops = read("../../reference/kotlin/gen/boring/EnumQueriesOps.kt");
+    const ops = read("../../reference/kotlin/gen-tests/boring/EnumQueriesOps.kt");
     expect(decl).toContain("enum class FloatWidth");
     expect(ops).toContain("FloatWidth.entries");
     expect(ops).toContain("for (width in widths)");
@@ -33,7 +33,7 @@ describe("enum value queries generated trees", () => {
 
   test.skipIf(targetTreeUnavailable("swift"))("Swift uses raw value cases, CaseIterable and element iteration", () => {
     const decl = read("../../reference/swift/gen/boring/FloatWidth.swift");
-    const ops = read("../../reference/swift/gen/boring/EnumQueriesOps.swift");
+    const ops = read("../../reference/swift/gen-tests/boring/EnumQueriesOps.swift");
     expect(decl).toContain("enum FloatWidth: String, CaseIterable, Equatable");
     expect(decl).toContain('case f64 = "F64"');
     expect(ops).toContain("FloatWidth.allCases");
@@ -42,7 +42,7 @@ describe("enum value queries generated trees", () => {
 
   test("Dart uses enhanced enum labels, lookup and element iteration", () => {
     const decl = read("../../reference/dart/gen/lib/boring/float_width.dart");
-    const ops = read("../../reference/dart/gen/lib/boring/enum_queries_ops.dart");
+    const ops = read("../../reference/dart/gen-tests/boring/enum_queries_ops.dart");
     expect(decl).toContain("enum FloatWidth {");
     expect(decl).toContain("final String label;");
     expect(decl).toContain("FloatWidth? floatWidthOfName(String name)");
@@ -51,7 +51,7 @@ describe("enum value queries generated trees", () => {
 
   test("Rust emits ALL, name, from_name and a literal range", () => {
     const decl = read("../../reference/rust/gen/boring/float_width.rs");
-    const ops = read("../../reference/rust/gen/boring/enum_queries_ops.rs");
+    const ops = read("../../reference/rust/gen/tests/tests/enum_queries_tests_support/boring/enum_queries_ops.rs");
     expect(decl).toContain("pub const ALL: [FloatWidth; 3]");
     expect(decl).toContain("pub fn name(&self) -> &'static str");
     expect(decl).toContain("pub fn from_name(name: &UStr) -> Option<FloatWidth>");

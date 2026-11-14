@@ -10,9 +10,9 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 
 const trees = [
   ["ts", "reference/ts/gen-tests/boring/PrintedSortedFields.test.ts"],
-  ["swift", "reference/swift/gen/boring/PrintedSortedFields.swift"],
-  ["rust", "reference/rust/gen/boring/printed_sorted_fields.rs"],
-  ["dart", "reference/dart/gen/lib/boring/printed_sorted_fields.dart"],
+  ["swift", "reference/swift/gen-tests/boring/PrintedSortedFields.swift"],
+  ["rust", "reference/rust/gen/tests/tests/printed_sorted_fields_tests_support/boring/printed_sorted_fields.rs"],
+  ["dart", "reference/dart/gen-tests/boring/printed_sorted_fields.dart"],
 ] as const;
 
 const forbidden = /\.map\(|\bjoin(?:ToString)?\(|\.joined\(|(?:marks|points|lookup|emptySet|emptyMap)\s*\.\s*toString\(\)/;
@@ -32,7 +32,7 @@ describe("printed sorted field trees", () => {
   });
 
   test("Kotlin keeps data-class synthesis without resident members", () => {
-    const source = read("reference/kotlin/gen/boring/PrintedSortedFields.kt");
+    const source = read("reference/kotlin/gen-tests/boring/PrintedSortedFields.kt");
     expect(source).toContain("data class PrintedSortedFields");
     expect(source).not.toContain("fun toString");
     expect(source).not.toContain("fun marksAt");

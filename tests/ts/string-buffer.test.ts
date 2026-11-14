@@ -7,8 +7,8 @@ installTargetTreeReport(import.meta.path);
 
 describe("string buffer generated tree", () => {
   const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
-  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
+  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen-tests");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen/tests/tests/string_buf_tests_support");
 
   test("TS lowers StringBuf to primitive strings with inline pairing checks", () => {
     const tsFile = path.join(tsGenTestsDir, "boring/StringBufOps.test.ts");
@@ -68,7 +68,7 @@ describe("string buffer generated tree", () => {
 
   test.skipIf(targetTreeUnavailable("swift"))("Swift lowers StringBuf to UTF-16 arrays", () => {
     const content = fs.readFileSync(
-      path.join(path.resolve(__dirname, "../../reference/swift/gen"), "boring/StringBufOps.swift"),
+      path.join(path.resolve(__dirname, "../../reference/swift/gen-tests"), "boring/StringBufOps.swift"),
       "utf8",
     );
     // The buffer is the resident UTF-16 array (docs/specs/stdlib/08-string-buffer.md:132
@@ -83,7 +83,7 @@ describe("string buffer generated tree", () => {
 
   test("Dart lowers StringBuf to UTF-16 unit lists", () => {
     const content = fs.readFileSync(
-      path.join(path.resolve(__dirname, "../../reference/dart/gen/lib"), "boring/string_buf_ops.dart"),
+      path.join(path.resolve(__dirname, "../../reference/dart/gen-tests"), "boring/string_buf_ops.dart"),
       "utf8",
     );
     expect(content).toContain("var buf = <int>[]");

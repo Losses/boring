@@ -38,9 +38,9 @@ describe("top-level and extension function lowering", () => {
 
   test("Kotlin emits file-facade functions and receiver extensions", () => {
     const fileLevel = read("reference/kotlin/gen/boring/FileLevelOps.kt");
-    const fileConsumer = read("reference/kotlin/gen/boring/FileLevelConsumer.kt");
+    const fileConsumer = read("reference/kotlin/gen-tests/boring/FileLevelConsumer.kt");
     const extensions = read("reference/kotlin/gen/boring/ExtensionOps.kt");
-    const extensionConsumer = read("reference/kotlin/gen/boring/ExtensionConsumer.kt");
+    const extensionConsumer = read("reference/kotlin/gen-tests/boring/ExtensionConsumer.kt");
 
     expect(fileLevel).toContain("fun publicValue(value: Int): Int");
     expect(fileLevel).toContain("private fun privateValue(value: Int): Int");
@@ -59,9 +59,9 @@ describe("top-level and extension function lowering", () => {
 
   test.skipIf(targetTreeUnavailable("swift"))("Swift emits a file function and native extension blocks", () => {
     const fileLevel = read("reference/swift/gen/boring/FileLevelOps.swift");
-    const fileConsumer = read("reference/swift/gen/boring/FileLevelConsumer.swift");
+    const fileConsumer = read("reference/swift/gen-tests/boring/FileLevelConsumer.swift");
     const extensions = read("reference/swift/gen/boring/ExtensionOps.swift");
-    const extensionConsumer = read("reference/swift/gen/boring/ExtensionConsumer.swift");
+    const extensionConsumer = read("reference/swift/gen-tests/boring/ExtensionConsumer.swift");
 
     expect(fileLevel).toContain("func publicValue(_ value: Int32) -> Int32");
     expect(fileLevel).toContain("private func privateValue(_ value: Int32) -> Int32");
@@ -85,9 +85,9 @@ describe("top-level and extension function lowering", () => {
 
   test("Dart emits named grouped extensions and library top-level functions", () => {
     const fileLevel = read("reference/dart/gen/lib/boring/file_level_ops.dart");
-    const fileConsumer = read("reference/dart/gen/lib/boring/file_level_consumer.dart");
+    const fileConsumer = read("reference/dart/gen-tests/boring/file_level_consumer.dart");
     const extensions = read("reference/dart/gen/lib/boring/extension_ops.dart");
-    const extensionConsumer = read("reference/dart/gen/lib/boring/extension_consumer.dart");
+    const extensionConsumer = read("reference/dart/gen-tests/boring/extension_consumer.dart");
 
     expect(fileLevel).toContain("int publicValue(int value)");
     expect(fileLevel).toContain("int _privateValue(int value)");
@@ -101,7 +101,7 @@ describe("top-level and extension function lowering", () => {
     expect(extensions).toContain("String modeLabel(String suffix)");
     expect(extensions).toContain("String stringLabel(String prefix)");
     expect(extensions).not.toContain("class ExtensionOps");
-    expect(extensionConsumer).toContain("import 'extension_ops.dart';");
+    expect(extensionConsumer).toContain("import '../../gen/lib/boring/extension_ops.dart';");
     expect(extensionConsumer).toContain("return extension_ops.ExtensionMode.hot.modeLabel(\"!\");");
     expect(extensionConsumer).toContain("return \"core\".stringLabel(\"@\");");
     expect(extensionConsumer).not.toContain("ExtensionOps.");
@@ -109,9 +109,9 @@ describe("top-level and extension function lowering", () => {
 
   test("Rust uses an inherent impl only for the owned receiver", () => {
     const fileLevel = read("reference/rust/gen/boring/file_level_ops.rs");
-    const fileConsumer = read("reference/rust/gen/boring/file_level_consumer.rs");
+    const fileConsumer = read("reference/rust/gen/tests/tests/static_extension_tests_support/boring/file_level_consumer.rs");
     const extensions = read("reference/rust/gen/boring/extension_ops.rs");
-    const extensionConsumer = read("reference/rust/gen/boring/extension_consumer.rs");
+    const extensionConsumer = read("reference/rust/gen/tests/tests/static_extension_tests_support/boring/extension_consumer.rs");
 
     expect(fileLevel).toContain("pub fn public_value(value: u32) -> u32");
     expect(fileLevel).toContain("fn private_value(value: u32) -> u32");

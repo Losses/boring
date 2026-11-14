@@ -43,15 +43,15 @@ const root = `${import.meta.dir}/../../..`;
 const out = Bun.env.BORING_REDUNDANT_ASSERTION_OUT ?? `${root}/out/kotlin-redundant-assertion/test-${crypto.randomUUID()}`;
 const generated = `${out}/gen`;
 
-/** Recorded on 2026-10-01 at revision e54611c1 (mainline tip). LOWER IT when the emitter fix is made. */
+/** Recorded on 2026-11-13 at revision 25869a582 after the 868a723c5 emitter fix. */
 const RECORDED_DUPLICATE_ASSERTIONS: Record<string, number> = {
-  isSpace: 2,
-  lowerBound: 2,
-  threeReads: 2,
+  isSpace: 1,
+  lowerBound: 1,
+  threeReads: 1,
 };
 
-/** Recorded on 2026-10-01 at revision e54611c1 (kotlinc 2.4.10, JRE 21). */
-const RECORDED_KOTLINC_REDUNDANT_WARNINGS = 3;
+/** Recorded on 2026-11-13 at revision 25869a582 after the 868a723c5 emitter fix (kotlinc 2.4.10, JRE 21). */
+const RECORDED_KOTLINC_REDUNDANT_WARNINGS = 0;
 
 async function run(command: Array<string>, label: string): Promise<{ stdout: string; stderr: string }> {
   const result = Bun.spawnSync(command, { cwd: root, stdout: "pipe", stderr: "pipe" });
@@ -137,7 +137,7 @@ test("a nullable local read after its own printed assertion takes no second asse
     ).toBe(recorded);
   }
   // The measured line itself, so the report's quotation is pinned by the suite.
-  expect(source).toContain("return c!! > 8 && c!! < 14 || c == 32");
+  expect(source).toContain("return c!! > 8 && c < 14 || c == 32");
 
   // The emitted Kotlin must actually reach the real compiler. A missing
   // kotlinc is recorded as environment-not-reached, the convention

@@ -7,10 +7,10 @@ installTargetTreeReport(import.meta.path);
 
 describe("default argument expansion generated tree", () => {
   const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
-  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
-  const swiftGenDir = path.resolve(__dirname, "../../reference/swift/gen");
-  const dartGenDir = path.resolve(__dirname, "../../reference/dart/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
+  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen-tests");
+  const swiftGenDir = path.resolve(__dirname, "../../reference/swift/gen-tests");
+  const dartGenDir = path.resolve(__dirname, "../../reference/dart/gen-tests");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen/tests/tests/default_args_tests_support");
 
   test("TS generated tree emits full-arity calls and clean method signatures", () => {
     const tsFile = path.join(tsGenTestsDir, "boring/DefaultArgsOps.test.ts");
@@ -160,11 +160,11 @@ describe("default argument expansion generated tree", () => {
 
     // Method signatures carry clean typed parameter lists
     expect(content).toContain("pub fn default_args_ops_greet(name: &UStr, prefix: &UStr) -> UString");
-    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: crate::TiqianFloat, flag: bool) -> crate::TiqianFloat");
+    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: boring_codec_gen::TiqianFloat, flag: bool) -> boring_codec_gen::TiqianFloat");
     expect(content).toContain("pub fn format_label(this: &Rc<RefCell<Self>>, label: Option<UString>, sep: &UStr) -> UString");
     expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &UStr, detail: Option<UString>) -> UString");
     expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> UString");
-    expect(content).toContain("pub fn default_args_ops_adjust(value: crate::TiqianFloat, step: crate::TiqianFloat) -> crate::TiqianFloat");
+    expect(content).toContain("pub fn default_args_ops_adjust(value: boring_codec_gen::TiqianFloat, step: boring_codec_gen::TiqianFloat) -> boring_codec_gen::TiqianFloat");
 
     // Rust normalizes parameter-reading defaults at entry in declaration order.
     expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &UStr, prefix: Option<UString>) -> UString");
@@ -188,23 +188,23 @@ describe("default argument expansion generated tree", () => {
     // entry point evaluates its sanctioned expression lazily.
     expect(content).toContain("pub fn new(family_names: Option<Vec<UString>>) -> Rc<RefCell<Self>>");
     expect(content).toContain("let family_names = family_names.unwrap_or_else(|| vec![]);");
-    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<crate::TiqianFloat>) -> crate::TiqianFloat");
-    expect(content).toContain("let value = value.unwrap_or_else(|| crate::TiqianFloat::INFINITY);");
+    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<boring_codec_gen::TiqianFloat>) -> boring_codec_gen::TiqianFloat");
+    expect(content).toContain("let value = value.unwrap_or_else(|| boring_codec_gen::TiqianFloat::INFINITY);");
     expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<UString, u32>>) -> HashMap<UString, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None) as crate::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None) as boring_codec_gen::TiqianFloat;");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default(None);");
 
     // Call sites are fully expanded to full arity
     expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(UStr::new(&[65,100,97]), UStr::new(&[72,101,108,108,111]));');
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5, true) as crate::TiqianFloat;");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5, true) as crate::TiqianFloat;");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5, true) as crate::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5, true) as boring_codec_gen::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5, true) as boring_codec_gen::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5, true) as boring_codec_gen::TiqianFloat;");
     expect(content).toContain('return DefaultArgsOps::format_label(&ops, Some(UString::from("item")), UStr::new(&[45]));');
     expect(content).toContain('return DefaultArgsOps::format_label(&ops, None, UStr::new(&[45]));');
     expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(UStr::new(&[97,108,112,104,97]), Some(UString::from("extra")));');
     expect(content).toContain("return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0, -5.0) as crate::TiqianFloat;");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0, -5.0) as boring_codec_gen::TiqianFloat;");
     expect(content).toContain("return local_add.borrow_mut()(x, 100);");
     expect(content).toContain("return local_add.borrow_mut()(x, 200);");
     // The interface receiver is a shared handle, so the call borrows it.
@@ -212,7 +212,7 @@ describe("default argument expansion generated tree", () => {
 
     // A coalescing default reading an earlier coalescing parameter enters
     // after the earlier parameter's entry binding.
-    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<crate::TiqianFloat>, value: Option<crate::TiqianFloat>) -> crate::TiqianFloat");
+    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<boring_codec_gen::TiqianFloat>, value: Option<boring_codec_gen::TiqianFloat>) -> boring_codec_gen::TiqianFloat");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
     expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
     expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
@@ -220,7 +220,7 @@ describe("default argument expansion generated tree", () => {
     // The static initializer completes omitted coalescing arguments to
     // None exactly as function-body call sites do, because the per-
     // function pass never visits initializers.
-    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some((0.125) as crate::TiqianFloat), Some((0.5) as crate::TiqianFloat)));");
+    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some((0.125) as boring_codec_gen::TiqianFloat), Some((0.5) as boring_codec_gen::TiqianFloat)));");
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
@@ -267,7 +267,7 @@ describe("default argument expansion generated tree", () => {
   });
 
   test("Dart generated tree normalizes coalescing defaults in the body", () => {
-    const dartFile = path.join(dartGenDir, "lib/boring/default_args_ops.dart");
+    const dartFile = path.join(dartGenDir, "boring/default_args_ops.dart");
     expect(fs.existsSync(dartFile)).toBe(true);
     const content = fs.readFileSync(dartFile, "utf8");
 

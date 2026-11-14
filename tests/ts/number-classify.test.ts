@@ -7,10 +7,10 @@ installTargetTreeReport(import.meta.path);
 
 describe("number classification generated tree", () => {
   const tsFile = path.resolve(__dirname, "../../reference/ts/gen-tests/boring/NumberClassifyOps.test.ts");
-  const kotlinFile = path.resolve(__dirname, "../../reference/kotlin/gen/boring/NumberClassifyOps.kt");
-  const rustFile = path.resolve(__dirname, "../../reference/rust/gen/boring/number_classify_ops.rs");
-  const swiftFile = path.resolve(__dirname, "../../reference/swift/gen/boring/NumberClassifyOps.swift");
-  const dartFile = path.resolve(__dirname, "../../reference/dart/gen/lib/boring/number_classify_ops.dart");
+  const kotlinFile = path.resolve(__dirname, "../../reference/kotlin/gen-tests/boring/NumberClassifyOps.kt");
+  const rustFile = path.resolve(__dirname, "../../reference/rust/gen/tests/tests/number_classify_tests_support/boring/number_classify_ops.rs");
+  const swiftFile = path.resolve(__dirname, "../../reference/swift/gen-tests/boring/NumberClassifyOps.swift");
+  const dartFile = path.resolve(__dirname, "../../reference/dart/gen-tests/boring/number_classify_ops.dart");
 
   test("Math.isFinite and Math.isNaN render as native predicates on every target", () => {
     const ts = fs.readFileSync(tsFile, "utf8");

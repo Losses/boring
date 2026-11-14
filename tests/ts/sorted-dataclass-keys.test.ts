@@ -19,39 +19,39 @@ describe("sorted dataClass key generated trees", () => {
     expect(read("ts/gen-tests/boring/SortedDataClassKeysOps.test.ts")).toContain(`public get isEmpty(): boolean {
     return this.get_isEmpty();
   }`);
-    expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`val isEmpty: Boolean get() = get_isEmpty()`);
+    expect(read("kotlin/gen-tests/boring/SortedDataClassKeysOps.kt")).toContain(`val isEmpty: Boolean get() = get_isEmpty()`);
     withTargetTree("swift", "sorted-dataclass-keys: pins dataClass computed key properties", () => {
-      expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain(`var isEmpty: Bool { get_isEmpty() }`);
+      expect(read("swift/gen-tests/boring/SortedDataClassKeysOps.swift")).toContain(`var isEmpty: Bool { get_isEmpty() }`);
     });
-    expect(read("rust/gen/boring/sorted_data_class_keys_ops.rs")).toContain(`pub fn get_is_empty(&self) -> bool {
+    expect(read("rust/gen/tests/tests/sorted_key_domain_tests_support/boring/sorted_data_class_keys_ops.rs")).toContain(`pub fn get_is_empty(&self) -> bool {
         return self.start == self.end;
     }`);
-    expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain(`bool get isEmpty => get_isEmpty();`);
+    expect(read("dart/gen-tests/boring/sorted_data_class_keys_ops.dart")).toContain(`bool get isEmpty => get_isEmpty();`);
   });
 
   test("pins nullable folded constructor defaults", () => {
     expect(read("ts/gen-tests/boring/SortedDataClassKeysOps.test.ts")).toContain("locale: string | null =");
-    expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain("locale: String? =");
+    expect(read("kotlin/gen-tests/boring/SortedDataClassKeysOps.kt")).toContain("locale: String? =");
     withTargetTree("swift", "sorted-dataclass-keys: pins nullable folded constructor defaults", () => {
-      expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain("_ locale: [UInt16]? = nil");
+      expect(read("swift/gen-tests/boring/SortedDataClassKeysOps.swift")).toContain("_ locale: [UInt16]? = nil");
     });
-    expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain("[String? locale]");
+    expect(read("dart/gen-tests/boring/sorted_data_class_keys_ops.dart")).toContain("[String? locale]");
   });
 
   test("pins mutation evidence fixtures", () => {
     expect(read("ts/gen-tests/boring/SortedDataClassKeysOps.test.ts")).toContain("arrayMutations");
-    expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain("arrayMutations");
+    expect(read("kotlin/gen-tests/boring/SortedDataClassKeysOps.kt")).toContain("arrayMutations");
     withTargetTree("swift", "sorted-dataclass-keys: pins mutation evidence fixtures (arrayMutations)", () => {
-      expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain("arrayMutations");
+      expect(read("swift/gen-tests/boring/SortedDataClassKeysOps.swift")).toContain("arrayMutations");
     });
-    expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain("arrayMutations");
-    expect(read("rust/gen/boring/sorted_data_class_keys_ops.rs")).toContain("array_mutations");
+    expect(read("dart/gen-tests/boring/sorted_data_class_keys_ops.dart")).toContain("arrayMutations");
+    expect(read("rust/gen/tests/tests/sorted_key_domain_tests_support/boring/sorted_data_class_keys_ops.rs")).toContain("array_mutations");
     for (const [target, file] of [
       ["ts", "ts/gen-tests/boring/SortedDataClassKeysOps.test.ts"],
-      ["kotlin", "kotlin/gen/boring/SortedDataClassKeysOps.kt"],
-      ["swift", "swift/gen/boring/SortedDataClassKeysOps.swift"],
-      ["dart", "dart/gen/lib/boring/sorted_data_class_keys_ops.dart"],
-      ["rust", "rust/gen/boring/sorted_data_class_keys_ops.rs"],
+      ["kotlin", "kotlin/gen-tests/boring/SortedDataClassKeysOps.kt"],
+      ["swift", "swift/gen-tests/boring/SortedDataClassKeysOps.swift"],
+      ["dart", "dart/gen-tests/boring/sorted_data_class_keys_ops.dart"],
+      ["rust", "rust/gen/tests/tests/sorted_key_domain_tests_support/boring/sorted_data_class_keys_ops.rs"],
     ] as const) {
       withTargetTree(target, "sorted-dataclass-keys: pins mutation evidence fixtures (nullable mutation fixture)", () => {
         expect(read(file)).toContain(file.includes("rust") ? "nullable_mutation" : "nullableMutation");
@@ -62,14 +62,14 @@ describe("sorted dataClass key generated trees", () => {
   test("pins resident comparators", () => {
     const targets = [
       ["ts", "ts/gen-tests/boring/SortedDataClassKeysOps.test.ts", "export function compareRubySpan"],
-      ["kotlin", "kotlin/gen/boring/SortedDataClassKeysOps.kt", "fun compareRubySpan"],
-      ["rust", "rust/gen/boring/sorted_data_class_keys_ops.rs", "pub fn compare_ruby_span"],
+      ["kotlin", "kotlin/gen-tests/boring/SortedDataClassKeysOps.kt", "fun compareRubySpan"],
+      ["rust", "rust/gen/tests/tests/sorted_key_domain_tests_support/boring/sorted_data_class_keys_ops.rs", "pub fn compare_ruby_span"],
       // The Swift target names a dataClass record comparator by its source
       // module path (`compareRecord_6_boring_22_...`), a decision that
       // post-dates this pin; the comparator is still resident and still
       // bound at every builder call site, so pin that exact symbol.
-      ["swift", "swift/gen/boring/SortedDataClassKeysOps.swift", "public func compareRecord_6_boring_22_SortedDataClassKeysOps_8_RubySpan"],
-      ["dart", "dart/gen/lib/boring/sorted_data_class_keys_ops.dart", "int compareRubySpan"]
+      ["swift", "swift/gen-tests/boring/SortedDataClassKeysOps.swift", "public func compareRecord_6_boring_22_SortedDataClassKeysOps_8_RubySpan"],
+      ["dart", "dart/gen-tests/boring/sorted_data_class_keys_ops.dart", "int compareRubySpan"]
     ] as const;
     for (const [target, file, marker] of targets) {
       withTargetTree(target, "sorted-dataclass-keys: pins resident comparators", () => {
@@ -80,8 +80,8 @@ describe("sorted dataClass key generated trees", () => {
       });
     }
     expect(comparator("ts/gen-tests/boring/SortedDataClassKeysOps.test.ts", "export function compareTextRange")).toContain("a.start");
-    expect(comparator("kotlin/gen/boring/SortedDataClassKeysOps.kt", "fun compareTextRange")).toContain("a.start");
-    expect(comparator("rust/gen/boring/sorted_data_class_keys_ops.rs", "pub fn compare_text_range")).toContain("cmp_start");
+    expect(comparator("kotlin/gen-tests/boring/SortedDataClassKeysOps.kt", "fun compareTextRange")).toContain("a.start");
+    expect(comparator("rust/gen/tests/tests/sorted_key_domain_tests_support/boring/sorted_data_class_keys_ops.rs", "pub fn compare_text_range")).toContain("cmp_start");
     // SPEC16 kind 3 narrowed (2026-10-17): PrintedMark carries payload
     // constructors, so PrintedBadge is not comparable and the resident
     // comparator no longer emits.

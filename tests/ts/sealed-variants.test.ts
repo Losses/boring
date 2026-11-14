@@ -232,9 +232,9 @@ test("the sanctioned self-construction static uses each target lane", async () =
 test("sealed variant sample trees carry the ruled declaration and printed forms", () => {
   const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
   const ts = read("reference/ts/gen-tests/boring/SealedVariantOps.test.ts");
-  const kotlin = read("reference/kotlin/gen/boring/SealedVariantOps.kt");
-  const dart = read("reference/dart/gen/lib/boring/sealed_variant_ops.dart");
-  const rust = read("reference/rust/gen/boring/sealed_variant_ops.rs");
+  const kotlin = read("reference/kotlin/gen-tests/boring/SealedVariantOps.kt");
+  const dart = read("reference/dart/gen-tests/boring/sealed_variant_ops.dart");
+  const rust = read("reference/rust/gen/tests/tests/sealed_variant_tests_support/boring/sealed_variant_ops.rs");
 
   expect(kotlin).toContain("sealed interface DrawKind");
   expect(kotlin).toContain("val instance: NoneDrawKind = NoneDrawKind()");
@@ -247,7 +247,7 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(ts).toContain("DotDrawKind(dotDiameter=");
 
   withTargetTree("swift", "sealed-variants: sealed variant sample trees carry the ruled declaration and printed forms", () => {
-    const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
+    const swift = read("reference/swift/gen-tests/boring/SealedVariantOps.swift");
     expect(swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     // A Haxe String is Array<UInt16> on Swift (INTERFACE-REQUIREMENTS.md:235),
     // so the description literal renders as a UTF-16 unit array.

@@ -53,15 +53,24 @@ class Compare {
         (feature spec 59); boring's own results directory resolves
         inside the repository, so the gate keeps running there.
     **/
-    static function findMechanismCoverage(resultsDir:String):String {
+    static function findMechanismCoverage(resultsDir:String, projectFile:String):String {
         // Resolve to an absolute path so the walk starts at the results
         // directory itself whatever the invocation named.
         var dir = Path.normalize(Path.join(Process.cwd(), resultsDir));
+        // A project's mechanism declaration belongs to that project. Stop at
+        // the nearest boring.json; do not inherit a marker from an enclosing
+        // checkout. A consumer project created inside a boring worktree must
+        // skip the repository's coverage gate exactly like one created
+        // outside it.
+        final projectRoot = projectFile == "" ? "" : Path.normalize(Path.dirname(projectFile));
         final marker = "packages/test/assertions/consistency/mechanism-coverage.json";
         while (true) {
             final candidate = Path.join(dir, marker);
             if (exists(candidate)) {
                 return candidate;
+            }
+            if (projectRoot != "" && dir == projectRoot) {
+                break;
             }
             final parent = Path.dirname(dir);
             if (parent == dir) {
@@ -367,14 +376,15 @@ class Compare {
             exit(1);
             return;
         }
-        final extraDeclarations = loadOnlyInDeclarations(findProjectFile(resultsDir));
+        final projectFile = findProjectFile(resultsDir);
+        final extraDeclarations = loadOnlyInDeclarations(projectFile);
         final comparison = CompareCore.run(inputs, baselineTarget, extraDeclarations);
         for (line in comparison.lines) outputLine(line);
         if (comparison.declaredExtras.length > 0) {
             outputLine('Declared extra test ids (not in baseline, target-only modules): ${comparison.declaredExtras.length}');
             for (declared in comparison.declaredExtras) outputLine('  - $declared');
         }
-        final coveragePath = findMechanismCoverage(resultsDir);
+        final coveragePath = findMechanismCoverage(resultsDir, projectFile);
         final coverageOk = coveragePath == "" ? true : checkMechanismCoverage(comparison.allIds, coveragePath);
         if (coveragePath == "") outputLine("Mechanism coverage: skipped; the results directory declares no mechanisms.");
         if (comparison.errors.length == 0 && coverageOk) {

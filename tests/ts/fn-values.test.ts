@@ -27,10 +27,10 @@ function read(relative: string): string {
 
 const targetTrees: ReadonlyArray<{ readonly target: TargetId; readonly file: string }> = [
   { target: "ts", file: "reference/ts/gen-tests/boring/FnValuesOps.test.ts" },
-  { target: "kotlin", file: "reference/kotlin/gen/boring/FnValuesOps.kt" },
-  { target: "swift", file: "reference/swift/gen/boring/FnValuesOps.swift" },
-  { target: "dart", file: "reference/dart/gen/lib/boring/fn_values_ops.dart" },
-  { target: "rust", file: "reference/rust/gen/boring/fn_values_ops.rs" },
+  { target: "kotlin", file: "reference/kotlin/gen-tests/boring/FnValuesOps.kt" },
+  { target: "swift", file: "reference/swift/gen-tests/boring/FnValuesOps.swift" },
+  { target: "dart", file: "reference/dart/gen-tests/boring/fn_values_ops.dart" },
+  { target: "rust", file: "reference/rust/gen/tests/tests/fn_values_tests_support/boring/fn_values_ops.rs" },
 ];
 
 describe("first-class function value generated trees", () => {
@@ -47,13 +47,13 @@ describe("first-class function value generated trees", () => {
     expect(ts).toContain("public static defaultTag: (id: number) => string =");
     expect(ts).toContain("defaultTag");
 
-    const kotlin = read("reference/kotlin/gen/boring/FnValuesOps.kt");
+    const kotlin = read("reference/kotlin/gen-tests/boring/FnValuesOps.kt");
     expect(kotlin).toContain("companion object");
     expect(kotlin).toContain("val defaultTag: (Int) -> String = fun(id: Int): String");
     expect(kotlin).toContain('return "tag" + id');
 
     withTargetTree("swift", "fn-values: TypeScript, Kotlin, Swift, and Dart keep static function storage", () => {
-      const swift = read("reference/swift/gen/boring/FnValuesOps.swift");
+      const swift = read("reference/swift/gen-tests/boring/FnValuesOps.swift");
       // Swift stores a Haxe String as Array<UInt16> (docs/architecture/
       // INTERFACE-REQUIREMENTS.md:235 "String <-> Array<UInt16>", restated for
       // the buffer at docs/specs/stdlib/08-string-buffer.md:132 and shown as a
@@ -64,13 +64,13 @@ describe("first-class function value generated trees", () => {
       expect(swift).toContain("defaultTag");
     });
 
-    const dart = read("reference/dart/gen/lib/boring/fn_values_ops.dart");
+    const dart = read("reference/dart/gen-tests/boring/fn_values_ops.dart");
     expect(dart).toContain("static final String Function(int) defaultTag =");
     expect(dart).toContain("defaultTag");
   });
 
   test("Rust uses one shared-handle representation and adapts indirect lengths", () => {
-    const rust = read("reference/rust/gen/boring/fn_values_ops.rs");
+    const rust = read("reference/rust/gen/tests/tests/fn_values_tests_support/boring/fn_values_ops.rs");
     expect(rust).toContain("pub style_at: Rc<RefCell<dyn FnMut(u32) -> UString>>");
     expect(rust).toContain("pub resolver: Rc<RefCell<dyn NameResolver>>");
     expect(rust).toContain("pub fn new(style_at: Rc<RefCell<dyn FnMut(u32) -> UString>>, resolver: Rc<RefCell<dyn NameResolver>>) -> Rc<RefCell<Self>>");
@@ -86,7 +86,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
-    const rust = read("reference/rust-f32/gen/boring/fn_values_ops.rs");
+    const rust = read("reference/rust-f32/gen/tests/tests/fn_values_tests_support/boring/fn_values_ops.rs");
     expect(rust).toContain("Rc<RefCell<dyn FnMut(u32) -> UString>>");
     expect(rust).toContain("Rc<RefCell<dyn NameResolver>>");
     expect(rust).toContain("Rc::new(RefCell::new(move |suffix: &UStr|");
@@ -95,7 +95,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust realizes every function-value position as one shared handle", () => {
-    const rust = read("reference/rust/gen/boring/static_ref_ops.rs");
+    const rust = read("reference/rust/gen/tests/tests/static_ref_tests_support/boring/static_ref_ops.rs");
     expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Rc<RefCell<dyn FnMut(u32) -> UString>>)");
     expect(rust).toContain("let r#fn: Rc<RefCell<dyn FnMut(u32) -> UString>> = Rc::new(RefCell::new(StaticRefOps::static_ref_ops_render));");
     expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Rc<RefCell<dyn FnMut(u32) -> UString + 'static>>");

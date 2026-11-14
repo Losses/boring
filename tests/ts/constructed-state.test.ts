@@ -13,18 +13,18 @@ describe("constructed static initializer trees", () => {
     expect(read("reference/ts/gen-tests/boring/ConstructedStateOps.test.ts")).toContain(
       "public static readonly weighted: FramePolicy = new FramePolicy("
     );
-    expect(read("reference/kotlin/gen/boring/ConstructedStateOps.kt")).toContain(
+    expect(read("reference/kotlin/gen-tests/boring/ConstructedStateOps.kt")).toContain(
       "val weighted: FramePolicy = FramePolicy("
     );
     withTargetTree("swift", "constructed-state: each target uses its ruled declaration and Rust read lane", () => {
-      expect(read("reference/swift/gen/boring/ConstructedStateOps.swift")).toContain(
+      expect(read("reference/swift/gen-tests/boring/ConstructedStateOps.swift")).toContain(
         "static let weighted: FramePolicy = FramePolicy("
       );
     });
-    expect(read("reference/dart/gen/lib/boring/constructed_state_ops.dart")).toContain(
+    expect(read("reference/dart/gen-tests/boring/constructed_state_ops.dart")).toContain(
       "static final FramePolicy weighted = FramePolicy("
     );
-    const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
+    const rust = read("reference/rust/gen/tests/tests/constructed_state_tests_support/boring/constructed_state_ops.rs");
     // `docs/specs/target-semantic-policy.md` P-1a realizes a class-handle
     // static as ThreadAffine: the owner-thread slot holds the Rc handle, the
     // read clones the handle out of the slot, and no process-global lock or

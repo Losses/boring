@@ -9,10 +9,10 @@ describe("capture switch generated trees", () => {
   const read = (target: string) => {
     const extension = target === "ts" ? "ts" : target === "kotlin" ? "kt" : target === "swift" ? "swift" : "dart";
     const file = target === "dart"
-      ? "reference/dart/gen/lib/boring/capture_switch_ops.dart"
+      ? "reference/dart/gen-tests/boring/capture_switch_ops.dart"
       : target === "ts"
         ? "reference/ts/gen-tests/boring/CaptureSwitchOps.test.ts"
-        : `reference/${target}/gen/boring/CaptureSwitchOps.${extension}`;
+        : `reference/${target}/gen-tests/boring/CaptureSwitchOps.${extension}`;
     return fs.readFileSync(path.resolve(__dirname, `../../${file}`), "utf8");
   };
 

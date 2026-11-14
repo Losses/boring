@@ -34,31 +34,31 @@ const memberTrees: MemberTree[] = [
   },
   {
     target: "swift",
-    file: "reference/swift/gen/boring/PrintedRecord.swift",
+    file: "reference/swift/gen-tests/boring/PrintedRecord.swift",
     signature: "func toString() -> [UInt16]",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
     target: "swift-f32",
-    file: "reference/swift-f32/gen/boring/PrintedRecord.swift",
+    file: "reference/swift-f32/gen-tests/boring/PrintedRecord.swift",
     signature: "func toString() -> [UInt16]",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
     target: "dart",
-    file: "reference/dart/gen/lib/boring/printed_record.dart",
+    file: "reference/dart/gen-tests/boring/printed_record.dart",
     signature: "String toString()",
     fields: ["this.count", "this.ratio", "this.inner"],
   },
   {
     target: "rust",
-    file: "reference/rust/gen/boring/printed_record.rs",
+    file: "reference/rust/gen/tests/tests/printed_record_tests_support/boring/printed_record.rs",
     signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
     target: "rust-f32",
-    file: "reference/rust-f32/gen/boring/printed_record.rs",
+    file: "reference/rust-f32/gen/tests/tests/printed_record_tests_support/boring/printed_record.rs",
     signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
@@ -214,8 +214,8 @@ describe("record printed-member generated trees", () => {
 
   test("Kotlin keeps native data-class printing and renders explicit text", () => {
     for(const file of [
-      "reference/kotlin/gen/boring/PrintedRecord.kt",
-      "reference/kotlin-f32/gen/boring/PrintedRecord.kt",
+      "reference/kotlin/gen-tests/boring/PrintedRecord.kt",
+      "reference/kotlin-f32/gen-tests/boring/PrintedRecord.kt",
     ]) {
       const content = read(file);
       const start = content.indexOf("data class PrintedRecord");
@@ -226,8 +226,8 @@ describe("record printed-member generated trees", () => {
     }
 
     for(const file of [
-      "reference/kotlin/gen/boring/PrintedCustom.kt",
-      "reference/kotlin-f32/gen/boring/PrintedCustom.kt",
+      "reference/kotlin/gen-tests/boring/PrintedCustom.kt",
+      "reference/kotlin-f32/gen-tests/boring/PrintedCustom.kt",
     ]) {
       expect(read(file)).toContain("override fun toString(): String");
     }

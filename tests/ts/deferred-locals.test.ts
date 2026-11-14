@@ -14,12 +14,12 @@ function read(relative: string): string {
 
 test("deferred locals retain each target's sanctioned declaration form", () => {
   expect(read("reference/ts/gen-tests/boring/DeferredLocalsOps.test.ts")).toContain("let tier: number;");
-  expect(read("reference/kotlin/gen/boring/DeferredLocalsOps.kt")).toContain("var tier: Int");
+  expect(read("reference/kotlin/gen-tests/boring/DeferredLocalsOps.kt")).toContain("var tier: Int");
   withTargetTree("swift", "deferred-locals: deferred locals retain each target's sanctioned declaration form", () => {
-    expect(read("reference/swift/gen/boring/DeferredLocalsOps.swift")).toContain("var tier: Int32");
+    expect(read("reference/swift/gen-tests/boring/DeferredLocalsOps.swift")).toContain("var tier: Int32");
   });
-  expect(read("reference/dart/gen/lib/boring/deferred_locals_ops.dart")).toContain("int tier;");
-  expect(read("reference/rust/gen/boring/deferred_locals_ops.rs")).toContain("let tier: u32;");
+  expect(read("reference/dart/gen-tests/boring/deferred_locals_ops.dart")).toContain("int tier;");
+  expect(read("reference/rust/gen/tests/tests/deferred_locals_tests_support/boring/deferred_locals_ops.rs")).toContain("let tier: u32;");
 });
 
 test("a missing deferred assignment is rejected by the Kotlin tree build", async () => {

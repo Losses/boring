@@ -14,9 +14,9 @@ function generated(relative: string): string {
 describe("TTry catch-site lowering", () => {
   test("uses native typed catch forms on every target", () => {
     const ts = generated("reference/ts/gen-tests/boring/TryOps.test.ts");
-    const kotlin = generated("reference/kotlin/gen/boring/TryOps.kt");
-    const rust = generated("reference/rust/gen/boring/try_ops.rs");
-    const dart = generated("reference/dart/gen/lib/boring/try_ops.dart");
+    const kotlin = generated("reference/kotlin/gen-tests/boring/TryOps.kt");
+    const rust = generated("reference/rust/gen/tests/tests/try_tests_support/boring/try_ops.rs");
+    const dart = generated("reference/dart/gen-tests/boring/try_ops.dart");
 
     expect(ts).toContain("error instanceof VectorException");
     expect(ts).toContain("throw error;");
@@ -24,7 +24,7 @@ describe("TTry catch-site lowering", () => {
     expect(rust).toContain("Result<(), VectorError>");
     expect(rust).toContain("Err(error) =>");
     withTargetTree("swift", "try-region: uses native typed catch forms on every target", () => {
-      const swift = generated("reference/swift/gen/boring/TryOps.swift");
+      const swift = generated("reference/swift/gen-tests/boring/TryOps.swift");
       expect(swift).toContain("catch let error as VectorException");
       expect(swift).toContain("catch {");
     });

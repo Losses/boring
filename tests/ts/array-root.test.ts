@@ -14,23 +14,23 @@ describe("small static array initializer trees", () => {
       "public static readonly readOnlyInts: readonly number[] = [10, 20, 30];",
     );
 
-    const kotlin = read("reference/kotlin/gen/boring/ArrayRootStateOps.kt");
+    const kotlin = read("reference/kotlin/gen-tests/boring/ArrayRootStateOps.kt");
     expect(kotlin).toContain("val readOnlyInts: List<Int> = listOf(10, 20, 30)");
     expect(kotlin).toContain("val mutableInts: MutableList<Int> = mutableListOf<Int>(40, 50)");
 
     withTargetTree("swift", "array-root: each target uses the ruled array declaration", () => {
-      expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
+      expect(read("reference/swift/gen-tests/boring/ArrayRootStateOps.swift")).toContain(
         // The Swift array runtime type is BoringArray (TiqianArray no longer
         // exists anywhere in the tree); the pinned element type and literal
         // are unchanged.
         "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(BoringArray<Int32>([10, 20, 30]))",
       );
     });
-    expect(read("reference/dart/gen/lib/boring/array_root_state_ops.dart")).toContain(
+    expect(read("reference/dart/gen-tests/boring/array_root_state_ops.dart")).toContain(
       "static final List<int> readOnlyInts = [10, 20, 30];",
     );
 
-    const rust = read("reference/rust/gen/boring/array_root_state_ops.rs");
+    const rust = read("reference/rust/gen/tests/tests/array_root_tests_support/boring/array_root_state_ops.rs");
     expect(rust).toMatch(/pub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: \[(?:u32|i32); 3\] = \[10, 20, 30\];/);
     expect(rust).toContain("pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];");
     expect(rust).toContain("LazyLock<Vec<UString>>");

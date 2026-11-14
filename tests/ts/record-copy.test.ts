@@ -4,8 +4,8 @@ import * as path from "node:path";
 
 describe("record copy generated tree", () => {
   const tsGenTestsDir = path.resolve(__dirname, "../../reference/ts/gen-tests");
-  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
+  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen-tests");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen/tests/tests/record_tests_support");
 
   test("TS generated tree emits object literals with fields in declaration order", () => {
     const tsFile = path.join(tsGenTestsDir, "boring/RecordOps.test.ts");

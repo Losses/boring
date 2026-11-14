@@ -6,7 +6,7 @@ describe("constructor statement initialization safety", () => {
   test("keeps body locals and lowered temporaries out of the initializer list", () => {
     const file = path.resolve(
       __dirname,
-      "../../reference/dart/gen/lib/boring/constructor_statement_ops.dart",
+      "../../reference/dart/gen-tests/boring/constructor_statement_ops.dart",
     );
     expect(fs.existsSync(file)).toBe(true);
     const content = fs.readFileSync(file, "utf8");
@@ -21,7 +21,7 @@ describe("constructor statement initialization safety", () => {
   test("keeps parameter-to-field assignments represented in the generated constructor", () => {
     const file = path.resolve(
       __dirname,
-      "../../reference/dart/gen/lib/boring/constructor_statement_ops.dart",
+      "../../reference/dart/gen-tests/boring/constructor_statement_ops.dart",
     );
     const content = fs.readFileSync(file, "utf8");
     expect(content).toContain("ConstructorStatementOps(int count, List<int> values)");

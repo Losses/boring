@@ -43,11 +43,11 @@ interface MemberTree {
 
 const memberTrees: MemberTree[] = [
   { target: "ts", file: "reference/ts/gen-tests/boring/RecordOrderOps.test.ts", signature: "public toString(): string" },
-  { target: "swift", file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
-  { target: "swift-f32", file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
-  { target: "dart", file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },
-  { target: "rust", file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
-  { target: "rust-f32", file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
+  { target: "swift", file: "reference/swift/gen-tests/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
+  { target: "swift-f32", file: "reference/swift-f32/gen-tests/boring/RecordOrderOps.swift", signature: "func toString() -> [UInt16]" },
+  { target: "dart", file: "reference/dart/gen-tests/boring/record_order_ops.dart", signature: "String toString()" },
+  { target: "rust", file: "reference/rust/gen/tests/tests/record_order_tests_support/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
+  { target: "rust-f32", file: "reference/rust-f32/gen/tests/tests/record_order_tests_support/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
 ];
 
 function fieldReads(file: string): string[] {
@@ -72,8 +72,8 @@ describe("record print field order generated trees", () => {
 
   test("Kotlin overrides the native print only for the reordered class", () => {
     for(const file of [
-      "reference/kotlin/gen/boring/RecordOrderOps.kt",
-      "reference/kotlin-f32/gen/boring/RecordOrderOps.kt",
+      "reference/kotlin/gen-tests/boring/RecordOrderOps.kt",
+      "reference/kotlin-f32/gen-tests/boring/RecordOrderOps.kt",
     ]) {
       const content = read(file);
       expect(content).toContain("data class RecordOrderShifted(val a: Int, val c: String, val b: Int = 0)");
