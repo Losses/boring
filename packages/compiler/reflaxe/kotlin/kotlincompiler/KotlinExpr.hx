@@ -7644,16 +7644,24 @@ class KotlinExpr {
             case "exists":
                 "Files.exists(Paths.get(" + p + "))";
             case "readText":
-                "Files.readString(Paths.get(" + p + "))";
+                // java.nio.file.Files.readString and writeString exist in the
+                // JDK but not in the Android SDK's android.jar, so the Android
+                // target cannot resolve them. readAllBytes/write carry the
+                // same java.nio.file failure signatures (an EISDIR read stays a
+                // plain java.io.IOException, a directory write stays a
+                // FileSystemException whose file names the path) and both are
+                // available from API 26, so the FsException mapping below is
+                // unchanged.
+                "String(Files.readAllBytes(Paths.get(" + p + ")), Charsets.UTF_8)";
             case "writeText":
-                "Files.writeString(Paths.get(" + p + "), " + expr(args[1]) + ")";
+                "Files.write(Paths.get(" + p + "), (" + expr(args[1]) + ").toByteArray(Charsets.UTF_8))";
             case "appendText":
                 imports.require("java.nio.file.StandardOpenOption");
-                "Files.writeString(Paths.get("
+                "Files.write(Paths.get("
                 + p
-                + "), "
+                + "), ("
                 + expr(args[1])
-                + ", StandardOpenOption.CREATE, StandardOpenOption.APPEND)";
+                + ").toByteArray(Charsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND)";
             case "makeDirs":
                 "Files.createDirectories(Paths.get(" + p + "))";
             case "readDir":
@@ -7717,7 +7725,7 @@ class KotlinExpr {
             ? "catch (e: java.nio.file.FileSystemException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(e.file))) { "
                 + throwKind("IsDirectory") + " } else { " + throwKind("Other") + " } } "
             : "catch (e: java.nio.file.FileSystemException) { " + throwKind("Other") + " } ";
-        // Files.readString on a directory fails with a plain java.io.IOException
+        // Files.readAllBytes on a directory fails with a plain java.io.IOException
         // (not FileSystemException), so the read probe belongs in the last catch;
         // reading a directory has no second failure meaning, so path state decides.
         final ioCatch = name == "readText"
