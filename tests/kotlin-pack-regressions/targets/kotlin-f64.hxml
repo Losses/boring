@@ -1,0 +1,6 @@
+# Binary64 entry: the same source set, where the selector already renders
+# Double and the widening must stay idempotent.
+targets/kotlin-common.hxml
+-D float-precision=f64
+-D kotlin-output=out/kotlin-f64/gen
+-D kotlin-test-output=out/kotlin-f64/gen-tests

@@ -1,0 +1,41 @@
+// Focused regression project for the Kotlin pack path (feature spec 59).
+// The bundle source set is what tiqian's engine-haxe targets compile, and it
+// is NOT the reference tree test:stage1:kotlin builds: the three shapes below
+// only reach kotlinc through boring pack, so this project runs the driver and
+// then kotlinc on the generated tree.
+{
+  "outRoot": "out",
+  "resultsDir": "out/test-results",
+  "baseline": "kotlin-f32",
+  "sourceRoots": ["src"],
+  "sourceSets": {
+    "fixture": {
+      "types": [],
+      "discover": [
+        {
+          "root": "src",
+          "packages": ["kotlinpack"],
+          "suffix": "Fixture"
+        }
+      ]
+    }
+  },
+  "bundles": [
+    {
+      "id": "kotlin-f32",
+      "target": "kotlin",
+      "sourceSet": "fixture",
+      "rootsFile": "targets/kotlin-f32.hxml",
+      "haxeArgs": ["-D", "package-artifact-stem=kotlin-pack-regressions-f32"],
+      "package": { "name": "kotlin-pack-regressions", "version": "0.1.0", "license": "MIT" }
+    },
+    {
+      "id": "kotlin-f64",
+      "target": "kotlin",
+      "sourceSet": "fixture",
+      "rootsFile": "targets/kotlin-f64.hxml",
+      "haxeArgs": ["-D", "package-artifact-stem=kotlin-pack-regressions-f64"],
+      "package": { "name": "kotlin-pack-regressions", "version": "0.1.0", "license": "MIT" }
+    }
+  ]
+}

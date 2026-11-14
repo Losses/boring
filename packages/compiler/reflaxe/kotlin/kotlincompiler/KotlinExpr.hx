@@ -698,6 +698,64 @@ class KotlinExpr {
     }
 
     /**
+        The locals one generated run block writes that are declared outside it.
+        The emitter renders a statement-position block as a run block, an
+        inline lambda; Kotlin smart-casts a local mutated in one such block,
+        but not when the block sits inside another lambda, where it reports
+        "mutated in a capturing closure" at the read. A local the block itself
+        declares is not captured, so it stays out of the set.
+        (GeneratedRunBlockCapture)
+    **/
+    function scanBlockOuterWrites(stmts:Array<TypedExpr>):Map<Int, Bool> {
+        final declared:Map<Int, Bool> = [];
+        final written:Map<Int, Bool> = [];
+        function scan(x:TypedExpr):Void {
+            switch (x.expr) {
+                case TVar(v, _):
+                    declared.set(v.id, true);
+                case TFor(v, _, _):
+                    declared.set(v.id, true);
+                case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+                    switch (ExpressionPredicates.stripWrap(target).expr) {
+                        case TLocal(v): written.set(v.id, true);
+                        case TArray(arr, _):
+                            switch (ExpressionPredicates.stripWrap(arr).expr) {
+                                case TLocal(v): written.set(v.id, true);
+                                case _:
+                            }
+                        case _:
+                    }
+                case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+                    switch (ExpressionPredicates.stripWrap(t).expr) {
+                        case TLocal(v): written.set(v.id, true);
+                        case _:
+                    }
+                case _:
+            }
+            TypedExprTools.iter(x, scan);
+        }
+        for (s in stmts)
+            scan(s);
+        final outer:Map<Int, Bool> = [];
+        for (id in written.keys())
+            if (!declared.exists(id))
+                outer.set(id, true);
+        return outer;
+    }
+
+    /**
+        Whether this read sits inside a generated run block that is itself
+        nested in another lambda and writes the binding. Kotlin refuses the
+        smart cast there, so the read keeps its own extraction.
+        (GeneratedRunBlockCapture)
+    **/
+    function runBlockCaptured(binding:Int):Bool {
+        if (runBlockScopes.length < 2)
+            return false;
+        return runBlockScopes[runBlockScopes.length - 1].exists(binding);
+    }
+
+    /**
         Renders one prepared body. The declaration storage pass runs inside the
         prepared scope, so its queries see the artifact, and the emitter state
         is restored on both normal and exceptional completion.
@@ -1433,8 +1491,10 @@ class KotlinExpr {
                 return arrayWriteLines(l, assignValueText(l, r, true), depth);
             case TBlock(stmts):
                 final out = [indent(depth) + "run {"];
+                runBlockScopes.push(scanBlockOuterWrites(stmts));
                 for (l in blockLines(stmts, depth + 1))
                     out.push(l);
+                runBlockScopes.pop();
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
@@ -1764,8 +1824,10 @@ class KotlinExpr {
         stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["run {"];
+        runBlockScopes.push(scanBlockOuterWrites(stmts));
         for (line in blockLines(stmts, 1))
             out.push(line);
+        runBlockScopes.pop();
         out.push("}");
         return out.join("\n");
     }
@@ -3042,6 +3104,9 @@ class KotlinExpr {
     // snapshots; only an unreassigned local smart-casts.
     // (FunctionScopeExtraction)
     final extractedLocals:Map<Int, Bool> = [];
+    // The generated run blocks currently being rendered, innermost last, each
+    // with the outer locals it writes. (GeneratedRunBlockCapture)
+    final runBlockScopes:Array<Map<Int, Bool>> = [];
     final extractedFields:Map<String, Bool> = [];
     // Locals a straight-line assignment bound to a non-null value, for the
     // statements that follow it in the same block. Kotlin's data flow
@@ -3366,7 +3431,7 @@ class KotlinExpr {
         // the value present at this read, so only a captured write keeps the
         // extraction. (NullInitRespectsProof)
         final stableSubject = switch (stripWrap(subj).expr) {
-            case TLocal(v): !closureWritesLocal(v.id);
+            case TLocal(v): !closureWritesLocal(v.id) && !runBlockCaptured(v.id);
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (receiverProven(subj)))) {
@@ -3374,7 +3439,7 @@ class KotlinExpr {
             // casts even a mutated local within the expression's scope, so
             // the extraction is redundant there. (ConditionProofSmartCast)
             final conditionProven = switch (stripWrap(subj).expr) {
-                case TLocal(v): extractedLocals.exists(v.id);
+                case TLocal(v): extractedLocals.exists(v.id) && !closureWritesLocal(v.id) && !runBlockCaptured(v.id);
                 case _: false;
             };
             if (!conditionProven) {
@@ -3464,6 +3529,90 @@ class KotlinExpr {
                 restoreProofs(base);
                 !thenNullable && !elseNullable;
             case _: false;
+        };
+    }
+
+    /** The subject of one null comparison, or null when the condition is not a null comparison. (IfExpressionCoversNull) **/
+    function nullComparisonSubject(c:TypedExpr):Null<TypedExpr> {
+        return switch (stripWrap(c).expr) {
+            case TBinop(OpEq, a, b) if (isNullLiteral(b)): a;
+            case TBinop(OpEq, a, b) if (isNullLiteral(a)): b;
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(b)): a;
+            case TBinop(OpNotEq, a, b) if (isNullLiteral(a)): b;
+            case _: null;
+        };
+    }
+
+    /**
+        Whether a rendered if-expression already covers the null case of the
+        value it yields, so the wrapping elvis would always read the left side:
+        the condition compares one local against null, one arm reads that
+        local on the non-null path (where Kotlin smart-casts it), and the other
+        arm renders a non-null value on its own. Any other ternary keeps its
+        nullable Kotlin type even when the presence model reads every arm as
+        present, as a has/get pair does, so it still needs the elvis.
+        (IfExpressionCoversNull)
+    **/
+    function nullCoveringTernary(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final subject = nullComparisonSubject(c);
+                if (subject == null)
+                    return false;
+                final binding = switch (stripWrap(subject).expr) {
+                    case TLocal(v): v;
+                    case _: null;
+                };
+                if (binding == null || closureWritesLocal(binding.id))
+                    return false;
+                final thenMentions = mentionsLocal(t, binding);
+                final elseMentions = mentionsLocal(f, binding);
+                if (thenMentions == elseMentions)
+                    return false;
+                final readingArm = thenMentions ? t : f;
+                final otherArm = thenMentions ? f : t;
+                final base = proofSnapshot();
+                addProofs(thenMentions ? conditionProofs(c).thenPath : conditionProofs(c).elsePath);
+                final readingNonNull = rendersNonNullValue(readingArm);
+                restoreProofs(base);
+                final otherBase = proofSnapshot();
+                addProofs(thenMentions ? conditionProofs(c).elsePath : conditionProofs(c).thenPath);
+                final otherNonNull = rendersNonNullValue(otherArm);
+                restoreProofs(otherBase);
+                readingNonNull && otherNonNull;
+            case _: false;
+        };
+    }
+
+    /**
+        Whether one expression's rendered Kotlin value is non-null: its Haxe
+        type is non-null, or it is a read Kotlin smart-casts under the proofs
+        in scope. A call result keeps its nullable Kotlin type however present
+        the presence model reads it, so it is not covered.
+        (IfExpressionCoversNull)
+    **/
+    function rendersNonNullValue(e:TypedExpr):Bool {
+        // A ternary's Kotlin type is the join of its arms, and Haxe's
+        // unification can drop the Null wrapper from the whole expression, so
+        // the arms decide it. (IfExpressionCoversNull)
+        return switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final base = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final thenNonNull = rendersNonNullValue(t);
+                restoreProofs(base);
+                addProofs(conditionProofs(c).elsePath);
+                final elseNonNull = rendersNonNullValue(f);
+                restoreProofs(base);
+                thenNonNull && elseNonNull;
+            case _:
+                if (!isNullType(e.t))
+                    true;
+                else switch (stripWrap(e).expr) {
+                    case TLocal(v): !closureWritesLocal(v.id) && presenceOf(e) != MaybeAbsent;
+                    case TField(_, _): fieldProven(e);
+                    case _: false;
+                }
         };
     }
 
@@ -4005,7 +4154,8 @@ class KotlinExpr {
     **/
     function receiverProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
-            case TLocal(v): localPresent(e) || targetEntryLegal(e) || extractedLocals.exists(v.id);
+            case TLocal(v): (localPresent(e) || targetEntryLegal(e) || extractedLocals.exists(v.id))
+                && !runBlockCaptured(v.id);
             case TField(_, _): fieldGuarded(e);
             case _: false;
         }
@@ -5800,15 +5950,22 @@ class KotlinExpr {
                         final func = unwrapLambda(args[1]);
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
-                            // A selector that already renders binary64 is the
-                            // widened value: the closing conversion would be a
-                            // redundant call. Only an Int-rendered selector
-                            // still widens. (SumOfFloatWideningIdempotence)
+                            // The accumulator is binary64 on both
+                            // configurations, so the selector widens to
+                            // Double. A selector that already renders Double
+                            // needs no conversion; an Int-rendered one and a
+                            // binary32 Float both do. Widening only the
+                            // Int-rendered selector left a Float selector
+                            // bare, and kotlinc then chose between the Int and
+                            // UInt sumOf overloads.
+                            // (SumOfFloatWideningIdempotence)
                             final selectorBody = lambdaBody(func.expr);
                             final selectorText = expr(selectorBody);
-                            final valueExpr = isIntOrLongType(emittedType(selectorBody))
-                                ? intToFloatText(selectorText)
-                                : selectorText;
+                            final selectorRendersDouble = !FloatPrecision.isF32()
+                                && isFloatType(emittedType(selectorBody));
+                            final valueExpr = selectorRendersDouble
+                                ? selectorText
+                                : "(" + selectorText + ").toDouble()";
                             // The selector widens to Double, so the accumulator
                             // is binary64 on both configurations; the closing
                             // narrowing is the binary32 module real only
@@ -6384,10 +6541,12 @@ class KotlinExpr {
             // do not turn it into a non-null argument failure expression.
             return text;
         } else if (!allowNullable && registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-            // A rendered if-expression already branches on the null case:
-            // its arms smart-cast the subject, so the wrapping elvis would
-            // always read the left side. (IfExpressionCoversNull)
-            if (StringTools.startsWith(text, "if (") || StringTools.startsWith(text, "(if ("))
+            // A rendered if-expression whose arms both render non-null is
+            // already non-null, so the wrapping elvis would always read the
+            // left side. A ternary over a nullable read keeps its nullable
+            // Kotlin type however present the presence model reads the read,
+            // so it still needs the elvis. (IfExpressionCoversNull)
+            if (nullCoveringTernary(a))
                 return text;
             // A null default is an identity: `x ?: null` equals x for
             // every value, so the wrap only warns. (NullDefaultIdentityFold)
@@ -6444,7 +6603,7 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-                    if (StringTools.startsWith(text, "if (") || StringTools.startsWith(text, "(if ("))
+                    if (nullCoveringTernary(a))
                         text;
                     else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
                         // A null default is an identity. (NullDefaultIdentityFold)
@@ -6538,6 +6697,15 @@ class KotlinExpr {
             + " chainHop=" + nullableChainHop(e)
             + " presenceNullable=" + (presenceOf(e) == MaybeAbsent) + "\n");
 #end
+        // A rendered ternary is non-null only when both arms render non-null.
+        // The presence model reads a has/get pair as present, but the get
+        // keeps its nullable Kotlin type, so the boundary still needs its
+        // extraction. (IfExpressionCoversNull)
+        if (switch (stripWrap(e).expr) {
+            case TIf(_, _, _): true;
+            case _: false;
+        })
+            return !rendersNonNullValue(e);
         return (isNullType(e.t) && !effectiveProven)
             || (PolicyQueries.isNullableType(e.t) && !effectiveProven)
             || isNullableRenderedField(e)

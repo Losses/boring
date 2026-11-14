@@ -1,0 +1,6 @@
+# Binary32 entry: the sumOfFloat selector renders a Kotlin Float, so the
+# emitter must widen it to Double inside sumOf.
+targets/kotlin-common.hxml
+-D float-precision=f32
+-D kotlin-output=out/kotlin-f32/gen
+-D kotlin-test-output=out/kotlin-f32/gen-tests
