@@ -18,7 +18,7 @@ through a define that names the executable.
 | Target | Format | File name | Entry layout |
 | --- | --- | --- | --- |
 | TypeScript | tar + gzip | `<name>-<version>.tgz` | `package/` prefix; `package.json` plus `dist/` with `.js` and `.d.ts` |
-| Rust | tar + gzip | `<name>-<version>.crate` | no prefix |
+| Rust | tar + gzip | `<name>-<version>.crate` | one top-level `<artifact stem>-<version>/` directory; `Cargo.toml` and the tree inside it |
 | Swift | zip | `<name>-<version>.zip` | one top-level `<artifact stem>-<version>/` directory; `Package.swift` and the tree inside it |
 | Dart | tar + gzip | `<name>-<version>.tar.gz` | no prefix, `pubspec.yaml` at the root |
 | Kotlin | Maven directory | `maven/<groupId path>/<name>/<version>/<name>-<version>.{jar,pom}` | jar plus pom plus their `.sha1` files |
@@ -142,19 +142,26 @@ The registry generator packs from release checkouts.
    node:fs for the repository's test harness and has no role in an
    installed package.
 3. **Layouts follow the install formats.** npm installs a tarball whose
-   entries sit under `package/`; cargo and Pub install archives with
-   the tree at the root (`pubspec.yaml` at the root is Pub's
-   requirement); the Swift zip carries one top-level
-   `<artifact stem>-<version>/` directory because SwiftPM's registry
-   client extracts the archive and then calls
-   `FileSystem.stripFirstLevel`
+   entries sit under `package/`; cargo's registry client unpacks the
+   `.crate` into `<name>-<version>/` and rejects a member outside that
+   directory (`invalid tarball downloaded, contains a file at
+   "Cargo.toml" which isn't under "<name>-<version>"`), so the crate
+   carries one top-level `<artifact stem>-<version>/` directory with
+   `Cargo.toml` and the tree inside it; the Pub archive keeps the tree
+   at the root, because pub reads `pubspec.yaml` from the archive root;
+   the Swift zip carries one top-level `<artifact stem>-<version>/`
+   directory because SwiftPM's registry client extracts the archive and
+   then calls `FileSystem.stripFirstLevel`
    (swift-package-manager, Sources/Basics/FileSystem/FileSystem+Extensions.swift),
    which throws unless exactly one top-level directory exists; Gradle
    and Maven resolve files from a repository directory, so the Kotlin
    target writes `maven/<groupId path>/<name>/<version>/` with the jar,
    the pom, and their sha1 checksums. The artifact stem defaults to the
    manifest name, so the directory is `<name>-<version>/` unless a
-   consumer sets `package-artifact-stem`. Entries sort by name in every
+   consumer sets `package-artifact-stem`. The crate directory name
+   also has to equal the package name the manifest and the registry
+   index entry state: cargo takes the directory from the index entry
+   and reads the manifest inside it. Entries sort by name in every
    format.
 4. **Determinism constants, scoped per target.** Tar entries carry mtime
    0, mode 0644, uid 0, gid 0, and empty owner names; the archive
@@ -236,11 +243,19 @@ The registry generator packs from release checkouts.
   with `.js` and `.d.ts` members in sorted order, no TypeScript
   source, and no `_GeneratedFiles.txt` or test-tree entries, installs
   with the npm CLI from the `.tgz`, and runs a consumer under plain
-  `node` through the retargeted `exports` map; the cargo `.crate` and
-  the Pub `.tar.gz` list their trees at the root with the manifest
-  present; the Swift `.zip` carries exactly one top-level
-  `<name>-<version>/` directory with `Package.swift` and the tree under
-  it; the Kotlin target
+  `node` through the retargeted `exports` map; the cargo `.crate` sits
+  under one top-level `<name>-<version>/` directory with `Cargo.toml`
+  and the tree inside it, the Pub `.tar.gz` lists its tree at the root
+  with the manifest present, and every crate a generation packs installs
+  with the cargo CLI from a local sparse registry (`cargo add`, then
+  `cargo build` of a consumer) - a check an unprefixed crate fails with
+  cargo's `invalid tarball downloaded, contains a file at "Cargo.toml"
+  which isn't under "<name>-<version>"`; the install check lives in
+  `tests/support/crate-install.ts` and also runs over any set of crate
+  files (`bun tests/support/crate-install.ts <path>...`), so a release
+  step can apply it to the artifacts of another repository; the Swift
+  `.zip` carries exactly one top-level `<name>-<version>/` directory
+  with `Package.swift` and the tree under it; the Kotlin target
   writes the Maven directory with the pom fields, sha1 checksums that
   match the saved bytes, and a jar whose entries sort and carry the
   fixed zip date; two generations of the same inputs produce

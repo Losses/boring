@@ -3,6 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { filesUnder, installCrate } from "../support/crate-install";
 
 /**
  * Feature spec 25: behind `package-artifacts=emit` the compiler packs
@@ -208,7 +209,7 @@ describe("package artifact emission", () => {
     }
   }, 120000);
 
-  test("the cargo crate and the Pub archive keep the tree at the root", async () => {
+  test("the cargo crate sits under one top-level directory and the Pub archive stays at the root", async () => {
     const rustRoot = tempRoot("rust");
     const dartRoot = tempRoot("dart");
     try {
@@ -219,8 +220,14 @@ describe("package artifact emission", () => {
       expect(fs.existsSync(crate)).toBe(true);
       const crateEntries = await tarList(crate);
       expect(crateEntries).toEqual([...crateEntries].sort());
-      expect(crateEntries).toContain("Cargo.toml");
-      expect(crateEntries).toContain("lib.rs");
+      // The registry client unpacks the crate into <name>-<version>/ and
+      // rejects a member outside that directory, so every member sits under
+      // the one top-level directory the archive name states (feature spec 25).
+      const crateTopLevel = [...new Set(crateEntries.map(entry => entry.split("/")[0]))];
+      expect(crateTopLevel).toEqual(["boring-codec-gen-0.1.0"]);
+      expect(crateEntries.every(entry => entry.startsWith("boring-codec-gen-0.1.0/"))).toBe(true);
+      expect(crateEntries).toContain("boring-codec-gen-0.1.0/Cargo.toml");
+      expect(crateEntries).toContain("boring-codec-gen-0.1.0/lib.rs");
       expect(crateEntries).not.toContain("_GeneratedFiles.txt");
       for(const entry of crateEntries) {
         expect(entry.startsWith("/")).toBe(false);
@@ -247,6 +254,32 @@ describe("package artifact emission", () => {
     // only the harness patience for those subprocesses, never the asserted
     // behavior.
   }, 180_000);
+
+  test("every packed crate installs with the cargo CLI from a local sparse registry", async () => {
+    const root = tempRoot("crate-install");
+    try {
+      const bundles = ["rust.hxml", "rust-f32.hxml"];
+      for(const hxml of bundles) {
+        const bundleRoot = path.join(root, hxml.replace(/[.]hxml$/, ""));
+        fs.mkdirSync(bundleRoot, { recursive: true });
+        const result = await runHaxe("package-artifacts-crate-" + hxml, rewriteHxml(hxml, bundleRoot));
+        expect(result.stderr).toBe("");
+        expect(result.exitCode).toBe(0);
+      }
+      // The check reads the artifacts of the run, so every crate the pack
+      // step writes enters it and a new rust bundle needs no edit here.
+      const crates = filesUnder(root).filter(file => file.endsWith(".crate"));
+      expect(crates.length).toBe(bundles.length);
+      for(const crate of crates) {
+        const report = await installCrate(crate);
+        const entries = await tarList(crate);
+        const topLevel = [...new Set(entries.map(entry => entry.split("/")[0]))];
+        expect(topLevel).toEqual([report.name + "-" + report.version]);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 600000);
 
   test("the Swift zip carries the tree under one top-level directory", async () => {
     const root = tempRoot("swift");

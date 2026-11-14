@@ -628,7 +628,10 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         if (PackageArtifacts.enabled()) {
             PackageArtifacts.requireShell();
-            PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), ".crate");
+            // The crate carries one top-level <artifact stem>-<version>/
+            // directory: cargo's registry install rejects a member outside
+            // it (feature spec 25).
+            PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), ".crate", null, true);
         }
     }
 
