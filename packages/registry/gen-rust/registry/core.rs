@@ -132,6 +132,18 @@ impl Core {
         return Ok(result);
     }
 
+    pub fn core_read_features(j: JsonValue, pp: &UStr) -> Result<Option<JsonValue>, CoreFault> {
+        let v = Core::core_get((j).clone(), UStr::new(&[102,101,97,116,117,114,101,115]));
+        let k = Core::core_json_kind((v).clone());
+        if k == 0 {
+            return Ok(None);
+        }
+        if k != 2 {
+            let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += pp; __s += &(UString::from(": invalid features")); __s }).as_str()).as_ustr())?;
+        }
+        return Ok(Some(v));
+    }
+
     pub fn core_read_artifacts(v: JsonValue, r: &mut Release, pp: &UStr) -> Result<bool, CoreFault> {
         if Core::core_json_kind((v).clone()) != 3 {
             let _ = Core::core_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += pp; __s += &(UString::from(": artifacts must be array")); __s }).as_str()).as_ustr())?;
@@ -354,6 +366,8 @@ impl Core {
                                 r.digest = Core::core_str((j).clone(), UStr::new(&[115,104,97,50,53,54]))?;
                                 if *p == UString::from("pub") {
                                     r.pubspec = Some(Core::core_get((j).clone(), UStr::new(&[112,117,98,115,112,101,99])).clone());
+                                } else {
+                                    r.features = Core::core_read_features((j).clone(), UString::from(format!("{}", { let mut __s = UString::new(); __s += tree; __s += &(UString::from("/")); __s += pp.as_ustr(); __s }).as_str()).as_ustr())?;
                                 }
                             } else {
                                 if *p == UString::from("swift") {
@@ -454,12 +468,13 @@ impl Core {
             let g = Core::core_group(&a, UStr::new(&[99,97,114,103,111]), n.as_ustr())?;
             let mut lines: Vec<UString> = vec![];
             for r in &g {
+                let rf = (r.features).clone();
                 lines.push(Json::json_write_compact(Core::core_o(&vec![
     (JsonField { name: UString::from("name").to_ustring(), value: Core::core_s(n.as_ustr()) }).clone(),
     (JsonField { name: UString::from("vers").to_ustring(), value: Core::core_s((r.version).to_ustring().as_ustr()) }).clone(),
     (JsonField { name: UString::from("deps").to_ustring(), value: Core::core_a(&vec![]) }).clone(),
     (JsonField { name: UString::from("cksum").to_ustring(), value: Core::core_s((r.digest).to_ustring().as_ustr()) }).clone(),
-    (JsonField { name: UString::from("features").to_ustring(), value: Core::core_o(&vec![]) }).clone(),
+    (JsonField { name: UString::from("features").to_ustring(), value: match &(rf) { None => Core::core_o(&vec![]), Some(__option19) => (*__option19).clone() } }).clone(),
     (JsonField { name: UString::from("yanked").to_ustring(), value: JsonValue::JBool { value: false } }).clone(),
     (JsonField { name: UString::from("v").to_ustring(), value: JsonValue::JNumber { value: 2.0 } }).clone(),
 ])));
@@ -482,7 +497,7 @@ impl Core {
             Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("swift/")); __s += scope; __s += &(UString::from("/")); __s += n.as_ustr(); __s += &(UString::from(".json")); __s }).as_str()).as_ustr(), Json::json_write(Core::core_o(&vec![(JsonField { name: UString::from("releases").to_ustring(), value: Core::core_o(&rs) }).clone()])).as_ustr());
             for r in &g {
                 let rps = (r.package_swift).clone();
-                let ps = match &(rps) { None => UString::from(""), Some(__option12) => __option12.to_ustring() };
+                let ps = match &(rps) { None => UString::from(""), Some(__option20) => __option20.to_ustring() };
                 Core::core_emit(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("swift/")); __s += scope; __s += &(UString::from("/")); __s += n.as_ustr(); __s += &(UString::from("/")); __s += (r.version).to_ustring().as_ustr(); __s += &(UString::from(".json")); __s }).as_str()).as_ustr(), Json::json_write(Core::core_o(&vec![
     (JsonField { name: UString::from("id").to_ustring(), value: Core::core_s(UString::from(format!("{}", { let mut __s = UString::new(); __s += scope; __s += &(UString::from(".")); __s += n.as_ustr(); __s }).as_str()).as_ustr()) }).clone(),
     (JsonField { name: UString::from("version").to_ustring(), value: Core::core_s((r.version).to_ustring().as_ustr()) }).clone(),
@@ -507,7 +522,7 @@ impl Core {
             let g = Core::core_group(&a, UStr::new(&[109,97,118,101,110]), n.as_ustr())?;
             let first = (g[0usize]).clone();
             let fg = first.group_id.clone();
-            let group_id = match &(fg) { None => UString::from(""), Some(__option13) => __option13.to_ustring() };
+            let group_id = match &(fg) { None => UString::from(""), Some(__option21) => __option21.to_ustring() };
             let mut versions: Vec<UString> = vec![];
             for r in &g {
                 if !(versions).contains(&(r.version).to_ustring()) {
@@ -555,7 +570,7 @@ impl Core {
         for n in &cn {
             let r = (Core::core_group(&a, UStr::new(&[99,97,114,103,111]), n.as_ustr())?[0usize]).clone();
             let cargo_target = match &(r.repository) { None => UString::from(format!("{}", { let mut __s = UString::new(); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s }).as_str()),
-Some(__option14) => (*__option14).clone() };
+Some(__option22) => (*__option22).clone() };
             lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/cargo/dl/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  https://github.com/")); __s += cargo_target.as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += n.as_ustr(); __s += &(UString::from("-:version.crate  302")); __s }).as_str()));
         }
         for r in a {
@@ -563,9 +578,9 @@ Some(__option14) => (*__option14).clone() };
                 for fi in 0..match u32::try_from((r.artifacts).clone().len()) { Ok(value) => value, Err(_) => u32::MAX } {
                     let file = (r.artifacts[usize::try_from(fi).unwrap_or(0)]).clone();
                     let rg = (r.group_id).clone();
-                    let gid = match &(rg) { None => UString::from(""), Some(__option15) => __option15.to_ustring() };
+                    let gid = match &(rg) { None => UString::from(""), Some(__option23) => __option23.to_ustring() };
                     let maven_target = match &(r.repository) { None => UString::from(format!("{}", { let mut __s = UString::new(); __s += (r.owner).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += (r.repo).to_ustring().as_ustr(); __s }).as_str()),
-Some(__option16) => (*__option16).clone() };
+Some(__option24) => (*__option24).clone() };
                     lines.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("/maven/")); __s += UString::from(format!("{}", { let joined8 = u_string::split(&gid, &UString::from(".")); let mut out = String::new(); let n = joined8.len(); let mut index8 = 0usize; while index8 < n { if index8 > 0 { out.push_str("/"); } let _ = write!(out, "{}", joined8[index8]); index8 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s += &(UString::from("/")); __s += (r.name).to_ustring().as_ustr(); __s += &(UString::from("/:version/")); __s += file.as_ustr(); __s += &(UString::from("  https://github.com/")); __s += maven_target.as_ustr(); __s += &(UString::from("/releases/download/v:version/")); __s += file.as_ustr(); __s += &(UString::from("  302")); __s }).as_str()));
                 }
             }
@@ -686,19 +701,19 @@ Some(__option16) => (*__option16).clone() };
             }
             i = u32::wrapping_add(i, 2);
         }
-        if match &(t) { None => true, Some(__option17) => o.is_none() } || b.is_none() {
+        if match &(t) { None => true, Some(__option25) => o.is_none() } || b.is_none() {
             let _ = Core::core_config_fail(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from(concat!("required flags missing\n",
 ""))); __s += Core::CORE_USAGE.to_ustring().as_ustr(); __s }).as_str()).as_ustr())?;
         }
-        let tree_str = match &(t) { None => UString::from(""), Some(__option18) => __option18.to_ustring() };
-        let output_str = match &(o) { None => UString::from(""), Some(__option19) => __option19.to_ustring() };
-        let base_url_str = match &(b) { None => UString::from(""), Some(__option20) => __option20.to_ustring() };
+        let tree_str = match &(t) { None => UString::from(""), Some(__option26) => __option26.to_ustring() };
+        let output_str = match &(o) { None => UString::from(""), Some(__option27) => __option27.to_ustring() };
+        let base_url_str = match &(b) { None => UString::from(""), Some(__option28) => __option28.to_ustring() };
         if !Core::core_url_ok(base_url_str.as_ustr()) {
             let _ = Core::core_config_fail(UStr::new(&[105,110,118,97,108,105,100,32,98,97,115,101,32,85,82,76,32,40,104,116,116,112,32,111,114,32,104,116,116,112,115,32,114,101,113,117,105,114,101,100,41]))?;
         }
-        let swift_str = match &(s) { None => UString::from(""), Some(__option21) => __option21.to_ustring() };
-        let archive_str = match &(ar) { None => UString::from(""), Some(__option22) => __option22.to_ustring() };
-        if match &(ar) { Some(__option24) => !Core::core_url_ok(archive_str.as_ustr()), None => false } {
+        let swift_str = match &(s) { None => UString::from(""), Some(__option29) => __option29.to_ustring() };
+        let archive_str = match &(ar) { None => UString::from(""), Some(__option30) => __option30.to_ustring() };
+        if match &(ar) { Some(__option32) => !Core::core_url_ok(archive_str.as_ustr()), None => false } {
             let _ = Core::core_config_fail(UStr::new(&[105,110,118,97,108,105,100,32,97,114,99,104,105,118,101,45,98,97,115,101,32,85,82,76,32,40,104,116,116,112,32,111,114,32,104,116,116,112,115,32,114,101,113,117,105,114,101,100,41]))?;
         }
         let config = RegistryConfig { tree: tree_str.clone(), output: output_str.clone(), base_url: base_url_str.clone(), swift_scope: swift_str.clone(), archive_base: archive_str.clone(), config_record: 1 };

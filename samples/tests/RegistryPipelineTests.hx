@@ -20,7 +20,7 @@ class RegistryPipelineTests {
             {path: "bob/two/README.md", content: "Two package\n", inputRecord: 1},
             {
                 path: "bob/two/2.0.0/cargo/metadata.json",
-                content: '{"name":"two","version":"2.0.0","url":"https://example.test/two.crate","sha256":"checksum"}',
+                content: '{"name":"two","version":"2.0.0","url":"https://example.test/two.crate","sha256":"checksum","features":{"f32":[]}}',
                 inputRecord: 1
             }
         ];
@@ -42,7 +42,7 @@ class RegistryPipelineTests {
             {path: "cargo/index/config.json", content: '{\n  "dl": "https://registry.test/cargo/dl/{crate}-{version}.crate"\n}\n', outputFile: 1},
             {
                 path: "cargo/index/3/t/two",
-                content: '{"name":"two","vers":"2.0.0","deps":[],"cksum":"checksum","features":{},"yanked":false,"v":2}\n',
+                content: '{"name":"two","vers":"2.0.0","deps":[],"cksum":"checksum","features":{"f32":[]},"yanked":false,"v":2}\n',
                 outputFile: 1
             },
             {path: "swift/identifiers", content: "[]\n", outputFile: 1},
@@ -62,5 +62,34 @@ class RegistryPipelineTests {
             Test.equals(expected[i].path, files[i].path);
             Test.equals(expected[i].content, files[i].content);
         }
+    }
+
+    @:test("cargo index declares an empty feature map when metadata omits it")
+    public static function featuresFallBackToEmpty():Void {
+        var records:Array<InputRecord> = [
+            {path: "carol/plain/README.md", content: "Plain package\n", inputRecord: 1},
+            {
+                path: "carol/plain/1.0.0/cargo/metadata.json",
+                content: '{"name":"plain","version":"1.0.0","url":"https://example.test/plain.crate","sha256":"checksum"}',
+                inputRecord: 1
+            }
+        ];
+        var config:RegistryConfig = {
+            tree: "tree",
+            output: "site",
+            baseUrl: "https://registry.test",
+            swiftScope: "scope",
+            archiveBase: "https://archive.test",
+            configRecord: 1
+        };
+        var files:Array<OutputFile> = Core.generate(records, config);
+        var found = false;
+        for (i in 0...files.length) {
+            if (files[i].path == "cargo/index/pl/ai/plain") {
+                found = true;
+                Test.equals('{"name":"plain","vers":"1.0.0","deps":[],"cksum":"checksum","features":{},"yanked":false,"v":2}\n', files[i].content);
+            }
+        }
+        Test.equals(true, found);
     }
 }

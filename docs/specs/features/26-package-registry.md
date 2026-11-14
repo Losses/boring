@@ -204,7 +204,9 @@ consumer.
    platform; `license` is optional. The `cargo`, `pub`, and `swift`
    files hold the same scalar fields with `sha256` in place of
    `sha512`; the `pub` file adds the `pubspec` object of the spec 24
-   grammar; the `swift` file adds `packageSwift` (the `Package.swift` text)
+   grammar; the `cargo` file may add `features`, an object mapping each
+   feature name to the list of features it enables, which the index entry
+   copies verbatim; the `swift` file adds `packageSwift` (the `Package.swift` text)
    and replaces `url` with `archive`, the object key under the
    archive base, which must equal `swift/<scope>/<name>/<version>.zip`,
    the one shape the universal rule of ruling 9 addresses, and the
@@ -241,9 +243,10 @@ consumer.
    under `2/`, three-character under `3/{first}/`, all others under
    `{1-2}/{3-4}/`. Each entry file holds one JSON object per version
    per line, ascending semver, each
-   `{"name","vers","deps":[],"cksum","features":{},"yanked":false,"v":2}`
-   with `cksum` the metadata's sha256 hex. Crate names must be
-   lowercase; an uppercase name stops the generation. The `dl` path
+   `{"name","vers","deps":[],"cksum","features","yanked":false,"v":2}`
+   with `cksum` the metadata's sha256 hex and `features` the metadata's
+   feature map, or an empty object when the metadata omits the field.
+   Crate names must be lowercase; an uppercase name stops the generation. The `dl` path
    carries no file, so every crate gets one redirect rule (ruling 9);
    the cargo client follows it and verifies `cksum` (verified: cargo
    1.98 follows two cross-origin 302 hops and accepts the bytes).
@@ -452,10 +455,11 @@ consumer.
   committed README text, and an integrity that matches a sha512
   recomputed from the artifact bytes; the scoped packument file name
   equals the request path npm sends; the cargo `config.json` template,
-  the prefix-tier placement, and an entry `cksum` that matches the
-  crate bytes; the Swift releases document nesting under the
-  `releases` key, the metadata document, and their exact rewrite
-  rules in `_redirects`; the Swift metadata `checksum` that matches
+  the prefix-tier placement, an entry `cksum` that matches the
+  crate bytes, and an entry `features` that copies the metadata map
+  or falls back to an empty object; the Swift releases document nesting
+  under the `releases` key, the metadata document, and their exact
+  rewrite rules in `_redirects`; the Swift metadata `checksum` that matches
   the zip bytes and the `Package.swift` file that equals the metadata
   text; the Pub document's `pubspec` and `archive_sha256`; the Maven
   metadata version list; the `_headers` and `_redirects` content

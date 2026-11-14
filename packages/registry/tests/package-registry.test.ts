@@ -182,6 +182,52 @@ describe("committed package registry", () => {
     } finally { fs.rmSync(tree, { recursive: true, force: true }); fs.rmSync(first, { recursive: true, force: true }); fs.rmSync(second, { recursive: true, force: true }); }
   }, 120000);
 
+  test("cargo index copies the metadata feature map and defaults to an empty one", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-features-"));
+    const output = path.join(tree, "out");
+    try {
+      const withFeatures = path.join(tree, "acme", "withfeat");
+      fs.mkdirSync(path.join(withFeatures, "1.0.0", "cargo"), { recursive: true });
+      fs.writeFileSync(path.join(withFeatures, "README.md"), "# With Features\n");
+      writeJson(path.join(withFeatures, "1.0.0", "cargo", "metadata.json"), {
+        name: "withfeat", version: "1.0.0", license: "MIT",
+        url: `${fixtureBase}/withfeat.crate`, sha256: sha256("withfeat"),
+        features: { f32: [] },
+      });
+      const withoutFeatures = path.join(tree, "acme", "nofeat");
+      fs.mkdirSync(path.join(withoutFeatures, "1.0.0", "cargo"), { recursive: true });
+      fs.writeFileSync(path.join(withoutFeatures, "README.md"), "# No Features\n");
+      writeJson(path.join(withoutFeatures, "1.0.0", "cargo", "metadata.json"), {
+        name: "nofeat", version: "1.0.0", license: "MIT",
+        url: `${fixtureBase}/nofeat.crate`, sha256: sha256("nofeat"),
+      });
+      const result = await generate(tree, output);
+      expect(result.code).toBe(0);
+      const withLine = JSON.parse(fs.readFileSync(path.join(output, "cargo/index/wi/th/withfeat"), "utf8").trim()) as Record<string, unknown>;
+      expect(withLine.features).toEqual({ f32: [] });
+      const withoutLine = JSON.parse(fs.readFileSync(path.join(output, "cargo/index/no/fe/nofeat"), "utf8").trim()) as Record<string, unknown>;
+      expect(withoutLine.features).toEqual({});
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
+  test("rejects a cargo feature map that is not an object", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-features-invalid-"));
+    const output = path.join(tree, "out");
+    try {
+      const repo = path.join(tree, "acme", "badfeat");
+      fs.mkdirSync(path.join(repo, "1.0.0", "cargo"), { recursive: true });
+      fs.writeFileSync(path.join(repo, "README.md"), "# Bad Features\n");
+      writeJson(path.join(repo, "1.0.0", "cargo", "metadata.json"), {
+        name: "badfeat", version: "1.0.0", license: "MIT",
+        url: `${fixtureBase}/badfeat.crate`, sha256: sha256("badfeat"),
+        features: [],
+      });
+      const result = await generate(tree, output);
+      expect(result.code).not.toBe(0);
+      expect(result.output.toLowerCase()).toContain("invalid features");
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
   type NegativeCase = [string, FixtureOptions, string[], string];
   const negatives: NegativeCase[] = [
     ["stray files", { stray: true }, [], "notes.txt"],

@@ -107,6 +107,20 @@ class Core {
         return result;
     }
 
+    /** The cargo feature map the index entry declares. A metadata file
+        written before the field existed carries none, and the entry then
+        declares an empty map, which is what cargo reads for a crate with
+        no features. */
+    static function readFeatures(j:JsonValue, pp:String):Null<JsonValue> {
+        var v = get(j, "features");
+        var k = jsonKind(v);
+        if (k == 0)
+            return null;
+        if (k != 2)
+            fail(pp + ": invalid features");
+        return v;
+    }
+
     static function readArtifacts(v:JsonValue, r:Release, pp:String):Bool {
         if (jsonKind(v) != 3) {
             fail(pp + ": artifacts must be array");
@@ -294,6 +308,8 @@ class Core {
                             r.digest = str(j, "sha256");
                             if (p == "pub")
                                 r.pubspec = get(j, "pubspec");
+                            else
+                                r.features = readFeatures(j, tree + "/" + pp);
                         } else if (p == "swift") {
                             r.archive = str(j, "archive");
                             r.digest = str(j, "sha256");
@@ -375,13 +391,13 @@ class Core {
             var n = ns[ni];
             var g = group(a, "cargo", n), lines:Array<String> = [];
             for (ri in 0...g.length) {
-                var r = g[ri];
+                var r = g[ri], rf = r.features;
                 lines.push(Json.writeCompact(O([
                     {name: "name", value: S(n)},
                     {name: "vers", value: S(r.version)},
                     {name: "deps", value: A([])},
                     {name: "cksum", value: S(r.digest)},
-                    {name: "features", value: O([])},
+                    {name: "features", value: rf == null ? O([]) : rf},
                     {name: "yanked", value: JBool(false)},
                     {name: "v", value: JNumber(2.0)}
                 ])));
