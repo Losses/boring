@@ -1613,6 +1613,48 @@ class RustDecl {
         return claimKey != null && state.extensionNameIsContested(claimKey, RustImports.toSnakeCase(field.name));
     }
 
+    /**
+        The module-scope name one free-form marked static carries. Every class
+        of one Haxe module emits into one Rust module file, so a plain name two
+        of them claim is one definition declared twice (E0428); the module's
+        file-named class keeps the plain name and every other claimant prefixes
+        its declaring class, the member-qualified spelling the inherent-impl
+        form already uses. Declaration and reference resolve through this one
+        function so a call site and its declaration always agree.
+        (ExtensionNameCollision)
+    **/
+    public static function freeFormFunctionName(state:RustEmissionState, cls:ClassType, field:ClassField,
+            receiverType:Null<Type>):String {
+        final plain = RustImports.toSnakeCase(field.name);
+        final claimKey = receiverClaimKey(receiverType);
+        if (claimKey == null)
+            return plain;
+        final owners = state.extensionMethodClaims.get(claimKey + "::" + plain);
+        if (owners == null || owners.length < 2)
+            return plain;
+        final prefix = cls.module + ".";
+        final sameModule = [for (owner in owners) if (StringTools.startsWith(owner, prefix)) owner];
+        if (sameModule.length < 2)
+            return plain;
+        final naturalOwner = moduleFileClass(cls.module, sameModule);
+        return naturalOwner == prefix + cls.name ? plain : RustImports.toSnakeCase(cls.name + "_" + field.name);
+    }
+
+    /**
+        The class whose name matches its Haxe module's file stem: the natural
+        claimant of the bare module-scope name. Falls back to the first owner
+        in sort order so the choice stays deterministic.
+    **/
+    static function moduleFileClass(module:String, owners:Array<String>):String {
+        final base = module.substr(module.lastIndexOf(".") + 1);
+        final wanted = module + "." + base;
+        if (owners.indexOf(wanted) >= 0)
+            return wanted;
+        final sorted = owners.copy();
+        sorted.sort(Reflect.compare);
+        return sorted.length > 0 ? sorted[0] : "";
+    }
+
     static function isForeignReceiverModule(module:String):Bool {
         if (module == "String" || module == "Array" || module == "Map" || module == "Std" || module == "Math") {
             return true;
@@ -2458,9 +2500,12 @@ class RustDecl {
             ? usesFreeFunctionForm(state, cls.module, f.field, f.args[0].type)
             : StaticFunctionMarkers.isTopLevel(f.field);
         final snakeName = receiverMethod
-            || freeForm
-            || RustDecl.usesUnqualifiedCodecStaticName(cls)
-            ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name);
+            ? RustImports.toSnakeCase(f.field.name)
+            : (freeForm
+                ? freeFormFunctionName(state, cls, f.field, f.args.length > 0 ? f.args[0].type : null)
+                : (RustDecl.usesUnqualifiedCodecStaticName(cls)
+                    ? RustImports.toSnakeCase(f.field.name)
+                    : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name)));
         final funcKey = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
         final fallibleBlockIdx = state.fallibleBlockParams.get(funcKey);
         final isFallible = funcIsFallible(f);
@@ -4422,7 +4467,15 @@ lines.push("        }");
                     // key and value params are Clone-capable.
                     for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
                     return true;
-                })() else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey) else if (cls.isInterface)
+                })() else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey) else if (n == "HashMap" && params.length == 2) (function() {
+                    // std.HashMap lowers to std::collections::HashMap, which is
+                    // Clone when its key and value types are. Without this arm
+                    // the gate misses a Clone-capable field set and the owner
+                    // loses its derive while read sites still clone it.
+                    // (StdHashMapClone)
+                    for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
+                    return true;
+                })() else if (cls.isInterface)
                     sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey);
             case TFun(_):

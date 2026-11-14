@@ -11108,6 +11108,19 @@ class RustExpr {
         return StaticFunctionMarkers.isTopLevel(field);
     }
 
+    /**
+        The module-scope name a free-form marked static carries, resolved
+        through the same function the declaration uses so a call site never
+        guesses a different spelling. (ExtensionNameCollision)
+    **/
+    function freeFormStaticName(cls:ClassType, field:ClassField):String {
+        final receiverType = switch (field.type) {
+            case TFun(args, _) if (args.length > 0): args[0].t;
+            case _: null;
+        };
+        return RustDecl.freeFormFunctionName(state, cls, field, receiverType);
+    }
+
     /** Constructed value-type statics are emitted as associated accessors. */
     function valueTypeStaticIsConst(field:ClassField):Bool {
         return StaticFieldHelper.isConstValue(field) && !StaticFieldHelper.isConstruction(field.expr());
@@ -11134,7 +11147,8 @@ class RustExpr {
                 case TFun(_, _): false;
                 case _: true;
             };
-            final nativeName = isConstField ? RustImports.toScreamingSnakeCase(name) : (markedFieldUsesFreeName(cls, markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name));
+            final nativeName = isConstField ? RustImports.toScreamingSnakeCase(name) : (markedFieldUsesFreeName(cls, markedField)
+                ? freeFormStaticName(cls, markedField) : RustImports.toSnakeCase(cls.name + "_" + name));
             if (markedField.isPublic) {
                 // Two extension classes claiming one method name for one
                 // receiver both emit free functions under that plain name; a
