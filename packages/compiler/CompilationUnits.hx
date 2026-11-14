@@ -264,34 +264,54 @@ class CompilationUnits {
     }
 
     /** Walk a typed Type, recording the module of every named declaration it
-        reaches (classes, enums, typedefs, abstracts) and their parameters. */
-    static function collectTypeModules(t:Null<Type>, from:String, note:String->String->Void):Void {
+        reaches (classes, enums, typedefs, abstracts) and their parameters.
+
+        The visited set holds the qualified identity of every typedef body the
+        walk already expanded. A macro Ref wrapper is reallocated on every
+        access in this host, so physical Ref identity cannot carry the set (see
+        SourceComparisonAnalysis.sameDeclaration); the declaration qualified
+        path is the identity the compiler guarantees unique, and the from module
+        stays only the recorded edge source. A repeated typedef still records
+        note(from, to) and walks its parameters, so a cycle is expanded once
+        without dropping the module or its dependencies: a self-recursive
+        anonymous typedef (children:Array<Self>) previously recursed through
+        TType -> d.get().type -> TAnonymous -> field -> TInst(Array,[TType])
+        until the stack overflowed. */
+    static function collectTypeModules(t:Null<Type>, from:String, note:String->String->Void, ?visited:Map<String, Bool>):Void {
         if (t == null) {
             return;
+        }
+        if (visited == null) {
+            visited = [];
         }
         switch (t) {
             case TInst(c, params):
                 note(from, c.get().module);
-                for (p in params) collectTypeModules(p, from, note);
+                for (p in params) collectTypeModules(p, from, note, visited);
             case TEnum(e, params):
                 note(from, e.get().module);
-                for (p in params) collectTypeModules(p, from, note);
+                for (p in params) collectTypeModules(p, from, note, visited);
             case TType(d, params):
-                note(from, d.get().module);
-                for (p in params) collectTypeModules(p, from, note);
-                collectTypeModules(d.get().type, from, note);
+                final def = d.get();
+                note(from, def.module);
+                for (p in params) collectTypeModules(p, from, note, visited);
+                final key = "typedef " + def.module + "." + def.name;
+                if (!visited.exists(key)) {
+                    visited.set(key, true);
+                    collectTypeModules(def.type, from, note, visited);
+                }
             case TAbstract(a, params):
                 note(from, a.get().module);
-                for (p in params) collectTypeModules(p, from, note);
+                for (p in params) collectTypeModules(p, from, note, visited);
             case TFun(args, ret):
-                for (a in args) collectTypeModules(a.t, from, note);
-                collectTypeModules(ret, from, note);
+                for (a in args) collectTypeModules(a.t, from, note, visited);
+                collectTypeModules(ret, from, note, visited);
             case TAnonymous(anon):
-                for (f in anon.get().fields) collectTypeModules(f.type, from, note);
+                for (f in anon.get().fields) collectTypeModules(f.type, from, note, visited);
             case TDynamic(t2):
-                collectTypeModules(t2, from, note);
+                collectTypeModules(t2, from, note, visited);
             case TLazy(f):
-                collectTypeModules(f(), from, note);
+                collectTypeModules(f(), from, note, visited);
             case TMono(_):
         }
     }
