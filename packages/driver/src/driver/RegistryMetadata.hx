@@ -60,14 +60,14 @@ class RegistryMetadata {
         ];
         var archiveName = "";
         if (platform == "maven") {
-            final files = mavenArtifacts(artifactDir, stem);
+            final files = mavenArtifacts(artifactDir, stem, version);
             if (files.length == 0) {
                 fail('bundle "' + bundle.id + '": no Maven artifact matched ' + stem + ' under ' + artifactDir);
                 return;
             }
-            archiveName = files[0];
-            fields.push({key: "groupId", value: VText(stem)});
-            fields.push({key: "artifacts", value: VList([for (file in files) mavenArtifact(file, config.assetBase)])});
+            archiveName = files[0].file;
+            fields.push({key: "groupId", value: VText(files[0].groupId)});
+            fields.push({key: "artifacts", value: VList([for (entry in files) mavenArtifact(entry, config.assetBase)])});
         } else {
             final match = artifactMatch(platform, stem, bundle.packageName);
             final found = findArtifacts(artifactDir, match, false);
@@ -160,17 +160,80 @@ class RegistryMetadata {
         };
     }
 
-    static function mavenArtifacts(artifactDir:String, stem:String):Array<String> {
-        return findArtifacts(artifactDir + "/maven", function(file:String):Bool {
+    /**
+        The Maven files of one bundle's publication directory, each with the
+        artifactId the directory it sits in names. Gradle writes one
+        directory per artifactId, so one package version carries the Kotlin
+        Multiplatform root coordinate and its target modules; the payload
+        (jar, klib, aar), the pom and the Gradle module metadata are
+        collected. A file that names no artifactId directory falls back to
+        the stem, the single artifactId of the old shape.
+    **/
+    static function mavenArtifacts(artifactDir:String, stem:String, version:String):Array<MavenArtifact> {
+        return [for (relative in findArtifacts(artifactDir + "/maven", function(relative:String):Bool {
+            final file = baseName(relative);
             final extension = extensionOf(file);
-            return StringTools.startsWith(file, stem + "-") && (extension == ".jar" || extension == ".pom");
-        }, true);
+            return StringTools.startsWith(file, stem + "-")
+                && (extension == ".jar" || extension == ".pom" || extension == ".module"
+                    || extension == ".klib" || extension == ".aar");
+        }, true)) {
+            file: baseName(relative),
+            artifactId: mavenArtifactIdOf(relative, version, stem),
+            groupId: mavenGroupIdOf(relative, version, stem)
+        }];
     }
 
-    static function mavenArtifact(file:String, assetBase:String):RegistryValue {
+    /**
+        The artifactId of one Maven file: the path segment above the version
+        directory, which Gradle names after the artifactId. A file that
+        carries no such directory falls back to the stem, the single
+        artifactId of the old shape.
+    **/
+    static function mavenArtifactIdOf(relative:String, version:String, stem:String):String {
+        final parts = relative.split("/");
+        var index = parts.length - 2;
+        while (index > 0) {
+            if (parts[index] == version) return parts[index - 1];
+            index--;
+        }
+        return stem;
+    }
+
+    /**
+        The groupId of one Maven file: every path segment above the
+        artifactId directory, joined with the dots the Maven repository path
+        splits. The directory is the compiler's package-group and the only
+        authority for the coordinate the metadata describes; a file that
+        carries no such directory falls back to the stem.
+    **/
+    static function mavenGroupIdOf(relative:String, version:String, stem:String):String {
+        final parts = relative.split("/");
+        var index = parts.length - 2;
+        while (index > 0) {
+            if (parts[index] == version) {
+                final groups:Array<String> = [];
+                var gi = 0;
+                while (gi < index - 1) {
+                    groups.push(parts[gi]);
+                    gi++;
+                }
+                return groups.length == 0 ? stem : groups.join(".");
+            }
+            index--;
+        }
+        return stem;
+    }
+
+    static function baseName(relative:String):String {
+        final slash = relative.lastIndexOf("/");
+        return slash < 0 ? relative : relative.substr(slash + 1);
+    }
+
+    static function mavenArtifact(entry:MavenArtifact, assetBase:String):RegistryValue {
         return VRecord([
-            {key: "file", value: VText(file)},
-            {key: "url", value: VText(joinUrl(assetBase, file))}
+            {key: "file", value: VText(entry.file)},
+            {key: "url", value: VText(joinUrl(assetBase, entry.file))},
+            {key: "artifactId", value: VText(entry.artifactId)}
         ]);
     }
 
@@ -180,8 +243,8 @@ class RegistryMetadata {
     }
 
     /**
-        Every regular file under the root whose base name satisfies the
-        predicate, sorted by relative path. The walk descends only when the
+        Every regular file under the root whose relative path satisfies
+        the predicate, sorted. The walk descends only when the
         caller asks for it: the Maven artifact sits below a group-id
         directory, while the other platforms write their artifact directly
         into the bundle output directory beside the generated tree.
@@ -203,7 +266,7 @@ class RegistryMetadata {
                 if (recursive) collectArtifacts(root, relative, match, recursive, found);
                 continue;
             }
-            if (match(entry)) found.push(entry);
+            if (match(relative)) found.push(relative);
         }
     }
 
@@ -368,3 +431,6 @@ enum RegistryValue {
 }
 
 typedef RegistryField = {key:String, value:RegistryValue};
+
+/** One Maven file of a publication with the artifactId and groupId its directory states. */
+typedef MavenArtifact = {file:String, artifactId:String, groupId:String};
