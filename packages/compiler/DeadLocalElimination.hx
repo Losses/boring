@@ -1,4 +1,5 @@
 #if (macro || reflaxe_runtime)
+import haxe.macro.Context;
 import haxe.macro.Type.TypedExpr;
 
 /**
@@ -19,6 +20,12 @@ import haxe.macro.Type.TypedExpr;
     outside the slice would be invisible here. The caller therefore opts in
     through `blockLines(..., scopeComplete: true)`.
 
+    A declaration that a later statement writes is kept even when it is never
+    read: the write names the variable, so dropping the declaration would leave
+    a write to a variable that no longer exists (dart reports a missing setter).
+    The write guard is deliberately conservative; removing the writes as well
+    would change more of the statement tree than the dead declaration alone.
+
     A dead binding whose initializer may have effects keeps its evaluation as an
     expression statement: dart flags an unused local and ignores a bare
     expression statement, and renaming cannot silence it (a leading underscore
@@ -30,20 +37,27 @@ class DeadLocalElimination {
         Returns `stmts` (a complete statement scope) without its unread local
         declarations. A declaration without an initializer is always kept: it is
         the definite-assignment form, and dropping it would leave later writes
-        naming a variable that no longer exists.
+        naming a variable that no longer exists. A declaration with an
+        initializer is kept for the same reason when a later statement writes
+        the variable.
     **/
     public static function filterStmts(stmts:Array<TypedExpr>, ?keepDeclaration:TypedExpr->Bool):Array<TypedExpr> {
         if (stmts == null || stmts.length == 0)
             return stmts;
+        final writeGuard = writeGuardEnabled();
         final out:Array<TypedExpr> = [];
         for (i in 0...stmts.length) {
             final stmt = stmts[i];
             switch (stmt.expr) {
                 case TVar(v, init):
                     var reads = 0;
-                    for (j in i + 1...stmts.length)
+                    var writes = 0;
+                    for (j in i + 1...stmts.length) {
                         reads += countReads(stmts[j], v.id);
-                    if (init == null || reads > 0) {
+                        if (writeGuard)
+                            writes += countWrites(stmts[j], v.id);
+                    }
+                    if (init == null || reads > 0 || writes > 0) {
                         out.push(stmt);
                         continue;
                     }
@@ -61,6 +75,15 @@ class DeadLocalElimination {
             }
         }
         return out;
+    }
+
+    /**
+        Whether the later-write guard applies. -D dart_dead_local_ablate=WriteGuard
+        disables it, which reproduces the dropped-declaration output for the
+        GP-ABLATE arm of the regression fixture.
+    **/
+    static function writeGuardEnabled():Bool {
+        return Context.definedValue("dart_dead_local_ablate") != "WriteGuard";
     }
 
     /**
@@ -91,6 +114,37 @@ class DeadLocalElimination {
                 return count;
             default:
                 haxe.macro.TypedExprTools.iter(e, child -> count += countReads(child, id));
+        }
+        return count;
+    }
+
+    /**
+        Write count of one local inside an expression, the symmetric partner of
+        countReads. A plain-assignment target is a write; a compound assignment
+        and an increment or decrement write their target too. A write nested in
+        a value or in a closure body counts: the closure may run later.
+    **/
+    static function countWrites(e:TypedExpr, id:Int):Int {
+        if (e == null)
+            return 0;
+        var count = 0;
+        switch (e.expr) {
+            case TBinop(OpAssign, t, val):
+                count += isLocalTarget(t, id) ? 1 : countWrites(t, id);
+                count += countWrites(val, id);
+                return count;
+            case TBinop(OpAssignOp(_), t, val):
+                count += isLocalTarget(t, id) ? 1 : countWrites(t, id);
+                count += countWrites(val, id);
+                return count;
+            case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+                count += isLocalTarget(t, id) ? 1 : countWrites(t, id);
+                return count;
+            case TVar(v, init):
+                if (v.id != id && init != null)
+                    count += countWrites(init, id);
+            default:
+                haxe.macro.TypedExprTools.iter(e, child -> count += countWrites(child, id));
         }
         return count;
     }
