@@ -83,8 +83,24 @@ test("Swift read-only array boundary shares storage and preserves flow", async (
     `${generated}/boring/ReadOnlyBoundaryOps.swift`,
     `${import.meta.dir}/ReadOnlyBoundaryRuntimeTests.swift`,
   ];
-  await run(["swiftc", "-o", `${out}/ReadOnlyBoundaryRuntimeTests`, ...sources], "swiftc");
-  const swift = await run([`${out}/ReadOnlyBoundaryRuntimeTests`], "swift-runtime");
+  // The nix swiftc FHS wrapper records a generic /lib64 interpreter while
+  // the executable RUNPATH resolves libc to the devShell glibc, so a host
+  // with an older system loader (ubuntu-24.04 runners carry 2.39) drives the
+  // newer libc and the process aborts after startup ("*** stack smashing
+  // detected ***: terminated", exitCode null). Package.swift and the other
+  // ad-hoc swiftc binaries in this repository pin the interpreter through
+  // BORING_SWIFT_DYNAMIC_LINKER; this invocation pins it the same way.
+  const pinnedLoader = Bun.env.BORING_SWIFT_DYNAMIC_LINKER;
+  const loader = pinnedLoader == null ? [] : ["-Xlinker", "-dynamic-linker", "-Xlinker", pinnedLoader];
+  await run(["swiftc", ...loader, "-o", `${out}/ReadOnlyBoundaryRuntimeTests`, ...sources], "swiftc");
+  // The pinned loader skips the host's default library directories, and
+  // libstdc++ is a transitive dependency of the swift libraries, so the run
+  // hands the runtime the devShell's library path (the same
+  // BORING_SWIFT_LIBDISPATCH prefix package.json uses for the SwiftPM test
+  // binaries). A host without the pin keeps its own loader and library path.
+  const swift = await run(pinnedLoader == null
+    ? [`${out}/ReadOnlyBoundaryRuntimeTests`]
+    : ["env", `LD_LIBRARY_PATH=${Bun.env.BORING_SWIFT_LIBDISPATCH ?? ""}`, `${out}/ReadOnlyBoundaryRuntimeTests`], "swift-runtime");
   expect(swift.trim().split("\n")).toEqual(expected);
   const compilerDiagnostics = await Bun.file(`${out}/swiftc.stderr.log`).text();
   expect(compilerDiagnostics.trim(), "generated Swift compiler diagnostics").toBe("");

@@ -3291,11 +3291,45 @@ class RustExpr {
             byDecl.set(step.declIdx, step);
             removed.set(step.assignIdx, true);
         }
+        // Feature spec 38: a deferred local whose first assignment is the tail
+        // of the immediately following statement-position try is captured by
+        // the region's immediately invoked closure, and Rust refuses both the
+        // capture (E0594, the binding is not mutable) and the read after it
+        // (E0381, the closure call is opaque to definite-assignment analysis).
+        // Fuse the declaration with the region so the existing
+        // initializer-position lowering binds the value from the Ok arm, and
+        // the region body carries no capture to assign. (TryTailDeferredFusion)
+        final tryRegions = new Map<Int, TypedExpr>();
+        for (i in 0...stmts.length) {
+            if (removed.exists(i) || byDecl.exists(i))
+                continue;
+            switch (stmts[i].expr) {
+                case TVar(v, init) if (init == null):
+                    if (i + 1 >= stmts.length || removed.exists(i + 1))
+                        continue;
+                    final region = tryTailAssignmentRegion(stmts[i + 1], v);
+                    if (region == null)
+                        continue;
+                    tryRegions.set(i, region);
+                    removed.set(i + 1, true);
+                case _:
+            }
+        }
         final remaining = [for (i in 0...stmts.length) if (!removed.exists(i)) stmts[i]];
         final out:Array<TypedExpr> = [];
         for (i in 0...stmts.length) {
             if (removed.exists(i))
                 continue;
+            final fusedRegion = tryRegions.get(i);
+            if (fusedRegion != null) {
+                switch (stmts[i].expr) {
+                    case TVar(v, _):
+                        out.push({expr: TVar(v, fusedRegion), pos: stmts[i].pos, t: stmts[i].t});
+                    case _:
+                        out.push(stmts[i]);
+                }
+                continue;
+            }
             final step = byDecl.get(i);
             if (step == null) {
                 out.push(stmts[i]);
@@ -3309,6 +3343,51 @@ class RustExpr {
             }
         }
         return out;
+    }
+
+    /**
+        Feature spec 38: rewrite a deferred declaration whose next statement is
+        a try whose tail assigns that local, into the initializer form
+        'var x:T = try { ...; value; } catch (e) { ... }', so the region binds
+        x from the Ok arm and the closure assigns nothing. Returns
+        null when the statement does not have exactly that shape; the caller
+        fuses only adjacent statements, so position and effects are preserved.
+        (TryTailDeferredFusion)
+    **/
+    function tryTailAssignmentRegion(stmt:TypedExpr, v:TVar):Null<TypedExpr> {
+        final region = stripCast(stmt);
+        final parts = switch (region.expr) {
+            case TTry(body, catches): {body: body, catches: catches};
+            case _: return null;
+        }
+        final bodyStmts = statementsOf(parts.body);
+        if (bodyStmts.length == 0)
+            return null;
+        final rhs = switch (stripCast(bodyStmts[bodyStmts.length - 1]).expr) {
+            case TBinop(OpAssign, target, value):
+                switch (stripCast(target).expr) {
+                    case TLocal(assigned) if (assigned.id == v.id): value;
+                    case _: return null;
+                }
+            case _: return null;
+        };
+        // Nothing in the region may mention the local: the preceding body
+        // statements would read it before it exists, the handler would assign
+        // it from the Err arm, and the assigned value would read itself.
+        if (mentionsLocal(rhs, v))
+            return null;
+        for (j in 0...(bodyStmts.length - 1))
+            if (mentionsLocal(bodyStmts[j], v))
+                return null;
+        for (c in parts.catches)
+            if (mentionsLocal(c.expr, v))
+                return null;
+        final tail:TypedExpr = {expr: rhs.expr, pos: rhs.pos, t: rhs.t};
+        final newBody:TypedExpr = switch (stripCast(parts.body).expr) {
+            case TBlock(_): {expr: TBlock(bodyStmts.slice(0, bodyStmts.length - 1).concat([tail])), pos: parts.body.pos, t: rhs.t};
+            case _: tail;
+        };
+        return {expr: TTry(newBody, parts.catches), pos: region.pos, t: rhs.t};
     }
 
     /**
@@ -7010,17 +7089,46 @@ class RustExpr {
         out.push(indent(depth) + "})() {");
         out.push(indent(depth) + "    Ok(" + valueBinding + ") => " + valueBinding + ",");
         catchVars.set(parts.c.v.id, true);
-        final arm = armBlock(parts.c.expr);
-        catchVars.remove(parts.c.v.id);
-        for (i in 0...arm.length) {
-            final suffix = i == arm.length - 1 ? "," : "";
-            // A String-valued handler arm unifies with the body's owned
-            // String arms through UString::from. (CatchArmUString)
-            final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
-            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
+        if (catchArmReturns(parts.c.expr)) {
+            // A handler that returns diverges; render it at statement
+            // position so the return edge survives and the arm unifies
+            // through its never type. armBlock rejects returns in value
+            // position, so the diverging form has its own path.
+            // (DivergingCatchArm)
+            final catchName = RustImports.toSnakeCase(localName(parts.c.v));
+            final catchBinding = mentionsLocal(parts.c.expr, parts.c.v) ? catchName : "_";
+            final handler = blockLines(statementsOf(parts.c.expr), depth + 2);
+            out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
+            for (l in handler)
+                out.push(l);
+            out.push(indent(depth) + "    },");
+        } else {
+            final arm = armBlock(parts.c.expr);
+            for (i in 0...arm.length) {
+                final suffix = i == arm.length - 1 ? "," : "";
+                // A String-valued handler arm unifies with the body's owned
+                // String arms through UString::from. (CatchArmUString)
+                final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
+                out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
+            }
         }
+        catchVars.remove(parts.c.v.id);
         out.push(indent(depth) + "};");
         return out;
+    }
+
+    /**
+        Whether a handler block ends in a return, so its match arm diverges
+        and needs statement-position rendering. (DivergingCatchArm)
+    **/
+    function catchArmReturns(e:TypedExpr):Bool {
+        final stmts = statementsOf(e);
+        if (stmts.length == 0)
+            return false;
+        return switch (stripWrap(stmts[stmts.length - 1]).expr) {
+            case TReturn(_): true;
+            case _: false;
+        };
     }
 
     function numericBranchType(e:TypedExpr):String {
