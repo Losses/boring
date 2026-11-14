@@ -9656,8 +9656,18 @@ class RustExpr {
                     // (StaticRealization, RcContainerStatic)
                     final staticPath = staticItemPath(cls, name);
                     final nullBacked = RustDecl.isNullBackedPlainClassStatic(cf.get(), types.of(cf.get().type));
-                    if (activeStaticReadSubstitution != null && activeStaticReadSubstitution.exists(staticPath))
-                        return activeStaticReadSubstitution.get(staticPath) + (nullBacked ? ".unwrap()" : "");
+                    if (activeStaticReadSubstitution != null && activeStaticReadSubstitution.exists(staticPath)) {
+                        // The statement hoist binds one owned clone for the
+                        // whole statement; every value read takes its own
+                        // clone, or the second read moves the same Rc
+                        // (E0382). The null-initialized static unwraps by
+                        // reference so its Option-backed local survives
+                        // each read. (StaticReadStatementScope)
+                        final hoisted = activeStaticReadSubstitution.get(staticPath);
+                        return nullBacked
+                            ? hoisted + ".as_ref().unwrap().clone()"
+                            : hoisted + ".clone()";
+                    }
                     return handleStaticRead(cls, name) + (nullBacked ? ".unwrap()" : "");
                 }
                 if (isImmutableLazyStatic(cls, cf.get())) {
