@@ -1,0 +1,18 @@
+# TypeScript twin of tests/haxe/rust-inherent-impl-boundary: two classes in one
+# Haxe module claim the same marked static name, which one TypeScript module
+# file cannot spell twice. Run from the repository root with the ts-output and
+# ts-test-output defines supplied by collision.test.ts.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp tests/haxe/ts-marked-collision
+--macro Intercept.run(['samples', 'tests/haxe/ts-marked-collision'])
+--macro tscompiler.Compiler.use()
+-D ts-test-runner=bun
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+collisionscope.Boxes
+collisionscope.BoxProbe

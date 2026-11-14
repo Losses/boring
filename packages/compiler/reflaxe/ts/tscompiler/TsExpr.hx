@@ -2184,7 +2184,8 @@ class TsExpr {
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
-            return imports.functionRef(cls.module, name, markedField.isPublic);
+            final emitted = TsMarkedNames.emittedName(cls.module, cls.name, name);
+            return imports.functionRef(cls.module, emitted, markedField.isPublic);
         }
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {

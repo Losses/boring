@@ -253,6 +253,10 @@ class Compiler extends PluginCompiler<Compiler> {
         Context.onAfterTyping(scanCrossClassPrivateAccess);
         Context.onAfterTyping(TsStringBufParams.collect);
         Context.onAfterTyping(scanCompilationUnits);
+        // Two classes in one Haxe module can each declare a marked static with
+        // the same name; the module file has one namespace, so the emitted name
+        // must be resolved before lowering (features/10, P-21).
+        Context.onAfterTyping(TsMarkedNames.scan);
         // The stdlib/08 string-buffer fault checks synthesize references to
         // std.UStringException even when the consumer source scope omits
         // samples/. Force the support module through typing so its

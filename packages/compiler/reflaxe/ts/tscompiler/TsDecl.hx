@@ -679,7 +679,8 @@ class TsDecl {
         }
         // @:allow members omit TypeScript visibility so they are public.
         final vis = field.isPublic || field.meta.has(":allow") ? "export " : "";
-        return vis + "const " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(init) + ";";
+        final emitted = TsMarkedNames.emittedName(cls.module, cls.name, field.name);
+        return vis + "const " + emitted + ": " + types.of(field.type) + " = " + expr.rawExpression(init) + ";";
     }
 
     function varDecl(cls:ClassType, v:ClassVarData):Array<String> {
@@ -912,7 +913,8 @@ class TsDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
-        final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
+        final emitted = TsMarkedNames.emittedName(cls.module, cls.name, f.field.name);
+        final head = '${vis}function $emitted$genericStr($args): $ret {';
         final body = optionalNullNormalizations(cls, f, "").concat(decodeBoundaryBody(cls, f));
         return [head].concat(body).concat(["}"]);
     }
