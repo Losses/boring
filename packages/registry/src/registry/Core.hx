@@ -135,14 +135,30 @@ class Core {
         return true;
     }
 
+    /** The Maven artifactId one artifact entry declares. A metadata written
+        before the field existed declares none, and the entry then belongs to
+        the metadata's own name, which is the single artifactId of the old
+        shape. */
+    static function readArtifactId(entry:JsonValue, r:Release, pp:String):String {
+        var declared = opt(entry, "artifactId");
+        if (declared == null)
+            return r.name;
+        var id:String = declared;
+        if (id == "" || id == "." || id == ".." || id.indexOf("/") >= 0)
+            fail(pp + ": invalid artifactId");
+        return id;
+    }
+
     static function readArtifact(v:JsonValue, r:Release, pp:String):Bool {
         if (jsonKind(v) != 2) {
             fail(pp + ": invalid artifact");
             return false;
         }
         var fs = jobject(v);
-        r.artifacts.push(str(O(fs), "file"));
-        r.artifactUrls.push(str(O(fs), "url"));
+        var entry = O(fs);
+        r.artifacts.push(str(entry, "file"));
+        r.artifactUrls.push(str(entry, "url"));
+        r.artifactIds.push(readArtifactId(entry, r, pp));
         return true;
     }
 
@@ -444,26 +460,72 @@ class Core {
         }
     }
 
+    /** The artifactId one artifact file of a release belongs to. The reader
+        pushes one artifactId per artifact file in the same order. */
+    static function mavenArtifactId(r:Release, i:Int):String {
+        if (i < r.artifactIds.length)
+            return r.artifactIds[i];
+        return r.name;
+    }
+
+    /** The artifactIds one Maven package directory carries, one per Maven
+        module, sorted. An entry with no artifact list falls back to the
+        metadata name, which is the single artifactId of the old shape. */
+    static function mavenArtifactIds(g:Array<Release>):Array<String> {
+        var ids:Array<String> = [];
+        for (ri in 0...g.length) {
+            var r = g[ri];
+            if (r.artifactIds.length == 0) {
+                if (!ids.has(r.name))
+                    ids.push(r.name);
+            } else
+                for (ai in 0...r.artifactIds.length)
+                    if (!ids.has(r.artifactIds[ai]))
+                        ids.push(r.artifactIds[ai]);
+        }
+        sortStrings(ids);
+        return ids;
+    }
+
+    /** The releases of one package directory that publish one artifactId.
+        An entry with no artifact list declares its name as its artifactId. */
+    static function mavenReleases(g:Array<Release>, artifactId:String):Array<Release> {
+        var out:Array<Release> = [];
+        for (ri in 0...g.length) {
+            var r = g[ri];
+            if (r.artifactIds.length == 0 ? r.name == artifactId : r.artifactIds.has(artifactId))
+                out.push(r);
+        }
+        return out;
+    }
+
+    /** One maven-metadata.xml per artifactId. The site path is the groupId
+        path plus the artifactId, so the artifactIds of one package directory
+        coexist under the same groupId directory. */
     static function writeMaven(out:Array<OutputFile>, a:Array<Release>):Void {
         var ns = names(a, "maven");
         for (ni in 0...ns.length) {
-            var n = ns[ni], g = group(a, "maven", n), first = g[0], fg = first.groupId, groupId:String = fg == null ? "" : fg, versions:Array<String> = [];
-            for (ri in 0...g.length) {
-                var r = g[ri];
-                if (!versions.has(r.version))
-                    versions.push(r.version);
+            var n = ns[ni], g = group(a, "maven", n), first = g[0], fg = first.groupId, groupId:String = fg == null ? "" : fg;
+            var ids = mavenArtifactIds(g);
+            for (ii in 0...ids.length) {
+                var id = ids[ii], ig = mavenReleases(g, id), versions:Array<String> = [];
+                for (ri in 0...ig.length) {
+                    var ir = ig[ri];
+                    if (!versions.has(ir.version))
+                        versions.push(ir.version);
+                }
+                sortStrings(versions);
+                var path = groupId.split(".").join("/") + "/" + id,
+                    xml = "<metadata>\n  <groupId>" + groupId + "</groupId>\n  <artifactId>" + id + "</artifactId>\n  <versioning>\n    <latest>"
+                        + latest(ig) + "</latest>\n    <release>" + latest(ig) + "</release>\n    <versions>\n";
+                for (vi in 0...versions.length) {
+                    var v = versions[vi];
+                    xml += "      <version>" + v + "</version>\n";
+                }
+                xml += "    </versions>\n  </versioning>\n</metadata>\n";
+                emit(out, "maven/" + path + "/maven-metadata.xml", xml);
+                emit(out, "maven/" + path + "/maven-metadata.xml.sha1", Sha1.hex(xml) + "\n");
             }
-            sortStrings(versions);
-            var path = groupId.split(".").join("/") + "/" + n,
-                xml = "<metadata>\n  <groupId>" + groupId + "</groupId>\n  <artifactId>" + n + "</artifactId>\n  <versioning>\n    <latest>" + latest(g)
-                    + "</latest>\n    <release>" + latest(g) + "</release>\n    <versions>\n";
-            for (vi in 0...versions.length) {
-                var v = versions[vi];
-                xml += "      <version>" + v + "</version>\n";
-            }
-            xml += "    </versions>\n  </versioning>\n</metadata>\n";
-            emit(out, "maven/" + path + "/maven-metadata.xml", xml);
-            emit(out, "maven/" + path + "/maven-metadata.xml.sha1", Sha1.hex(xml) + "\n");
         }
     }
 
@@ -497,7 +559,7 @@ class Core {
                         rg = r.groupId,
                         gid:String = rg == null ? "" : rg;
                     final mavenTarget = r.repository == null ? r.owner + "/" + r.repo : r.repository;
-                    lines.push("/maven/" + gid.split(".").join("/") + "/" + r.name + "/:version/" + file + "  https://github.com/" + mavenTarget
+                    lines.push("/maven/" + gid.split(".").join("/") + "/" + mavenArtifactId(r, fi) + "/:version/" + file + "  https://github.com/" + mavenTarget
                         + "/releases/download/v:version/" + file + "  302");
                 }
         }

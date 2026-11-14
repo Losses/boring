@@ -256,4 +256,64 @@ describe("committed package registry", () => {
     expect(result.code).not.toBe(0);
     expect(result.output).toContain("--output");
   });
+
+  test("one maven package directory carries a root coordinate and eight targets", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-kmp-"));
+    const output = path.join(tree, "out");
+    const version = "0.1.0-alpha08";
+    const targets = ["jvm", "android", "iosarm64", "iossimulatorarm64", "macosarm64", "linuxx64", "linuxarm64", "mingwx64"];
+    const ids = ["tiqian-engine", ...targets.map((target) => "tiqian-engine-" + target)];
+    try {
+      const repo = path.join(tree, "tiqian-cjk", "tiqian-engine");
+      fs.mkdirSync(path.join(repo, version, "maven"), { recursive: true });
+      fs.writeFileSync(path.join(repo, "README.md"), "# tiqian-engine\n");
+      const artifacts: { file: string; url: string; artifactId: string }[] = [];
+      for(const id of ids) {
+        for(const extension of [".pom", ".module"]) {
+          // The root coordinate is packaging=pom; the eight targets publish a
+          // module metadata file beside their pom.
+          if(id === "tiqian-engine" && extension === ".module") continue;
+          const file = id + "-" + version + extension;
+          artifacts.push({ file, url: "https://assets.example.test/" + file, artifactId: id });
+        }
+      }
+      writeJson(path.join(repo, version, "maven", "metadata.json"), {
+        name: "tiqian-engine", version, license: "MPL-2.0", repository: "tiqian-cjk/tiqian",
+        tag: "v" + version, groupId: "org.tiqian", artifacts,
+      });
+      const result = await generate(tree, output);
+      expect(result.code).toBe(0);
+      for(const id of ids) {
+        const file = path.join(output, "maven", "org", "tiqian", id, "maven-metadata.xml");
+        expect(fs.existsSync(file)).toBe(true);
+        const xml = fs.readFileSync(file, "utf8");
+        expect(xml).toContain("<groupId>org.tiqian</groupId>");
+        expect(xml).toContain("<artifactId>" + id + "</artifactId>");
+        expect(xml).toContain("<version>" + version + "</version>");
+        expect(fs.readFileSync(file + ".sha1", "utf8")).toBe(crypto.createHash("sha1").update(xml).digest("hex") + "\n");
+      }
+      const redirects = fs.readFileSync(path.join(output, "_redirects"), "utf8");
+      for(const id of ids) {
+        const extension = id === "tiqian-engine" ? ".pom" : ".module";
+        expect(redirects).toContain("/maven/org/tiqian/" + id + "/:version/" + id + "-" + version + extension + "  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/" + id + "-" + version + extension + "  302");
+      }
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
+  test("rejects a maven artifactId outside one path segment", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-artifactid-"));
+    const output = path.join(tree, "out");
+    try {
+      const repo = path.join(tree, "acme", "badid");
+      fs.mkdirSync(path.join(repo, "1.0.0", "maven"), { recursive: true });
+      fs.writeFileSync(path.join(repo, "README.md"), "# Bad Id\n");
+      writeJson(path.join(repo, "1.0.0", "maven", "metadata.json"), {
+        name: "badid", version: "1.0.0", groupId: "dev.acme",
+        artifacts: [{ file: "badid-1.0.0.pom", url: "https://assets.example.test/badid-1.0.0.pom", artifactId: "a/b" }],
+      });
+      const result = await generate(tree, output);
+      expect(result.code).not.toBe(0);
+      expect(result.output.toLowerCase()).toContain("invalid artifactid");
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
 });

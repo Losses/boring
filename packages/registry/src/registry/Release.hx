@@ -20,6 +20,7 @@ class Release {
     public var groupId:Null<String>;
     public var artifacts:Array<String>;
     public var artifactUrls:Array<String>;
+    public var artifactIds:Array<String>;
 
     public function new(o:String, r:String, v:String, p:String, n:String, l:Null<String>, read:String) {
         owner = o;
@@ -39,5 +40,6 @@ class Release {
         groupId = null;
         artifacts = [];
         artifactUrls = [];
+        artifactIds = [];
     }
 }

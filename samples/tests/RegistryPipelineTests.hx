@@ -92,4 +92,77 @@ class RegistryPipelineTests {
         }
         Test.equals(true, found);
     }
+
+    @:test("maven metadata carries one artifactId per maven module")
+    public static function mavenArtifactIdsCoexist():Void {
+        var records:Array<InputRecord> = [
+            {path: "dana/engine/README.md", content: "Engine package\n", inputRecord: 1},
+            {
+                path: "dana/engine/1.0.0/maven/metadata.json",
+                content: '{"name":"engine","version":"1.0.0","groupId":"dev.dana","license":"MIT","repository":"dana/engine","tag":"v1.0.0","artifacts":['
+                    + '{"file":"engine-1.0.0.pom","url":"https://example.test/engine-1.0.0.pom","artifactId":"engine"},'
+                    + '{"file":"engine-jvm-1.0.0.pom","url":"https://example.test/engine-jvm-1.0.0.pom","artifactId":"engine-jvm"},'
+                    + '{"file":"engine-jvm-1.0.0.module","url":"https://example.test/engine-jvm-1.0.0.module","artifactId":"engine-jvm"}]}',
+                inputRecord: 1
+            }
+        ];
+        var config:RegistryConfig = {
+            tree: "tree",
+            output: "site",
+            baseUrl: "https://registry.test",
+            swiftScope: "scope",
+            archiveBase: "https://archive.test",
+            configRecord: 1
+        };
+        var files:Array<OutputFile> = Core.generate(records, config);
+        var rootXml = "<metadata>\n  <groupId>dev.dana</groupId>\n  <artifactId>engine</artifactId>\n  <versioning>\n    <latest>1.0.0</latest>\n    <release>1.0.0</release>\n    <versions>\n      <version>1.0.0</version>\n    </versions>\n  </versioning>\n</metadata>\n";
+        var jvmXml = "<metadata>\n  <groupId>dev.dana</groupId>\n  <artifactId>engine-jvm</artifactId>\n  <versioning>\n    <latest>1.0.0</latest>\n    <release>1.0.0</release>\n    <versions>\n      <version>1.0.0</version>\n    </versions>\n  </versioning>\n</metadata>\n";
+        var rootFound = false, jvmFound = false;
+        for (i in 0...files.length) {
+            if (files[i].path == "maven/dev/dana/engine/maven-metadata.xml") {
+                rootFound = true;
+                Test.equals(rootXml, files[i].content);
+            } else if (files[i].path == "maven/dev/dana/engine-jvm/maven-metadata.xml") {
+                jvmFound = true;
+                Test.equals(jvmXml, files[i].content);
+            } else if (files[i].path == "_redirects") {
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine/:version/engine-1.0.0.pom") >= 0, "root redirect");
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine-jvm/:version/engine-jvm-1.0.0.pom") >= 0, "jvm pom redirect");
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine-jvm/:version/engine-jvm-1.0.0.module") >= 0, "jvm module redirect");
+            }
+        }
+        Test.equals(true, rootFound);
+        Test.equals(true, jvmFound);
+    }
+
+    @:test("maven metadata without artifactId falls back to the package name")
+    public static function mavenSingleArtifactIdFallback():Void {
+        var records:Array<InputRecord> = [
+            {path: "dana/legacy/README.md", content: "Legacy package\n", inputRecord: 1},
+            {
+                path: "dana/legacy/1.0.0/maven/metadata.json",
+                content: '{"name":"legacy","version":"1.0.0","groupId":"dev.dana","license":"MIT","repository":"dana/legacy","tag":"v1.0.0","artifacts":[{"file":"legacy-1.0.0.pom","url":"https://example.test/legacy-1.0.0.pom"}]}',
+                inputRecord: 1
+            }
+        ];
+        var config:RegistryConfig = {
+            tree: "tree",
+            output: "site",
+            baseUrl: "https://registry.test",
+            swiftScope: "scope",
+            archiveBase: "https://archive.test",
+            configRecord: 1
+        };
+        var files:Array<OutputFile> = Core.generate(records, config);
+        var legacyXml = "<metadata>\n  <groupId>dev.dana</groupId>\n  <artifactId>legacy</artifactId>\n  <versioning>\n    <latest>1.0.0</latest>\n    <release>1.0.0</release>\n    <versions>\n      <version>1.0.0</version>\n    </versions>\n  </versioning>\n</metadata>\n";
+        var legacyFound = false;
+        for (i in 0...files.length) {
+            if (files[i].path == "maven/dev/dana/legacy/maven-metadata.xml") {
+                legacyFound = true;
+                Test.equals(legacyXml, files[i].content);
+            } else if (files[i].path == "_redirects")
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/legacy/:version/legacy-1.0.0.pom") >= 0, "legacy redirect");
+        }
+        Test.equals(true, legacyFound);
+    }
 }

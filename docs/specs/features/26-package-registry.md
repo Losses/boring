@@ -212,7 +212,15 @@ consumer.
    the one shape the universal rule of ruling 9 addresses, and the
    generator validates it; the `maven` file holds `groupId` and
    `artifacts`, one `{ "file", "url" }` object per file, with no
-   top-level `url`. The platform files of one version directory must
+   top-level `url`. An artifact object may add `artifactId`, the Maven
+   module the file belongs to, so one package directory carries one
+   Maven module per distinct `artifactId` under the one `groupId`: the
+   Kotlin Multiplatform root coordinate and its eight target modules
+   share a version directory this way. An object without the field
+   belongs to the metadata's own `name`, so a metadata written before
+   the field existed still declares one artifactId and remains valid.
+   An `artifactId` that is empty, `.`, `..`, or holds a slash stops the
+   generation. The platform files of one version directory must
    agree on `name`, `version`, and `license`; a disagreement stops
    the generation naming the files. Two repository directories
    claiming the same ecosystem, name, and version with equal digests
@@ -293,6 +301,12 @@ consumer.
    version directories' parent: `groupId`, `artifactId`, and
    `versioning` with `latest` (highest semver), `release` (highest
    semver without a prerelease), and `versions` in ascending semver.
+   One document is written per distinct `artifactId` of a package
+   directory, stored at `<groupPath>/<artifactId>/maven-metadata.xml`;
+   its `versions` list the versions of that package directory whose
+   artifacts carry that `artifactId`, and `latest` and `release` are
+   computed over those versions. A metadata that declares one
+   `artifactId` produces the same one document as before.
    No `lastUpdated` element is written: a release timestamp is no
    property of the committed metadata, and the document stays
    deterministic without it. The version files (jar, pom, both sha1) live as release
@@ -370,7 +384,7 @@ consumer.
    - One dynamic rule per Maven artifact:
 
      ```
-     /maven/<groupPath>/<name>/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
+     /maven/<groupPath>/<artifactId>/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
      ```
 
    The Cloudflare router matches a placeholder followed by a literal
@@ -462,8 +476,10 @@ consumer.
   rewrite rules in `_redirects`; the Swift metadata `checksum` that matches
   the zip bytes and the `Package.swift` file that equals the metadata
   text; the Pub document's `pubspec` and `archive_sha256`; the Maven
-  metadata version list; the `_headers` and `_redirects` content
-  equal to the expected bytes for the input set; and two runs
+  metadata version list; the Maven document of every `artifactId` a
+  multi-artifactId metadata declares, and the single document the old
+  single-artifactId shape produces; the `_headers` and `_redirects`
+  content equal to the expected bytes for the input set; and two runs
   producing byte-identical trees.
 - Consumer checks run against a localhost server that serves the site
   with the `_headers` rules applied and a `_redirects` matcher
@@ -492,7 +508,8 @@ consumer.
   unknown pubspec key, a non-semver version, an uppercase cargo name,
   a non-empty output directory, the missing Swift scope or archive
   base, a base or archive URL without an `http` or `https` scheme,
-  the identity digest conflict, and the rule caps (exercised through
+  an `artifactId` outside one path segment, the identity digest
+  conflict, and the rule caps (exercised through
   the counting function directly).
 - The tag fallback has one test: a fixture version whose committed
   artifact URLs deviate from the `v<version>` tag shape makes its
