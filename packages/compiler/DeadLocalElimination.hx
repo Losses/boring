@@ -20,11 +20,15 @@ import haxe.macro.Type.TypedExpr;
     outside the slice would be invisible here. The caller therefore opts in
     through `blockLines(..., scopeComplete: true)`.
 
-    A declaration that a later statement writes is kept even when it is never
-    read: the write names the variable, so dropping the declaration would leave
-    a write to a variable that no longer exists (dart reports a missing setter).
-    The write guard is deliberately conservative; removing the writes as well
-    would change more of the statement tree than the dead declaration alone.
+    A local that is written after its declaration and never read is dead with
+    its writes: a plain assignment to a local nothing reads has no effect of its
+    own. The declaration goes, and the write goes with it; a side-effecting
+    value survives as an expression statement, the same shape the TypeScript
+    target's dropDeadLocals uses. A write the emitter cannot rewrite (expression
+    position, or a closure body it may render as an expression) keeps the
+    declaration instead: dropping it would leave the write naming a variable
+    that no longer exists (dart reports a missing setter). The write guard is the
+    safe net; the rewrite is the case that removes the warning.
 
     A dead binding whose initializer may have effects keeps its evaluation as an
     expression statement: dart flags an unused local and ignores a bare
@@ -34,12 +38,22 @@ import haxe.macro.Type.TypedExpr;
 **/
 class DeadLocalElimination {
     /**
+        Locals whose declaration this pass dropped and whose later plain
+        assignments it must strip. The declaration's statement list is rendered
+        before the nested lists that hold its writes, and Haxe gives every local
+        a unique id, so one compilation-wide set is enough. The ablation define
+        never adds to it, which restores the dropped-declaration-only output.
+    **/
+    static final writeOnlyLocals:Map<Int, Bool> = [];
+
+    /**
         Returns `stmts` (a complete statement scope) without its unread local
         declarations. A declaration without an initializer is always kept: it is
         the definite-assignment form, and dropping it would leave later writes
         naming a variable that no longer exists. A declaration with an
-        initializer is kept for the same reason when a later statement writes
-        the variable.
+        initializer is dropped together with its later writes when every write
+        is a plain assignment this pass can rewrite; otherwise it is kept for the
+        same reason.
     **/
     public static function filterStmts(stmts:Array<TypedExpr>, ?keepDeclaration:TypedExpr->Bool):Array<TypedExpr> {
         if (stmts == null || stmts.length == 0)
@@ -48,6 +62,16 @@ class DeadLocalElimination {
         final out:Array<TypedExpr> = [];
         for (i in 0...stmts.length) {
             final stmt = stmts[i];
+            if (writeGuard) {
+                final write = writeOnlyAssignment(stmt);
+                if (write != null) {
+                    // A write to a dead local: drop the assignment and keep a
+                    // side-effecting value so its effect survives.
+                    if (!isSideEffectFree(write))
+                        out.push(write);
+                    continue;
+                }
+            }
             switch (stmt.expr) {
                 case TVar(v, init):
                     var reads = 0;
@@ -57,19 +81,23 @@ class DeadLocalElimination {
                         if (writeGuard)
                             writes += countWrites(stmts[j], v.id);
                     }
-                    if (init == null || reads > 0 || writes > 0) {
+                    if (init == null || reads > 0) {
                         out.push(stmt);
                         continue;
                     }
-                    if (isSideEffectFree(init))
-                        continue;
-                    // The binding is dead but the initializer may have effects:
-                    // keep the evaluation, drop the name.
-                    if (keepDeclaration != null && keepDeclaration(init)) {
+                    if (writes > 0 && !allWritesRewritable(stmts, i + 1, v.id)) {
                         out.push(stmt);
                         continue;
                     }
-                    out.push(init);
+                    if (!isSideEffectFree(init)) {
+                        if (keepDeclaration != null && keepDeclaration(init)) {
+                            out.push(stmt);
+                            continue;
+                        }
+                        out.push(init);
+                    }
+                    if (writes > 0)
+                        writeOnlyLocals.set(v.id, true);
                 case _:
                     out.push(stmt);
             }
@@ -78,12 +106,73 @@ class DeadLocalElimination {
     }
 
     /**
-        Whether the later-write guard applies. -D dart_dead_local_ablate=WriteGuard
-        disables it, which reproduces the dropped-declaration output for the
-        GP-ABLATE arm of the regression fixture.
+        Whether the later-write rewrite applies. -D dart_dead_local_ablate=WriteGuard
+        disables it, which leaves the declaration dropped and its writes in place
+        for the GP-ABLATE arm of the regression fixture.
     **/
     static function writeGuardEnabled():Bool {
         return Context.definedValue("dart_dead_local_ablate") != "WriteGuard";
+    }
+
+    /**
+        The value of a plain assignment to a dropped write-only local, or null.
+    **/
+    static function writeOnlyAssignment(stmt:TypedExpr):Null<TypedExpr> {
+        return switch (stripWrap(stmt).expr) {
+            case TBinop(OpAssign, t, val):
+                switch (stripWrap(t).expr) {
+                    case TLocal(v) if (writeOnlyLocals.exists(v.id) && countWrites(val, v.id) == 0):
+                        val;
+                    case _:
+                        null;
+                }
+            case _:
+                null;
+        }
+    }
+
+    /**
+        Whether every write to `id` after `from` is a plain assignment in
+        statement position, so the list that renders it can strip the write.
+    **/
+    static function allWritesRewritable(stmts:Array<TypedExpr>, from:Int, id:Int):Bool {
+        for (j in from...stmts.length)
+            if (!statementWritesRewritable(stmts[j], id))
+                return false;
+        return true;
+    }
+
+    /**
+        Whether the writes to `id` inside one statement are all plain
+        assignments in statement position. A write under a condition, an
+        argument, a return value or a closure body is not rewritable here.
+    **/
+    static function statementWritesRewritable(stmt:TypedExpr, id:Int):Bool {
+        if (stmt == null)
+            return true;
+        return switch (stripWrap(stmt).expr) {
+            case TBinop(OpAssign, t, val) if (isLocalTarget(t, id)):
+                countWrites(val, id) == 0;
+            case TBlock(stmts):
+                [for (s in stmts) if (!statementWritesRewritable(s, id)) false].length == 0;
+            case TIf(cond, eif, eelse):
+                countWrites(cond, id) == 0 && statementWritesRewritable(eif, id)
+                    && (eelse == null || statementWritesRewritable(eelse, id));
+            case TWhile(cond, body, _):
+                countWrites(cond, id) == 0 && statementWritesRewritable(body, id);
+            case TFor(_, it, body):
+                countWrites(it, id) == 0 && statementWritesRewritable(body, id);
+            case TSwitch(subject, cases, edef):
+                countWrites(subject, id) == 0
+                    && [for (c in cases) if (!([for (value in c.values) if (countWrites(value, id) > 0) false].length == 0
+                        && statementWritesRewritable(c.expr, id))) false].length == 0
+                    && (edef == null || statementWritesRewritable(edef, id));
+            case TTry(body, catches):
+                statementWritesRewritable(body, id)
+                    && [for (c in catches) if (!statementWritesRewritable(c.expr, id)) false].length == 0;
+            case _:
+                countWrites(stmt, id) == 0;
+        };
     }
 
     /**
@@ -150,9 +239,16 @@ class DeadLocalElimination {
     }
 
     static function isLocalTarget(t:TypedExpr, id:Int):Bool {
-        return switch (t.expr) {
+        return switch (stripWrap(t).expr) {
             case TLocal(v): v.id == id;
             case _: false;
+        };
+    }
+
+    static function stripWrap(e:TypedExpr):TypedExpr {
+        return switch (e.expr) {
+            case TMeta(_, inner) | TParenthesis(inner): stripWrap(inner);
+            case _: e;
         };
     }
 
