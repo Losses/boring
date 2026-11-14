@@ -235,6 +235,20 @@ The registry generator packs from release checkouts.
     the Kotlin directory carries the pom beside the jar. A registry
     that serves these artifacts needs no knowledge of the manifest
     fields beyond parsing the Maven layout it already serves.
+11. **The pack action writes the registry metadata.** A pack run with a
+    registry output directory, an owner, a repository and an asset base
+    writes the metadata file the registry generator consumes beside the
+    artifact: the package identity, the license, the repository, the
+    release tag, the artifact digest, and the ecosystem fields the
+    registry document needs. The digest is of the artifact bytes that
+    pack run wrote. The Maven metadata carries the group id and the
+    published file list, the Swift metadata carries the manifest text
+    and the archive path, the npm metadata carries the tarball
+    integrity, the cargo metadata carries the feature set the project
+    declares for the package, and the Pub metadata carries the parsed
+    pubspec. The asset base arrives as a command parameter because it
+    names where the caller publishes; spec 59 states the options and the
+    directory layout.
 
 ## Test hooks
 

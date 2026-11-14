@@ -9,6 +9,9 @@ import driver.Host.HostResult;
 /** Host entry for the driver package. Configuration and command arguments are
     computed by Config and Plan; this class executes target toolchains. */
 class Main {
+    /** Registry metadata parameters of one pack run; null when the pack writes no tree. */
+    static var packRegistry:Null<RegistryMetadata.PackRegistryConfig> = null;
+
     // ------------------------------------------------------------------
     // Host operations
     // ------------------------------------------------------------------
@@ -340,6 +343,9 @@ class Main {
                 if (afterFailure != null) exit(1);
             }
         }
+        if (pack && packRegistry != null) {
+            RegistryMetadata.emitAll(project, bundles, packRegistry);
+        }
     }
 
     static function actionTest(project:Project, bundles:Array<BundleSpec>):Array<BundleStepFailure> {
@@ -613,6 +619,10 @@ class Main {
         var withPack = false;
         var outputPath = "";
         var baseRev = "HEAD";
+        var registryOut = "";
+        var registryOwner = "";
+        var registryRepo = "";
+        var registryAssetBase = "";
         final rest:Array<String> = [];
         var i = 0;
         while (i < rawArgs.length) {
@@ -657,11 +667,55 @@ class Main {
                 i++;
                 continue;
             }
+            if (arg == "--registry-out") {
+                if (i + 1 >= rawArgs.length) fail("--registry-out needs a directory");
+                registryOut = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--registry-out=")) {
+                registryOut = arg.substr("--registry-out=".length);
+                i++;
+                continue;
+            }
+            if (arg == "--owner") {
+                if (i + 1 >= rawArgs.length) fail("--owner needs a name");
+                registryOwner = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--owner=")) {
+                registryOwner = arg.substr("--owner=".length);
+                i++;
+                continue;
+            }
+            if (arg == "--repo") {
+                if (i + 1 >= rawArgs.length) fail("--repo needs a name");
+                registryRepo = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--repo=")) {
+                registryRepo = arg.substr("--repo=".length);
+                i++;
+                continue;
+            }
+            if (arg == "--asset-base") {
+                if (i + 1 >= rawArgs.length) fail("--asset-base needs a URL");
+                registryAssetBase = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--asset-base=")) {
+                registryAssetBase = arg.substr("--asset-base=".length);
+                i++;
+                continue;
+            }
             rest.push(arg);
             i++;
         }
         if (rest.length == 0) {
-            printErr("Usage: boring <gen|test|pack|compare|verify|roots|gp-diff|gp-ablate> [<id>...] [--project <file>] [--with-pack] [--output <file>] [--base <rev>]");
+            printErr("Usage: boring <gen|test|pack|compare|verify|roots|gp-diff|gp-ablate> [<id>...] [--project <file>] [--with-pack] [--output <file>] [--base <rev>] [--registry-out <dir> --owner <name> --repo <name> --asset-base <url>]");
             exit(2);
             return;
         }
@@ -671,6 +725,16 @@ class Main {
         while (idIndex < rest.length) {
             ids.push(rest[idIndex]);
             idIndex++;
+        }
+        var registrySet = 0;
+        for (value in [registryOut, registryOwner, registryRepo, registryAssetBase]) {
+            if (value != "") registrySet++;
+        }
+        if (registrySet != 0 && registrySet != 4) {
+            fail("registry metadata needs --registry-out, --owner, --repo and --asset-base together");
+        }
+        if (registrySet == 4) {
+            packRegistry = {out: registryOut, owner: registryOwner, repo: registryRepo, assetBase: registryAssetBase};
         }
         final project = loadProject(projectPath);
         #if js

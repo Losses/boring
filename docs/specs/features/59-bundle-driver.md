@@ -188,15 +188,24 @@ reruns generation with packaging defines and runs `afterGen` when configured.
 An explicit request for a configuration without `package` fails before any
 generation starts. The compiler writes the target's distribution artifacts.
 
+With `--registry-out <dir> --owner <name> --repo <name> --asset-base <url>`
+every packed configuration also writes its registry metadata under
+`<dir>/<owner>/<registry name>/<version>/<platform>/metadata.json` and one
+README.md per registry-name directory. The four options are all-or-none.
+The asset base is the URL prefix the published archives are downloaded
+from, and the run writes it into every `url`, `archive` and Maven artifact
+URL without deriving it. `verify --with-pack` accepts the same options.
+
 `roots` takes one source-set name and `--output <file>`. It writes that set's
 package macros and module roots as an HXML include, replacing the requested
 file through a sibling temporary file. It does not add a configuration's
 `rootsFile` or run Haxe. The command is for direct HXML entry points that
 need the same source selection as `boring.json`.
 
-Paths in the project file and `--output` resolve from the directory containing
-`boring.json`. The CLI defaults to `./boring.json` and also accepts
-`--project <file>` or `--project=<file>`. Successful commands exit 0;
+Paths in the project file, `--output` and `--registry-out` resolve from the
+directory containing `boring.json`. The CLI defaults to `./boring.json` and
+also accepts `--project <file>` or `--project=<file>`. Successful commands
+exit 0;
 generation, execution, comparison, and configuration errors exit nonzero.
 
 ## Child execution evidence
