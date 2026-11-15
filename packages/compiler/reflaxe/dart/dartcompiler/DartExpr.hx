@@ -862,9 +862,20 @@ class DartExpr {
                 // after such a declaration reports no effect. Minimal probe:
                 // /tmp/warnstd/promo/t5.dart P1 (t9.dart P10: reassignment
                 // kills it, hence the mutated guard).
-                if (!mutated.exists(v.id) && !isNullLeafType(init.t)
-                    && !optionalValued(init) && !nullableValue(init)
-                    && !isNullLiteral(init))
+                // A local whose initializer Dart has already promoted (a
+                // null-guarded local read) is itself non-null from the
+                // declaration onward, even when the initializer's static
+                // type is nullable: a bare "final x = init" carries the
+                // promoted type even under a nullable annotation. The type
+                // test below cannot see that promotion, so a later read
+                // gained an "!" dart reports as having no effect
+                // (unnecessary_non_null_assertion).
+                // (DeclarationPromotionFromPromotedInit)
+                final initDartPromoted = flowPromotedLocal(init);
+                if (!mutated.exists(v.id)
+                    && (initDartPromoted
+                        || (!isNullLeafType(init.t) && !optionalValued(init)
+                            && !nullableValue(init) && !isNullLiteral(init))))
                     flowPromotedNonNull.set(v.id, true);
                 final kw = mutated.exists(v.id) ? "var" : "final";
                 final coalescing = coalescingSiteFor(init);

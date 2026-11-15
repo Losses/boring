@@ -12872,7 +12872,20 @@ class RustExpr {
                     return "(" + sStr + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
-                    return "(" + expr(args[0]) + ").contains(&" + expr(args[1]) + ")";
+                    // An Array<String> lowers to Vec<UString>, so slice::contains
+                    // takes &UString. A String argument renders as a borrowed
+                    // &UStr in parameter position; taking its address directly
+                    // supplies &UStr where the element slot wants &UString, and
+                    // rustc reports E0308 (expected &UString, found &&UStr).
+                    // Convert the argument to the owned UString first, as the
+                    // map-key and owned-String-slot boundaries already do, and
+                    // keep an argument that already renders owned unchanged.
+                    final element = arrayElementType(args[0].t);
+                    final argText = element != null && isStringType(element)
+                        && (isStringType(args[1].t) || isStringLiteral(args[1]))
+                        ? ownedStringSlotText(expr(args[1]))
+                        : expr(args[1]);
+                    return "(" + expr(args[0]) + ").contains(&" + argText + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Std" && name == "int") {
                     // An Int-typed argument converts nothing, except a
