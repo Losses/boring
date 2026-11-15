@@ -392,7 +392,7 @@ class ClassifierProbe {
 	static function mutableDestination():Type {
 		return switch (Context.getType("Array")) {
 			case TInst(c, _): TInst(c, [Context.getType("Int")]);
-			case other: throw "Array is not a class type: " + Std.string(other);
+			case other: throw new haxe.Exception("Array is not a class type: " + Std.string(other));
 		};
 	}
 
@@ -403,21 +403,21 @@ class ClassifierProbe {
 	static function readOnlyOf(element:Type):Type {
 		return switch (Context.getType("std.ReadOnlyArray")) {
 			case TAbstract(a, _): TAbstract(a, [element]);
-			case other: throw "std.ReadOnlyArray is not an abstract: " + Std.string(other);
+			case other: throw new haxe.Exception("std.ReadOnlyArray is not an abstract: " + Std.string(other));
 		};
 	}
 
 	static function nullOf(inner:Type):Type {
 		return switch (Context.getType("Null")) {
 			case TAbstract(a, _): TAbstract(a, [inner]);
-			case other: throw "Null is not an abstract: " + Std.string(other);
+			case other: throw new haxe.Exception("Null is not an abstract: " + Std.string(other));
 		};
 	}
 
 	static function classOf(path:String):ClassType {
 		return switch (Context.getType(path)) {
 			case TInst(c, _): c.get();
-			case other: throw path + " is not a class type: " + Std.string(other);
+			case other: throw new haxe.Exception(path + " is not a class type: " + Std.string(other));
 		};
 	}
 #end

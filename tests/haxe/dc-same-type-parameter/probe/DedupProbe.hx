@@ -94,7 +94,7 @@ class DedupProbe {
 	static function clsOf(path:String):ClassType {
 		return switch (Context.getType(path)) {
 			case TInst(reference, _): reference.get();
-			case other: throw "unexpected " + path;
+			case other: throw new haxe.Exception("unexpected " + path);
 		}
 	}
 }

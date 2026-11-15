@@ -79,12 +79,12 @@ class SourceObserver {
         // handle exists.
         final readOnlyType = Context.resolveType(macro :std.ReadOnlyArray<String>, Context.currentPos());
         cases.push({label: "synthetic-lazy", name: "lazyReadOnly", type: TLazy(function() return readOnlyType)});
-        cases.push({label: "synthetic-lazy-failure", name: "lazyFailure", type: TLazy(function() throw "synthetic resolution failure")});
+        cases.push({label: "synthetic-lazy-failure", name: "lazyFailure", type: TLazy(function() throw new haxe.Exception("synthetic resolution failure"))});
         cases.push({label: "synthetic-lazy-cycle", name: "lazyCycle", type: selfReference});
         cases.push({label: "synthetic-null", name: "nullInput", type: null});
         final nullType = Context.resolveType(macro :Null<Int>, Context.currentPos());
         final nullWithFailingInner = switch (nullType) {
-            case TAbstract(abstractRef, _): TAbstract(abstractRef, [TLazy(function() throw "synthetic inner failure")]);
+            case TAbstract(abstractRef, _): TAbstract(abstractRef, [TLazy(function() throw new haxe.Exception("synthetic inner failure"))]);
             case _: null;
         };
         if (nullWithFailingInner == null)

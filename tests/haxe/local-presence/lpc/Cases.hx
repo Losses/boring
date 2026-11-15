@@ -224,7 +224,7 @@ class Cases {
     public static function throwingArm(flag:Bool) {
         var s:Null<String> = load();
         if (flag) {
-            throw "no value";
+            throw new haxe.Exception("no value");
         } else {
             s = "d";
         }
@@ -414,7 +414,7 @@ class Cases {
         var f:Void->Void = null;
         if (flag) {
             f = function() {
-                throw "no value";
+                throw new haxe.Exception("no value");
             };
         }
         if (flag) {
