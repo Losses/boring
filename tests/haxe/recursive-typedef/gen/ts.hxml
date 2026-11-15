@@ -1,0 +1,14 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/recursive-typedef
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/recursive-typedef'])
+--macro tscompiler.Compiler.use()
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+probe.SelfRoot
+probe.MutualRoot
