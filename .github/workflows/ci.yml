@@ -62,6 +62,17 @@ jobs:
       # so it fails fast and no later step can skip it.
       - name: Documentation style check (independent of the generation chain)
         run: nix develop -c bash -c 'bun run check:docs'
+      # Compile smoke for the observational hxml entries under tests/haxe/. No
+      # gen:*/test:* script drives them, so a fixture that stops compiling (or
+      # stops rejecting) is invisible until a human runs it; the 2026-11 survey
+      # found three such drifts, one of them 1.5 months old. The smoke reads
+      # tests/haxe/fixtures.json, compiles every entry in parallel, and fails on
+      # a missing manifest entry. It needs only the Haxe compiler and a devShell
+      # (no generated trees, no target toolchains), so it runs before "Generate
+      # all targets" and fails fast. The same test file is also collected by
+      # "bun run test" in the collected-suite job.
+      - name: Haxe observation compile smoke (tests/haxe/**/*.hxml)
+        run: nix develop -c bash -c 'bun run test:haxe-smoke'
       - name: Generate all targets
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run warning:gate'
       - name: Emit invariants
