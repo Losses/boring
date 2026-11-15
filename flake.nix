@@ -199,8 +199,13 @@
               runHook preInstall
               mkdir -p "$out/bin" "$out/share/boring"
               cp out/driver/driver.js "$out/share/boring/driver.js"
+              # The Kotlin publication project ships with the driver: the
+              # driver's kmpPublication step runs it from this read-only store
+              # copy and redirects build and project-cache output elsewhere.
+              cp -a kotlin-publication "$out/share/boring/kotlin-publication"
               makeWrapper "${pkgs.bun}/bin/bun" "$out/bin/boring" \
-                --add-flags "$out/share/boring/driver.js"
+                --add-flags "$out/share/boring/driver.js" \
+                --set BORING_PUBLICATION_PROJECT "$out/share/boring/kotlin-publication"
               runHook postInstall
             '';
           };

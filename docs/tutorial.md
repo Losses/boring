@@ -973,6 +973,7 @@ Fields of a target configuration:
 | `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, run from the project root after generation, including generation by `pack`; `command` is required. |
 | `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, run by `pack` from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, and `{version}` is replaced by `package.version`. The driver empties the directory before the run and collects every Maven file under it, so the command writes exactly this bundle's publication set. `command` is required. |
+| `kmpPublication` | no | `true` runs the built-in Kotlin Multiplatform publication on `pack`. The `kotlin` target only, and mutually exclusive with `mavenPublication`. The step uses the publication project installed with the driver (`BORING_PUBLICATION_PROJECT`), fills `<outRoot>/<id>/maven` with `package.version`, and runs Gradle from a per-run copy under `<outRoot>/<id>/gradle`. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
@@ -1052,8 +1053,9 @@ file. The stock Haxe target uses the output paths in its roots HXML.
   `package-artifacts=emit`, plus
   `package-tsc=<executable>` on the `ts` target or
   `package-kotlinc=<executable>` on the `kotlin` target. A configuration
-  that declares `mavenPublication` passes `package-artifacts=none`, because
-  its publication command writes the Maven repository directory. The driver does not
+  that declares `mavenPublication` or `kmpPublication` passes
+  `package-artifacts=none`, because the publication step writes the Maven
+  repository directory. The driver does not
   infer a consumer's license from boring's own MIT license. Keep any
   `package-license` in a roots HXML consistent with `package.license` so
   direct generation and driver packaging report the same license.
@@ -1129,11 +1131,14 @@ and `package.version`; the compiler writes the distribution artifacts.
 The manifest carries the name of the bundle's own ecosystem: a `ts` bundle
 publishes `package.npmName` when it is declared, and `package.name`
 otherwise, and each other target reads its own field the same way.
-A configuration that declares `mavenPublication` passes
+A configuration that declares `kmpPublication` passes
 `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
-publication command with `{maven}` replaced by that directory and
-`{version}` replaced by `package.version`, so the project's build tool
-writes the Maven repository directory under the version the metadata states.
+publication project installed with the driver through
+`BORING_PUBLICATION_PROJECT`: `-PmavenDir` names that directory,
+`-PpublicationVersion` carries `package.version`, and the driver passes its own
+`gen` and `gen-tests` directories. Gradle runs from a per-run copy under
+`<outRoot>/<id>/gradle`, because Gradle 9 refuses a read-only project
+directory.
 
 Use `roots <sourceSet> --output <file>` to write the source set's package
 macros and module roots to an HXML include. This command does not run Haxe

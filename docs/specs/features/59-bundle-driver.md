@@ -51,6 +51,7 @@ A target configuration object:
 | `compare` | no | `false` to test a configuration without comparing its results to the baseline; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, a command run from the project root after generation, including generation performed by `pack`; `command` is required. |
 | `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, a command the `pack` action runs from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory; `{version}` is replaced by `package.version`. The command receives the version so its own publication version matches the registry metadata. The driver empties the directory before the run and collects every Maven file under it, so the command writes exactly this bundle's publication set. `command` is required. |
+| `kmpPublication` | no | `true` runs the built-in Kotlin Multiplatform publication on `pack`. The `kotlin` target only, and mutually exclusive with `mavenPublication`. The step fills the same `<outRoot>/<id>/maven` directory from the publication project that ships with the driver (`BORING_PUBLICATION_PROJECT`), with `package.version` as the publication version and the driver-derived `gen` and `gen-tests` directories as its source. Gradle runs from a per-run copy under `<outRoot>/<id>/gradle`, because Gradle 9 refuses a read-only project directory; the installed project is never written. |
 | `build` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's run step. |
 | `package` | no | `{ "name": "...", "version": "...", "license": "...", "npmName": "..." }`, the spec 24 and 25 identity. `name` and `version` are required for `pack`; `license` is optional and must be a nonempty string when present. The optional `npmName`, `cargoName`, `pubName` and `mavenName` fields override `name` for one ecosystem each. |
@@ -109,8 +110,8 @@ mechanism alone or both together. Boring's own `boring.json` currently uses
   `package-shell=emit`, `package-artifacts=emit`, and `package-tsc=<executable>` on the
   `ts` target or `package-kotlinc=<executable>` on the `kotlin` target, each
   resolved from the environment or from `PATH`. A configuration that
-  declares `mavenPublication` passes `package-shell=emit` and
-  `package-artifacts=none`, because its publication command writes the
+  declares `mavenPublication` or `kmpPublication` passes `package-shell=emit`
+  and `package-artifacts=none`, because the publication step writes the
   Maven repository directory. It does not infer a
   consumer's license from boring's own repository license. A roots HXML
   that sets `package-license` should agree with `package.license` to avoid
@@ -198,10 +199,14 @@ after comparison succeeds.
 
 `pack` takes one or more ids with `package.name` and `package.version`. It
 reruns generation with packaging defines and runs `afterGen` when configured.
-A configuration that declares `mavenPublication` passes
+A configuration that declares `kmpPublication` passes
 `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
-publication command from the project root with `{maven}` replaced by that
-directory. The project's build tool writes the Maven repository directory.
+publication project that ships with the driver (`BORING_PUBLICATION_PROJECT`)
+with `-PmavenDir` naming that directory, `-PpublicationVersion` from
+`package.version`, and the driver-derived `gen` and `gen-tests` directories.
+Gradle runs from a per-run copy under `<outRoot>/<id>/gradle` because it
+refuses a read-only project directory; the installed project and its store path
+stay unwritten.
 An explicit request for a configuration without `package` fails before any
 generation starts. The compiler writes the target's distribution artifacts.
 
