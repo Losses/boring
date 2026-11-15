@@ -908,6 +908,14 @@ class SwiftExpr {
                         return [indent(depth) + "return " + tryKw + retText];
                 }
             case TThrow(x):
+                // A Haxe throw whose value is the diagnostic text itself has no
+                // Error-conforming type in Swift. Wrap the text in the runtime
+                // exception class, mirroring the Kotlin string-throw lowering;
+                // every other throw operand is already Error-shaped.
+                if (isStringTyped(stripWrap(x))) {
+                    imports.runtime("BoringException");
+                    return [indent(depth) + "throw BoringException(message: String(decoding: " + expr(x) + ", as: UTF16.self))"];
+                }
                 return [indent(depth) + "throw " + expr(x)];
             case TBinop(OpAssign, target, value) if (isSwitch(value)):
                 return switchAssign(target, value, depth);
