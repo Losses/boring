@@ -1,5 +1,7 @@
+-lib boring
 -cp packages/driver/src
 -cp packages/registry/src
 -cp samples
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
 -main driver.Main
 -js out/driver/driver.js
