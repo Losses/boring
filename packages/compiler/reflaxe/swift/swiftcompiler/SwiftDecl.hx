@@ -361,7 +361,9 @@ class SwiftDecl {
                         "_ " + a.name + ": " + types.of(a.type);
                     }
                 ].join(", ");
-                "    " + (f.field.isPublic ? "public " : "private ") + "func " + name + "(" + args + ") -> " + ret + " {";
+                final stat = receiver ? "" : "static ";
+                final throws = SwiftFallibility.isThrowing(cls.module, cls.name, f.field.name, f.isStatic) ? " throws" : "";
+                "    " + (f.field.isPublic ? "public " : "private ") + stat + "func " + name + "(" + args + ")" + throws + " -> " + ret + " {";
             };
             lines.push("");
             lines.push(head);

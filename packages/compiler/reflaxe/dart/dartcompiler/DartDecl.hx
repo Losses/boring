@@ -516,7 +516,8 @@ class DartDecl {
                         types.of(a.type) + " " + a.name;
                     }
                 ].join(", ");
-                ret + " " + f.field.name + "(" + args + ")";
+                final stat = receiver ? "" : "static ";
+                stat + ret + " " + f.field.name + "(" + args + ")";
             };
             lines.push("");
             lines.push("  " + signature + " {");
