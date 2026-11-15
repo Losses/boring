@@ -27,14 +27,14 @@ describe("Kotlin public-API fidelity", () => {
     expect(kotlin).not.toContain("fun copy(");
   });
 
-  test("the value-class marker emits a JvmInline wrapper and the unmarked abstract keeps erasure", () => {
+  test("the value-type marker emits a JvmInline wrapper and the unmarked abstract keeps erasure", () => {
     const sourceRoot = fs.mkdtempSync(path.join(root, ".kotlin-fidelity-mutation-"));
     const output = path.join(sourceRoot, "out");
     try {
       fs.mkdirSync(path.join(sourceRoot, "mutation"), { recursive: true });
       fs.writeFileSync(path.join(sourceRoot, "mutation/MarkedId.hx"), `package mutation;
 
-@:valueClass
+@:valueType
 abstract MarkedId(String) {
     public static function of(value:String):MarkedId
         return cast(value, MarkedId);
