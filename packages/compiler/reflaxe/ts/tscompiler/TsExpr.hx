@@ -2095,13 +2095,17 @@ class TsExpr {
                 return rendered;
             case FEnum(en, ef):
                 final enumDef = en.get();
-                final enumLocal = imports.valueName(enumDef.module, enumDef.name);
                 if (isValueEnum(enumDef)) {
                     // Widen the const member to the full enum union so TS CFA
                     // cannot narrow a for-unrolled `const x: E = E.Member` to
                     // the single discriminant member (TS2339/TS2367, B1-B4).
+                    final enumLocal = imports.valueName(enumDef.module, enumDef.name);
                     return "(" + enumLocal + "." + ef.name + " as " + enumLocal + ")";
                 }
+                // A payload enum lowers to a type union with no runtime
+                // binding: the object literal is the value, and the enum name
+                // appears only as the cast type, so the reference is type-only.
+                final enumLocal = imports.typeName(enumDef.module, enumDef.name);
                 return "({ kind: \"" + ef.name + "\" } as " + enumLocal + ")";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
@@ -3186,7 +3190,10 @@ class TsExpr {
                 final cmpName = "compare" + cls.name;
                 return imports.valueName(cls.module, cmpName);
             case EnumKey(en):
-                imports.valueName(en.module, en.name);
+                // The emitted comparator compares discriminants only and never
+                // reads the enum name at runtime; record a type-only reference
+                // so the module stays imported without claiming a value binding.
+                imports.typeName(en.module, en.name);
                 "(a, b) => { if (a === b) return 0; " + [
                     for (ef in en.constructs)
                         "if (a.kind === \""
@@ -3211,10 +3218,12 @@ class TsExpr {
     }
 
     function enumConstruct(en:EnumType, ef:EnumField, args:Array<TypedExpr>):String {
-        final enumLocal = imports.valueName(en.module, en.name);
         if (isValueEnum(en)) {
-            return enumLocal + "." + ef.name;
+            return imports.valueName(en.module, en.name) + "." + ef.name;
         }
+        // A payload enum has no runtime binding; the constructed object
+        // literal is the value and the enum name is only the cast type.
+        final enumLocal = imports.typeName(en.module, en.name);
         final parts = ['kind: "${ef.name}"'];
         final names = payloadNames(ef);
         for (i in 0...args.length) {

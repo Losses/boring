@@ -186,6 +186,14 @@ Rules:
 - Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `reference/ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.
 - Kotlin `data class` gives record equality, copying, and destructuring; `value class` wraps its underlying representation without boxing outside nullable and generic positions.
+- A cross-module name read only in a type position binds with the TypeScript
+  inline `type` modifier (`import { type X } from "./X.ts"`). An interface,
+  typedef, and payload-enum union have a type face alone, so a plain binding of
+  one names a runtime export the target module never provides and Node ESM
+  rejects the import before the module body runs. A name read at runtime keeps
+  the plain binding; a class has a value face and a type face and accepts either
+  form. The read set is the emitter value/type registration (`TsImports.value`
+  and `TsImports.type`), which follows the typed AST.
 
 ## Test hooks
 

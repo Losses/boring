@@ -181,14 +181,18 @@ class TsDecl {
         final ifaceStr = ifaces.length > 0 ? " implements " + ifaces.join(", ") : "";
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         final depth = exceptionDepth(cls);
-        if (depth >= 2) {
-            // A deeper exception subclass extends its parent class, which
-            // this compilation already lowers; a cross-module parent needs
-            // its import recorded exactly like an interface reference.
+        var extendsClause = "";
+        if (depth == 1) {
+            extendsClause = " extends Error";
+        } else if (depth >= 2) {
+            // A deeper exception subclass extends its parent class at
+            // runtime, so the parent is a value reference: a type-only
+            // import would leave the extends clause reading a binding the
+            // target module never exports. valueName returns the same local
+            // spelling the import block renders under a collision alias.
             final parent = cls.superClass.t.get();
-            imports.type(parent.module, parent.name);
+            extendsClause = " extends " + imports.valueName(parent.module, parent.name);
         }
-        final extendsClause = depth == 1 ? " extends Error" : depth >= 2 ? " extends " + cls.superClass.t.get().name : "";
         lines.push('export class ${cls.name}$classParams' + extendsClause + ifaceStr + " {");
 
         var storageCount = 0;

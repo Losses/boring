@@ -123,8 +123,25 @@ class TsImports {
         return name + "_" + [for (part in moduleBase.split(".")) part.length + "_" + part].join("_");
     }
 
+    /**
+        Renders the named bindings of one module's import statement. A name
+        referenced only through a type position binds with the inline
+        `type` modifier, so the emitted tree erases it before the target
+        runtime resolves module exports: an interface or typedef has no
+        runtime binding, and a value import of one throws
+        "does not provide an export named" under Node ESM. A name also
+        referenced as a value stays a plain binding, because it is read at
+        runtime.
+    **/
     function importedNames(moduleBase:String, names:Array<String>):String {
-        return [for (name in names) name == localName(moduleBase, name) ? name : name + " as " + localName(moduleBase, name)].join(", ");
+        final types = typeNames.get(moduleBase);
+        final values = valueNames.get(moduleBase);
+        return [for (name in names) {
+            final local = localName(moduleBase, name);
+            final binding = name == local ? name : name + " as " + local;
+            final typeOnly = types != null && types.exists(name) && (values == null || !values.exists(name));
+            typeOnly ? "type " + binding : binding;
+        }].join(", ");
     }
 
     /**
