@@ -53,7 +53,16 @@ A target configuration object:
 | `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, a command the `pack` action runs from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory; `{version}` is replaced by `package.version`. The command receives the version so its own publication version matches the registry metadata. The driver empties the directory before the run and collects every Maven file under it, so the command writes exactly this bundle's publication set. `command` is required. |
 | `build` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's run step. |
-| `package` | no | `{ "name": "...", "version": "...", "license": "..." }`, the spec 24 and 25 identity. `name` and `version` are required for `pack`; `license` is optional and must be a nonempty string when present. |
+| `package` | no | `{ "name": "...", "version": "...", "license": "...", "npmName": "..." }`, the spec 24 and 25 identity. `name` and `version` are required for `pack`; `license` is optional and must be a nonempty string when present. The optional `npmName`, `cargoName`, `pubName` and `mavenName` fields override `name` for one ecosystem each. |
+
+The four ecosystem fields exist because one name cannot serve every
+registry. npm accepts a scoped `@scope/name`; cargo rejects `@`; pub
+accepts only lower-case letters, digits and underscores; a Maven
+coordinate holds neither `@` nor `/`. A bundle reads the field that
+matches its own target (`ts` reads `npmName`, `rust` reads `cargoName`,
+`dart` reads `pubName`, `kotlin` reads `mavenName`), falls back to `name`
+when that field is absent, and leaves the other fields inert. `swift` has
+no override: SwiftPM takes the artifact stem the pack run already derives.
 
 A project file that carries an unknown field stops the run and names the
 field. A silent ignore turns a misspelled override into a step that appears
@@ -95,8 +104,8 @@ mechanism alone or both together. Boring's own `boring.json` currently uses
   the target's runtime defines at their documented defaults, overridable
   through `haxeArgs`.
 - **Manifest and artifact defines.** On `pack`, the driver passes
-  `package-name` and `package-version` from `package`, plus
-  `package-license` when `package.license` is present. It also passes
+  `package-name` (the name of the bundle's own ecosystem), `package-version`
+  from `package`, plus `package-license` when `package.license` is present. It also passes
   `package-shell=emit`, `package-artifacts=emit`, and `package-tsc=<executable>` on the
   `ts` target or `package-kotlinc=<executable>` on the `kotlin` target, each
   resolved from the environment or from `PATH`. A configuration that

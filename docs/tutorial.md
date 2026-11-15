@@ -977,7 +977,7 @@ Fields of a target configuration:
 | `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, added to the recipe's run step. |
-| `package` | no | `{ "name": "...", "version": "...", "license": "..." }`, the `features/24` and `features/25` identity. `name` and `version` are required for `pack`; optional `license` must be a nonempty string. |
+| `package` | no | `{ "name": "...", "version": "...", "license": "...", "npmName": "..." }`, the `features/24` and `features/25` identity. `name` and `version` are required for `pack`; optional `license` must be a nonempty string. The optional `npmName`, `cargoName`, `pubName` and `mavenName` fields override `name` for one ecosystem each. |
 
 For example, `"sourceSets": { "tests": { "types": ["app.Main"],
 "discover": [{ "root": "src", "packages": ["app.tests"], "suffix":
@@ -1047,8 +1047,8 @@ file. The stock Haxe target uses the output paths in its roots HXML.
   overridable through `haxeArgs`. The configuration's `id` picks the output
   directory, so the id takes part in every derived define.
 - **Manifest and artifact defines.** On `pack`, the driver passes
-  `package-name`, `package-version`, and optional `package-license` from
-  `package`. It also passes `package-shell=emit` and
+  `package-name` (the name of the bundle's own ecosystem), `package-version`,
+  and optional `package-license` from `package`. It also passes `package-shell=emit` and
   `package-artifacts=emit`, plus
   `package-tsc=<executable>` on the `ts` target or
   `package-kotlinc=<executable>` on the `kotlin` target. A configuration
@@ -1126,6 +1126,9 @@ after comparison succeeds.
 Use `pack <id>` to rerun Haxe generation with package defines. It also runs
 `afterGen` when configured. The configuration must declare `package.name`
 and `package.version`; the compiler writes the distribution artifacts.
+The manifest carries the name of the bundle's own ecosystem: a `ts` bundle
+publishes `package.npmName` when it is declared, and `package.name`
+otherwise, and each other target reads its own field the same way.
 A configuration that declares `mavenPublication` passes
 `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
 publication command with `{maven}` replaced by that directory and

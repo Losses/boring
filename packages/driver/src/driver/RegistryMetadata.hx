@@ -50,7 +50,12 @@ class RegistryMetadata {
         final artifactDir = Host.resolve(project.root, project.outRoot + "/" + bundle.id);
         final version = bundle.packageVersion;
         final name = platform == "maven" || platform == "swift" ? stem : bundle.packageName;
-        final dirName = platform == "pub" ? name.split("-").join("_") : name;
+        // One tree directory segment per package. The npm client asks for
+        // the scope separator encoded, so the directory encodes it too and
+        // the scoped name stays in the metadata "name" field.
+        final dirName = platform == "pub" ? name.split("-").join("_")
+            : platform == "npm" ? name.split("/").join("%2f")
+            : name;
         final fields:Array<RegistryField> = [
             {key: "name", value: VText(platform == "pub" ? dirName : name)},
             {key: "version", value: VText(version)},
@@ -70,7 +75,12 @@ class RegistryMetadata {
             final artifacts = [for (entry in files) mavenArtifact(entry, config.assetBase)];
             fields.push({key: "artifacts", value: VList(artifacts)});
         } else {
-            final prefix = platform == "pub" ? stem.split("-").join("_") : stem;
+            // The artifact file repeats the compiler's own stem rewrite:
+            // the npm writer replaces "/" with "-", the pub writer writes
+            // the hyphenless name.
+            final prefix = platform == "pub" ? stem.split("-").join("_")
+                : platform == "npm" ? stem.split("/").join("-")
+                : stem;
             var suffix = "";
             if (platform == "cargo") {
                 suffix = ".crate";

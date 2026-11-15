@@ -277,3 +277,54 @@ test("a single-artifactId Gradle directory keeps the alpha07 registry shape", as
   }
   expect(packedFiles).toContain(join("maven", name, name, "maven-metadata.xml"));
 }, 300_000);
+
+
+/**
+ * A scoped npm package name (feature spec 59): the metadata name keeps the
+ * scope, the tree directory encodes the scope separator so it stays one
+ * path segment, and the artifact file repeats the compiler's own stem
+ * rewrite. The generated npm document carries the scoped name the client
+ * asks for.
+ */
+test("a scoped npm name keeps the scope in metadata and encodes the tree directory", async () => {
+  const current = fixture({
+    id: "reference",
+    target: "ts",
+    package: { name: "tiqian-protocol", version: VERSION, license: "MPL-2.0", npmName: "@tiqian/protocol" },
+  });
+  const bin = join(current.dir, "bin");
+  const archiveName = "@tiqian-protocol-" + VERSION + ".tgz";
+  // The compiler writes the npm tarball beside the output tree; this stub
+  // writes the file the compiler would, from the output directory the
+  // driver passes.
+  writeFile(join(bin, "haxe"), [
+    "#!/usr/bin/env bun",
+    'import { mkdirSync, writeFileSync } from "node:fs";',
+    'import { dirname, join } from "node:path";',
+    "const args = process.argv.slice(2);",
+    'const output = args.find((arg) => arg.startsWith("ts-output="))?.slice("ts-output=".length);',
+    "if (output) {",
+    "  const parent = dirname(output);",
+    "  mkdirSync(parent, { recursive: true });",
+    '  writeFileSync(join(parent, ' + JSON.stringify(archiveName) + '), Buffer.from("fake npm archive"));',
+    "}",
+    "",
+  ].join("\n"));
+  writeFile(join(bin, "tsc"), "#!/bin/sh\nexit 0\n");
+  chmodSync(join(bin, "haxe"), 0o755);
+  chmodSync(join(bin, "tsc"), 0o755);
+
+  const packed = pack(current, "tiqian-cjk", "tiqian");
+  expect(packed.code, packed.output).toBe(0);
+  const metadata = JSON.parse(readFileSync(join(
+    current.dir, "registry-out", "tiqian-cjk", "@tiqian%2fprotocol", VERSION, "npm", "metadata.json"), "utf8"));
+  expect(metadata.name).toBe("@tiqian/protocol");
+  expect(metadata.url).toBe(ASSET_BASE + "/" + archiveName);
+
+  const site = join(current.dir, "site");
+  const generated = generateRegistry(join(current.dir, "registry-out"), site);
+  expect(generated.code, generated.output).toBe(0);
+  const document = JSON.parse(readFileSync(join(site, "npm", "@tiqian%2fprotocol"), "utf8"));
+  expect(document.name).toBe("@tiqian/protocol");
+  expect(document["dist-tags"].latest).toBe(VERSION);
+}, 300_000);

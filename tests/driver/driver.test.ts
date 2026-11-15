@@ -314,3 +314,41 @@ test("verify continues after a bundle test failure, aggregates and runs remainin
   const otherResults = join(dir, "results", "other.jsonl");
   expect(readFileSync(otherResults, "utf8")).toContain('"verdict":"pass"');
 });
+
+
+test("pack passes the package name of the bundle's own ecosystem", () => {
+  const { dir, file } = fixture({ bundles: [
+    { id: "reference", target: "ts", package: { name: "tiqian-engine", version: "1.0.0", npmName: "@tiqian/engine" } },
+    { id: "shared", target: "ts", package: { name: "tiqian-shared", version: "1.0.0" } },
+    { id: "protocol-rust", target: "rust", package: { name: "tiqian-protocol", version: "1.0.0", cargoName: "tiqian_protocol_crate" } },
+    { id: "protocol-dart", target: "dart", package: { name: "tiqian-protocol", version: "1.0.0", pubName: "tiqian_protocol_pkg" } },
+    { id: "protocol-kotlin", target: "kotlin", mavenPublication: { command: process.execPath, args: ["-e", ""] },
+      package: { name: "tiqian-protocol", version: "1.0.0", mavenName: "tiqian-protocol-maven" } },
+  ] });
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "haxe"), '#!/bin/sh\nprintf "%s\\n" "$@" >> "$BORING_ARG_LOG"\n');
+  writeFileSync(join(bin, "tsc"), "#!/bin/sh\nexit 0\n");
+  chmodSync(join(bin, "haxe"), 0o755);
+  chmodSync(join(bin, "tsc"), 0o755);
+  const argLog = join(dir, "haxe-args.txt");
+  const result = run(file, ["pack", "reference", "shared", "protocol-rust", "protocol-dart", "protocol-kotlin"],
+    { PATH: bin + ":" + process.env.PATH, BORING_ARG_LOG: argLog });
+  expect(result.code, result.output).toBe(0);
+  const args = readFileSync(argLog, "utf8").split("\n");
+  expect(args).toContain("package-name=@tiqian/engine");
+  expect(args).toContain("package-name=tiqian-shared");
+  expect(args).toContain("package-name=tiqian_protocol_crate");
+  expect(args).toContain("package-name=tiqian_protocol_pkg");
+  expect(args).toContain("package-name=tiqian-protocol-maven");
+  expect(args).not.toContain("package-name=tiqian-protocol");
+});
+
+test("an empty ecosystem package name is rejected", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", package: { name: "demo", version: "1.0.0", npmName: "" } },
+  ] });
+  const result = run(file, ["compare"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('field "npmName" must not be empty');
+});

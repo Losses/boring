@@ -1,0 +1,22 @@
+// The scoped npm package-name fixture (feature spec 59): one ts bundle whose
+// ecosystem name carries the npm scope while the shared name stays the
+// unscoped form the other ecosystems accept.
+{
+  "outRoot": "out",
+  "resultsDir": "out/test-results",
+  "baseline": "npm",
+  "sourceRoots": ["src"],
+  "bundles": [
+    {
+      "id": "npm",
+      "target": "ts",
+      "rootsFile": "targets/ts.hxml",
+      "package": {
+        "name": "tiqian-protocol",
+        "npmName": "@tiqian/protocol",
+        "version": "0.1.0",
+        "license": "MPL-2.0"
+      }
+    }
+  ]
+}

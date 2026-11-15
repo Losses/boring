@@ -13,7 +13,7 @@ class Config {
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env", "cargoArgs"];
     static final COMMAND_FIELDS = ["command", "args", "env"];
-    static final PACKAGE_FIELDS = ["name", "version", "license"];
+    static final PACKAGE_FIELDS = ["name", "version", "license", "npmName", "cargoName", "pubName", "mavenName"];
     static final TARGETS = ["haxe", "ts", "kotlin", "rust", "swift", "dart"];
 
     static function fail(message:String):Void {
@@ -118,6 +118,37 @@ class Config {
             return null;
         }
         return text;
+    }
+
+    /**
+        One optional ecosystem package-name override. An absent field reads
+        as the empty string, which selects the shared `name`; a present
+        field must name the package of that ecosystem.
+    **/
+    static function packageOverride(fields:Array<JsonField>, name:String, where:String):String {
+        final value = optionalString(fields, name, where);
+        if (value == null) return "";
+        if (value == "") fail('$where: field "$name" must not be empty');
+        return value;
+    }
+
+    /**
+        The package name one bundle's target publishes under. The shared
+        `name` is the default every ecosystem accepts; a target whose
+        ecosystem accepts a name the shared field cannot carry states it in
+        its own field. npm accepts an `@scope/name`, cargo rejects `@` and
+        upper-case letters, pub accepts only lower-case letters, digits and
+        underscores, and a Maven coordinate holds neither `@` nor `/`. Each
+        target reads the field of its own ecosystem; the others stay inert,
+        so one package block serves every target of a package.
+    **/
+    static function ecosystemName(target:String, name:String, npmName:String, cargoName:String,
+            pubName:String, mavenName:String):String {
+        if (target == "ts" && npmName != "") return npmName;
+        if (target == "rust" && cargoName != "") return cargoName;
+        if (target == "dart" && pubName != "") return pubName;
+        if (target == "kotlin" && mavenName != "") return mavenName;
+        return name;
     }
 
     static function strings(fields:Array<JsonField>, name:String, where:String):Array<String> {
@@ -316,13 +347,19 @@ class Config {
             var packageLicense = "";
             if (has(values, "package")) {
                 final packageFields = fieldsOf(field(values, "package"), 'boring.json: bundle "$id": package');
-                checkFields(packageFields, PACKAGE_FIELDS, 'boring.json: bundle "$id": package');
-                packageName = requiredString(packageFields, "name", 'boring.json: bundle "$id": package');
-                packageVersion = requiredString(packageFields, "version", 'boring.json: bundle "$id": package');
+                final packageWhere = 'boring.json: bundle "$id": package';
+                checkFields(packageFields, PACKAGE_FIELDS, packageWhere);
+                final baseName = requiredString(packageFields, "name", packageWhere);
+                packageVersion = requiredString(packageFields, "version", packageWhere);
                 if (has(packageFields, "license")) {
-                    packageLicense = requiredString(packageFields, "license", 'boring.json: bundle "$id": package');
+                    packageLicense = requiredString(packageFields, "license", packageWhere);
                     if (packageLicense == "") fail('boring.json: bundle "$id": package license must not be empty');
                 }
+                packageName = ecosystemName(target, baseName,
+                    packageOverride(packageFields, "npmName", packageWhere),
+                    packageOverride(packageFields, "cargoName", packageWhere),
+                    packageOverride(packageFields, "pubName", packageWhere),
+                    packageOverride(packageFields, "mavenName", packageWhere));
                 if (packageName == "" || packageVersion == "") {
                     fail('boring.json: bundle "$id": package name and version must not be empty');
                 }
