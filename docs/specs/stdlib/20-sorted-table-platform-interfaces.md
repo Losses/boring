@@ -144,7 +144,7 @@ only:
 - `KotlinDecl.hx` adds `Map<K, V>` or `Set<K>` to the class header and
   renames the backing arrays to `_keys` and `_values`.
 - The `size` member renders as `override val size: Int get()`; every
-  call site renders `.size`.
+  generated call site renders `.size`.
 - The map `get` renders as an override; `has`, `keyAt`, `valueAt`, and
   `at` stay as extra members.
 - `keys`, `values`, and `entries` are read-only views over the backing
@@ -251,12 +251,13 @@ Measured on the tree `tiqian/engine-haxe/out/kotlin-f64/gen`:
   with `runtime/`; 54 in `gen-tests`; 172 lines carry the token overall.
   The quoted 89 signature positions sit in this bucket; the tree is
   regenerated per pin, so the count moves by a few between revisions.
-- B keeps those signatures and adds the interface as a supertype, so no
-  tiqian source changes and no regeneration of the call sites is forced
-  beyond the normal repin. The member call sites (the measured `.has(`
-  111, `.size()` 108, `.at(` 45, `.keyAt(` 19, `.valueAt(` 19) keep
-  working: the table members stay, and the emitter renders the table
-  `size` as `.size`.
+- B keeps those signatures and adds the interface as a supertype, so the
+  generated call sites need no hand edit: the table members stay, and
+  the emitter renders the table `size` call sites as `.size`. The
+  measured generated call sites are `.has(` 111, `.size()` 108, `.at(`
+  45, `.keyAt(` 19, `.valueAt(` 19. Hand-written Kotlin is not
+  regenerated, so its `size()` calls stop compiling; the tiqian tree
+  held two, and they are counted under the cost of the ruling.
 - The consumer side gains the assignment: the platform facade can take
   `Map`/`Set` and receive a table with no conversion and no copy.
 - Verification: regenerate and compile the boring reference tree, the
@@ -295,6 +296,25 @@ Measured on the tree `tiqian/engine-haxe/out/kotlin-f64/gen`:
   `SortedSetTable<K>`; the interface is a supertype, and the spelling
   stays the table name. The tiqian tree holds 84 such positions under
   `org/` today.
+- The `size` member is a property, so a hand-written Kotlin caller that
+  writes `table.size()` stops compiling. The emitted class cannot keep
+  `fun size(): Int`: Kotlin's `Map` is a mapped type over
+  `java.util.Map`, whose `size` is the method `size()I`, and a Kotlin
+  property that overrides it emits the same `size()I`. A function beside
+  that property collides on the signature, which is conflict 2 above;
+  removing the property to keep the function leaves the interface
+  unimplemented, because a function does not satisfy an interface
+  property. The emitted member is `override val size: Int`, and the
+  emitter rewrites every generated call site to `.size`
+  (`KotlinExpr.hx:6036-6037`). Hand-written Kotlin is outside that
+  rewrite: a direct call reports that the `Int` from `size` cannot be
+  invoked as a function, and a callable reference `table::size` yields a
+  `KProperty0<Int>`, which a parameter of type `() -> Int` no longer
+  accepts. A Java caller keeps `size()`, because the property overrides
+  the Java method, and the four other targets keep the function. The
+  tiqian tree held two such call sites,
+  `TiqianAndroidFontBackend.kt:849` and `:852`; both read `size` after
+  the repin.
 - The view properties allocate one small object per table property
   (`keys`, `values`, `entries`); the set allocates its iterator per
   walk. No element array is copied.
@@ -319,9 +339,10 @@ and Dart rulings at lines 154-179:
 > The public Kotlin types are `SortedMapTable<K, V>` and
 > `SortedSetTable<K>`, which implement `kotlin.collections.Map` and
 > `Set`. A table is assignable to the interface at a boundary with no
-> conversion and no element copy. The ordered index members `size`,
-> `has`, `keyAt`, `valueAt`, and `at` remain part of the API; the
-> backing arrays are the ruled parallel arrays.
+> conversion and no element copy. The members `size`, `has`, `keyAt`,
+> `valueAt`, and `at` remain part of the API; `size` is the interface
+> property, and hand-written Kotlin reads `size` where the earlier shape
+> took `size()`. The backing arrays are the ruled parallel arrays.
 
 This specification stays as the record of the candidates, the three
 `kotlinc` reproductions, the five-target impact, and the tiqian count.
