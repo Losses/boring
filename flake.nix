@@ -142,14 +142,47 @@
       packages = forAllSystems (
         pkgs:
         let
+          # The driver compiles against the dev haxelib views ("reflaxe",
+          # "boring") and the pinned libraries the checkout declares
+          # ("format", plus the "formatter" reflaxe depends on). A Nix build
+          # has neither the devShell shellHook nor a populated user haxelib
+          # repo, and the Linux build sandbox has no network, so the pinned
+          # library archives are fetched as fixed-output derivations and
+          # registered with "haxelib dev"; the build sandbox has no network
+          # for "haxelib install". Without this setup the derivation only ever
+          # resolved as a store cache hit; the first rebuild after a source
+          # change stopped at haxelib's first-run setup prompt.
+          haxelibFormat = pkgs.fetchurl {
+            url = "https://lib.haxe.org/files/3.0/format-3,8,0.zip";
+            hash = "sha256-6jpnJe5wfVSWVVDVMxyLHqtcVIw1s2gGIvsP+hW1Cf0=";
+          };
+          haxelibFormatter = pkgs.fetchurl {
+            url = "https://lib.haxe.org/files/3.0/formatter-1,18,0.zip";
+            hash = "sha256-LSnJtW5UsmQ+B+5kADw/wwpbwTO9y0zBXEjwms2noEc=";
+          };
           driver = pkgs.stdenvNoCC.mkDerivation {
             pname = "boring-driver";
             version = "0.0.1";
             src = self;
-            nativeBuildInputs = [ pkgs.haxe pkgs.makeWrapper ];
+            nativeBuildInputs = [ pkgs.haxe pkgs.makeWrapper pkgs.unzip ];
             dontConfigure = true;
             buildPhase = ''
               runHook preBuild
+              export HAXELIB_PATH="$TMPDIR/.haxelib"
+              export HOME="$TMPDIR/home"
+              mkdir -p "$HAXELIB_PATH" "$HOME"
+              haxelib setup "$HAXELIB_PATH"
+              haxelib dev reflaxe "${reflaxe}" >/dev/null
+              # Point "boring" at the unpacked writable source root, not
+              # "$src": the compiler's ledger macro resolves the repository
+              # root through the class path and writes "$root/out", which the
+              # read-only store path cannot accept.
+              haxelib dev boring "$PWD" >/dev/null
+              mkdir -p "$TMPDIR/libs/format" "$TMPDIR/libs/formatter"
+              unzip -q "${haxelibFormat}" -d "$TMPDIR/libs/format"
+              unzip -q "${haxelibFormatter}" -d "$TMPDIR/libs/formatter"
+              haxelib dev format "$(dirname "$(find "$TMPDIR/libs/format" -name haxelib.json -print -quit)")" >/dev/null
+              haxelib dev formatter "$(dirname "$(find "$TMPDIR/libs/formatter" -name haxelib.json -print -quit)")" >/dev/null
               mkdir -p out/driver
               haxe packages/driver/driver.hxml
               runHook postBuild
