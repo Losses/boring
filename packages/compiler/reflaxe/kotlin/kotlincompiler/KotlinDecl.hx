@@ -356,6 +356,15 @@ class KotlinDecl {
                 lines.push(l);
         }
 
+        // The resident runtime is one source shared by every target, so it
+        // keeps the shape the other targets see.
+        if (!isDataClass && !RuntimeResidents.isResident(cls.module) && constructorFunc != null && constructorFunc.args.length > 0
+            && recordShapeCtor(constructorFunc, varFields) && !declaresCopyMember(instanceFuncs, varFields)) {
+            lines.push("");
+            for (l in recordCopyDecl(cls, constructorFunc, classParams, varFields))
+                lines.push(l);
+        }
+
         if (staticVars.length > 0 || staticFuncs.length > 0 || staticFunctionVars.length > 0) {
             if (instanceFuncs.length > 0 || remainingVars.length > 0)
                 lines.push("");
@@ -529,10 +538,13 @@ class KotlinDecl {
         final abs = info.abstractType;
         final ctor = ValueTypeSupport.constructorField(abs);
         final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
-        if (first == null) {
+        if (ctor != null && first == null) {
             Context.error("value type constructor must take its representation", cls.pos);
         }
-        final fieldName = first.name;
+        // An abstract may declare no constructor and build its values through
+        // a static factory instead; the wrapper still stores one
+        // representation field, and representationFieldName names it.
+        final fieldName = first != null ? first.name : ValueTypeSupport.representationFieldName(abs);
         final representation = types.of(info.representation);
         // features/02-abstract-types.md:197 rules the Kotlin representation:
         // "@JvmInline value class Name(val field: Rep)" with the declared
@@ -554,12 +566,23 @@ class KotlinDecl {
             lines.push("    }");
         }
 
+        final companionFuncs:Array<ClassFuncData> = [];
         for (f in funcFields) {
             if (f.field.name == "_new" || (ValueTypeSupport.isInlineHelper(f.field) && ValueTypeSupport.operatorOf(abs, f.field) == null))
                 continue;
             final op = ValueTypeSupport.operatorOf(abs, f.field);
             final isOperator = op != null;
             final receiver = ValueTypeSupport.hasReceiver(f.field);
+            // A static factory of the wrapper belongs on the companion: it
+            // takes no representation receiver, and a Kotlin value class
+            // reaches it there. An abstract's instance members are statics
+            // of its implementation class and carry the hidden this receiver;
+            // operator statics stay instance members because Kotlin
+            // dispatches them on the receiver.
+            if (f.isStatic && !isOperator && !receiver) {
+                companionFuncs.push(f);
+                continue;
+            }
             final start = isOperator ? (switch (op) {
                 case Binary(_): 1;
                 case Unary(_): f.args.length;
@@ -584,7 +607,7 @@ class KotlinDecl {
         }
 
         final staticVars = [for (v in varFields) if (v.isStatic) v];
-        if (staticVars.length > 0) {
+        if (staticVars.length > 0 || companionFuncs.length > 0) {
             lines.push("");
             lines.push("    companion object {");
             for (i in 0...staticVars.length) {
@@ -592,9 +615,19 @@ class KotlinDecl {
                 final initializer = v.field.expr();
                 if (initializer == null)
                     Context.error("value type static field must have an initializer", v.field.pos);
-                final initText = expr.rawExpression(initializer);
-                final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
+                // A bare representation literal reaches the renderer as a cast
+                // into the wrapper, so unwrap before rendering the literal and
+                // wrap it exactly once here.
+                final initText = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation)
+                    ? info.name + "(" + expr.rawExpression(ValueTypeSupport.unwrapDecorations(initializer)) + ")"
+                    : expr.rawExpression(initializer);
+                final val = initText;
                 lines.push("        " + (v.field.isPublic ? "" : "private ") + "val " + v.field.name + ": " + info.name + " = " + val);
+            }
+            for (f in companionFuncs) {
+                lines.push("");
+                for (l in funcDecl(cls, f, true))
+                    lines.push("    " + l);
             }
             lines.push("    }");
         }
@@ -952,10 +985,14 @@ class KotlinDecl {
         return PolicyQueries.collectTypeParamsInto(t, skip, found);
     }
 
-    function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
+    /**
+        The Kotlin type a parameter renders with: a registered default keeps
+        the nullable form when it can be null, and an explicit override pins
+        the stored field's type across a nullable boundary parameter.
+    **/
+    function parameterKotlinType(cls:ClassType, fieldName:String, a:ClassFuncArg, ?typeOverride:Null<Type>):Type {
         final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
         var parameterType = typeOverride != null ? typeOverride : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
-        final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
         if (registered != null && !isNullType(parameterType)) {
             switch (registered) {
                 case VNull:
@@ -965,8 +1002,14 @@ class KotlinDecl {
                 case _:
             }
         }
+        return parameterType;
+    }
+
+    function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
+        final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
+        final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
         final renderedName = a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name);
-        return renderedName + ": " + types.of(parameterType) + defaultText;
+        return renderedName + ": " + types.of(parameterKotlinType(cls, fieldName, a, typeOverride)) + defaultText;
     }
 
     /**
@@ -1055,6 +1098,65 @@ class KotlinDecl {
             params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
         return "(" + params.join(", ") + ")";
+    }
+
+    /**
+        Whether every primary-constructor parameter names a stored instance
+        field: the shape whose copy reconstructs the whole state, which is
+        what the Kotlin data class supplies.
+    **/
+    static function recordShapeCtor(ctor:ClassFuncData, varFields:Array<ClassVarData>):Bool {
+        for (a in ctor.args) {
+            var found = false;
+            for (v in varFields) {
+                if (!v.isStatic && v.field.name == a.name) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                return false;
+        }
+        return true;
+    }
+
+    static function declaresCopyMember(instanceFuncs:Array<ClassFuncData>, varFields:Array<ClassVarData>):Bool {
+        for (f in instanceFuncs)
+            if (f.field.name == "copy")
+                return true;
+        for (v in varFields)
+            if (!v.isStatic && v.field.name == "copy")
+                return true;
+        return false;
+    }
+
+    /**
+        The rewritten copy of a generated record: one defaulted parameter
+        per primary-constructor parameter, each defaulting to the receiver's
+        own field, and a reconstruction through the same constructor. The
+        Kotlin data class supplies this for data-class records; an ordinary
+        record needs it emitted so a consumer can derive a changed value
+        without restating every field.
+    **/
+    function recordCopyDecl(cls:ClassType, ctor:ClassFuncData, classParams:String, varFields:Array<ClassVarData>):Array<String> {
+        final params:Array<String> = [];
+        final args:Array<String> = [];
+        for (a in ctor.args) {
+            var fieldType:Null<Type> = null;
+            for (v in varFields) {
+                if (!v.isStatic && v.field.name == a.name) {
+                    fieldType = v.field.type;
+                    break;
+                }
+            }
+            final boundary = fieldType != null && !isNullType(fieldType) && isNullType(a.type)
+                && DefaultArgExpander.defaultAt(cls, ctor.field.name, a.index) == null;
+            final typeOverride = fieldType != null && !boundary && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
+            final name = a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name);
+            params.push(name + ": " + types.of(parameterKotlinType(cls, ctor.field.name, a, typeOverride)) + " = this." + name);
+            args.push(name);
+        }
+        return ["    fun copy(" + params.join(", ") + "): " + cls.name + classParams + " = " + cls.name + "(" + args.join(", ") + ")"];
     }
 
     /**

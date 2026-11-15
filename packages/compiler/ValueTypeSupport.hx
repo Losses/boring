@@ -33,11 +33,15 @@ typedef ValueTypeInfo = {
 **/
 class ValueTypeSupport {
     public static inline final MARKER = ":valueType";
+    // The Kotlin target documented the same wrapper as a value class; a
+    // source may carry either spelling, and both name one marker so a
+    // declaration cannot opt in twice with divergent meanings.
+    public static inline final CLASS_MARKER = ":valueClass";
     public static inline final ERROR = "value type markers accept single-field abstracts over a primitive representation only";
 
     public static function isMarkedAbstract(abs:AbstractType):Bool {
         SharedModuleTrace.record("ValueTypeSupport");
-        return abs.meta.has(MARKER);
+        return abs.meta.has(MARKER) || abs.meta.has(CLASS_MARKER);
     }
 
     public static function markedAbstractOfClass(cls:ClassType):Null<AbstractType> {
@@ -75,17 +79,17 @@ class ValueTypeSupport {
                     }
                 case TClassDecl(ref):
                     final cls = ref.get();
-                    if (cls.meta.has(MARKER)) {
+                    if (cls.meta.has(MARKER) || cls.meta.has(CLASS_MARKER)) {
                         Context.error(ERROR, cls.pos);
                     }
                 case TEnumDecl(ref):
                     final en = ref.get();
-                    if (en.meta.has(MARKER)) {
+                    if (en.meta.has(MARKER) || en.meta.has(CLASS_MARKER)) {
                         Context.error(ERROR, en.pos);
                     }
                 case TTypeDecl(ref):
                     final def = ref.get();
-                    if (def.meta.has(MARKER)) {
+                    if (def.meta.has(MARKER) || def.meta.has(CLASS_MARKER)) {
                         Context.error(ERROR, def.pos);
                     }
             }

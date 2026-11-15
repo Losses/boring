@@ -2214,6 +2214,22 @@ class KotlinExpr {
             case TMeta(_, inner):
                 return expr(inner);
             case TCast(inner, _):
+                // A cast into a marked wrapper is the wrapper's construction:
+                // an abstract whose value is built by a static factory casts
+                // its representation there, and Kotlin stores the
+                // representation inline, so the class call is the conversion.
+                final castTarget = ValueTypeSupport.markedAbstractOfType(e.t);
+                if (castTarget != null) {
+                    final castSource = ValueTypeSupport.markedAbstractOfType(inner.t);
+                    if (castSource == null || !ValueTypeSupport.sameAbstract(castSource, castTarget)) {
+                        imports.requireType(castTarget.module, castTarget.name);
+                        var castText = expr(inner);
+                        if (ValueTypeSupport.isFloatRepresentation(castTarget)
+                            && (isIntOrLongType(inner.t) || isIntOrLongType(emittedType(inner))))
+                            castText = intToFloatText(castText);
+                        return castTarget.name + "(" + castText + ")";
+                    }
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside
