@@ -476,6 +476,23 @@ Rust emits each test class as a cargo integration test:
   produced. Any value other than `serial` and `parallel` is rejected too:
   an unrecognized value would otherwise select neither harness and leave the
   cargo default scheduler in place.
+- Rust target tests run serial, whatever the generation gate accepts. The
+  default `-D rust-test-threads=serial` and the driver's run step both
+  select the thread that owns a ThreadAffine static (policy P-1a); the
+  driver passes `-- --test-threads=1` to `cargo test`
+  (`packages/driver/src/driver/Plan.hx` line 126), and a consumer script
+  that invokes the generated crate's tests passes the same flag on every
+  cargo invocation. A compilation whose statics all classify as
+  ImmutableLazy or ThreadSafeShared passes the generation gate, and such a
+  crate still must not run on the cargo thread pool when its statics hold
+  lazily built caches: concurrent test threads read and rewrite the same
+  cache. The recorded symptom is a `submission_parity` failure whose
+  `plan.width` value differs from the expected JSON. `PlanJsonNumber`
+  keeps its digit caches in the static fields `fivePowers` and `twoPowers`
+  (`engine-haxe/src/org/tiqian/protocol/PlanJsonNumber.hx` lines 18-19,
+  153-181); two tests that grow one cache together produce different
+  number strings for the same float. A serial run of the same tree is
+  deterministic, so the difference reads as an engine defect.
 
 ```rust
 use generated::runtime::test as testlib;
