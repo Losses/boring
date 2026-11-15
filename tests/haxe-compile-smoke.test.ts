@@ -23,6 +23,12 @@ import { join, relative, resolve, sep } from "node:path";
  *                     `diagnostic`; a passing compile is a failure here, because
  *                     these eight entries exist to prove a rejection
  *
+ * The eight "reject" diagnostic substrings are pinned to the generator's
+ * current wording on purpose: a wording change reds this smoke so the new
+ * sentence is read and the substring updated. The compile/reject split is the
+ * invariant; the sentence is the guard that a rejection did not silently
+ * become a pass.
+ *
  * Set equality is asserted first: the manifest must list every .hxml under
  * tests/haxe/ and nothing else. A new fixture that is not classified fails the
  * smoke; it is not skipped silently, which is the same rule the
