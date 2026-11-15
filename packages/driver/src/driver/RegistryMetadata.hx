@@ -361,7 +361,7 @@ class RegistryMetadata {
 
     static function sha256Hex(path:String):String {
         #if js
-        return cast Syntax.code('require("node:crypto").createHash("sha256").update(require("fs").readFileSync({0})).digest("hex")', path);
+        return Syntax.code('require("node:crypto").createHash("sha256").update(require("fs").readFileSync({0})).digest("hex")', path);
         #else
         throw new DriverException(Unsupported("registry metadata digests require the JavaScript driver"));
         #end
@@ -369,7 +369,7 @@ class RegistryMetadata {
 
     static function sha512Base64(path:String):String {
         #if js
-        return cast Syntax.code('require("node:crypto").createHash("sha512").update(require("fs").readFileSync({0})).digest("base64")', path);
+        return Syntax.code('require("node:crypto").createHash("sha512").update(require("fs").readFileSync({0})).digest("base64")', path);
         #else
         throw new DriverException(Unsupported("registry metadata digests require the JavaScript driver"));
         #end

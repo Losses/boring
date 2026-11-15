@@ -56,13 +56,13 @@ class GpAblate {
 
         writeStatus(project, fixture, define, armA, armB, ra, rb, expect, pass);
 
-        Host.outputLine("  arm A rc=" + Std.string(ra.code) + "  arm B rc=" + Std.string(rb.code));
+        Host.outputLine("  arm A rc=" + ra.code + "  arm B rc=" + rb.code);
         if (pass) {
             Host.outputLine("GP-ABLATE: pass (rc differ; ablated arm fails"
                 + (expect != "" ? " with expected fragment" : "") + ")");
         } else {
             Host.outputLine("GP-ABLATE: fail");
-            if (ra.code != 0) Host.outputLine("  arm A unexpectedly failed rc=" + Std.string(ra.code));
+            if (ra.code != 0) Host.outputLine("  arm A unexpectedly failed rc=" + ra.code);
             if (rb.code == 0) Host.outputLine("  arm B unexpectedly succeeded (rc=0)");
             if (rb.code != 0 && expect != "" && !fragmentOk) {
                 Host.outputLine("  ablated output missing expected fragment: \"" + expect + "\"");
@@ -95,8 +95,8 @@ class GpAblate {
         final statusPath = Host.join(cacheRoot, "ablate-status.tsv");
         var buf = new StringBuf();
         buf.add("stage\tstatus\ttarget\texit\tdetail\n");
-        buf.add("gp-ablate:normal\t" + (ra.code == 0 ? "ok" : "fail") + "\t" + fixture + "\t" + Std.string(ra.code) + "\tdefine=(none)\n");
-        buf.add("gp-ablate:ablated\t" + (rb.code != 0 ? "ok" : "fail") + "\t" + fixture + "\t" + Std.string(rb.code) + "\tdefine=" + define + "\n");
+        buf.add("gp-ablate:normal\t" + (ra.code == 0 ? "ok" : "fail") + "\t" + fixture + "\t" + ra.code + "\tdefine=(none)\n");
+        buf.add("gp-ablate:ablated\t" + (rb.code != 0 ? "ok" : "fail") + "\t" + fixture + "\t" + rb.code + "\tdefine=" + define + "\n");
         Host.writeText(statusPath, buf.toString());
 
         final summaryPath = Host.join(cacheRoot, "ablate-summary.txt");
@@ -104,8 +104,8 @@ class GpAblate {
         sum.add("GP-ABLATE  fixture=" + fixture + "  define=" + define + "\n");
         sum.add("expect=[" + expect + "]\n");
         sum.add("verdict=" + (pass ? "PASS" : "FAIL") + "\n\n");
-        sum.add("--- arm A (normal) rc=" + Std.string(ra.code) + " ---\n" + ra.output + "\n");
-        sum.add("--- arm B (ablated) rc=" + Std.string(rb.code) + " ---\n" + rb.output + "\n");
+        sum.add("--- arm A (normal) rc=" + ra.code + " ---\n" + ra.output + "\n");
+        sum.add("--- arm B (ablated) rc=" + rb.code + " ---\n" + rb.output + "\n");
         Host.writeText(summaryPath, sum.toString());
     }
 }

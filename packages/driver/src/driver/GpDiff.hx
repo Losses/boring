@@ -256,7 +256,7 @@ exit 0
         }
 
         for (d in diffs)
-            buf.add("gp-diff:" + d.id + ":diff\t" + (d.code == 0 ? "ok" : "fail") + "\t" + d.id + "\t" + Std.string(d.code) + "\t" + (d.code == 0 ? "identical" : "diff") + "\n");
+            buf.add("gp-diff:" + d.id + ":diff\t" + (d.code == 0 ? "ok" : "fail") + "\t" + d.id + "\t" + d.code + "\t" + (d.code == 0 ? "identical" : "diff") + "\n");
 
         Host.writeText(statusPath, buf.toString());
 
@@ -270,7 +270,7 @@ exit 0
                 ? "IDENTICAL\n"
                 : (d.code == 1
                     ? "DIFFER\n" + d.diff + "\n"
-                    : "ERROR rc=" + Std.string(d.code) + "\n" + d.diff + "\n"));
+                    : "ERROR rc=" + d.code + "\n" + d.diff + "\n"));
         }
         Host.writeText(summaryPath, sum.toString());
     }

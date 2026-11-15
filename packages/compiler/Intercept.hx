@@ -114,6 +114,9 @@ class Intercept {
     /** Roots guarded by this run; only expressions under them are checked. */
     static final roots:Array<String> = [];
 
+    /** Source path prefixes skipped inside every root; target host code only. */
+    static final excludedRoots:Array<String> = [];
+
     /** String operations whose Rust lowering addresses bytes (V18). */
     static final STRING_INDEX_CALLEES:Array<String> = [
         "charCodeAt",
@@ -149,7 +152,12 @@ class Intercept {
         return roots.copy();
     }
 
-    public static function run(rootPrefixes:Array<String>):Void {
+    /**
+        Registers the interception. The first list names the guarded source
+        roots; the optional second list names path prefixes skipped inside
+        those roots, for target host code the pipeline never compiles.
+    **/
+    public static function run(rootPrefixes:Array<String>, excludedPrefixes:Array<String> = null):Void {
         SharedModuleTrace.record("Intercept");
         collectedViolations = [];
         SemanticExceptionLedger.validate();
@@ -158,6 +166,11 @@ class Intercept {
         SharedModuleTrace.install();
         for (index in 0...rootPrefixes.length) {
             roots.push(rootPrefixes[index]);
+        }
+        if (excludedPrefixes != null) {
+            for (index in 0...excludedPrefixes.length) {
+                excludedRoots.push(excludedPrefixes[index]);
+            }
         }
         Compiler.addGlobalMetadata("", "@:build(Intercept.buildFields())", true, true);
         Context.onAfterTyping(walkModules);
@@ -652,6 +665,11 @@ class Intercept {
 
     static function isGuarded(position:Position):Bool {
         final infos = Context.getPosInfos(position);
+        for (index in 0...excludedRoots.length) {
+            if (StringTools.startsWith(infos.file, excludedRoots[index])) {
+                return false;
+            }
+        }
         for (index in 0...roots.length) {
             if (StringTools.startsWith(infos.file, roots[index])) {
                 return true;

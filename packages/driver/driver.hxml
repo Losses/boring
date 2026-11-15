@@ -2,6 +2,12 @@
 -cp packages/driver/src
 -cp packages/registry/src
 -cp samples
---macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
+# Intercept exclusions: JavaScript host code the translation pipeline never
+# compiles. The native -js driver types these branches; the five translated
+# targets do not.
+# packages/driver/src/driver/ChildEvidence.hx: the whole class body is #if js.
+# packages/driver/src/driver/Host.hx: the host operations are #if js branches.
+# packages/driver/src/driver/Main.hx: the child-evidence dispatch is #if js.
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'], ['packages/driver/src/driver/ChildEvidence.hx', 'packages/driver/src/driver/Host.hx', 'packages/driver/src/driver/Main.hx'])
 -main driver.Main
 -js out/driver/driver.js
