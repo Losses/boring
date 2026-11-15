@@ -249,15 +249,17 @@ Measured on the tree `tiqian/engine-haxe/out/kotlin-f64/gen`:
 
 - 84 type positions written `: Sorted(Map|Set)Table<` under `org/`, 88
   with `runtime/`; 54 in `gen-tests`; 172 lines carry the token overall.
-  The quoted 89 signature positions sit in this bucket; the tree is
-  regenerated per pin, so the count moves by a few between revisions.
+  The 89 signature positions quoted with the port sit in this bucket;
+  the tree is regenerated per pin, so the count moves by a few between
+  revisions.
 - B keeps those signatures and adds the interface as a supertype, so the
-  generated call sites need no hand edit: the table members stay, and
-  the emitter renders the table `size` call sites as `.size`. The
-  measured generated call sites are `.has(` 111, `.size()` 108, `.at(`
-  45, `.keyAt(` 19, `.valueAt(` 19. Hand-written Kotlin is not
-  regenerated, so its `size()` calls stop compiling; the tiqian tree
-  held two, and they are counted under the cost of the ruling.
+  generated Kotlin needs no hand edit: `has`, `keyAt`, `valueAt`, and
+  `at` stay as functions, and the emitter renders `size` as the property
+  at every generated call site. The measured generated call sites are
+  `.has(` 111, `.size()` 108, `.at(` 45, `.keyAt(` 19, `.valueAt(`
+  19. Hand-written Kotlin is not regenerated, so its `size()` calls stop
+  compiling; the tiqian tree held two, and they are counted under the
+  cost of the ruling.
 - The consumer side gains the assignment: the platform facade can take
   `Map`/`Set` and receive a table with no conversion and no copy.
 - Verification: regenerate and compile the boring reference tree, the
