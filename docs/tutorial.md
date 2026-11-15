@@ -972,6 +972,7 @@ Fields of a target configuration:
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
 | `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, run from the project root after generation, including generation by `pack`; `command` is required. |
+| `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, run by `pack` from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, which the driver empties before the run, and `{version}` is replaced by `package.version`; `command` is required. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
@@ -1050,7 +1051,9 @@ file. The stock Haxe target uses the output paths in its roots HXML.
   `package`. It also passes `package-shell=emit` and
   `package-artifacts=emit`, plus
   `package-tsc=<executable>` on the `ts` target or
-  `package-kotlinc=<executable>` on the `kotlin` target. The driver does not
+  `package-kotlinc=<executable>` on the `kotlin` target. A configuration
+  that declares `mavenPublication` passes `package-artifacts=none`, because
+  its publication command writes the Maven repository directory. The driver does not
   infer a consumer's license from boring's own MIT license. Keep any
   `package-license` in a roots HXML consistent with `package.license` so
   direct generation and driver packaging report the same license.
@@ -1065,7 +1068,7 @@ the recipes live in boring's own source, never in the project file:
 | --- | --- | --- | --- |
 | `haxe` | `haxe` over the reference entry | `bun` on the emitted js | nothing |
 | `ts` | none; `bun` transpiles | `bun test <gen-tests>` | `tsc` |
-| `kotlin` | `kotlinc`: a library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc` |
+| `kotlin` | `kotlinc`: a library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc`, or the configuration's publication command |
 | `rust` | `cargo test --no-run` in the crate root | `cargo test -- --test-threads=1` | nothing |
 | `swift` | `swiftc`: the library, then the test executable against it | the executable | nothing |
 | `dart` | none | `dart <gen-tests>/main.dart` | nothing |
@@ -1123,6 +1126,10 @@ after comparison succeeds.
 Use `pack <id>` to rerun Haxe generation with package defines. It also runs
 `afterGen` when configured. The configuration must declare `package.name`
 and `package.version`; the compiler writes the distribution artifacts.
+A configuration that declares `mavenPublication` passes
+`package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
+publication command with `{maven}` replaced by that directory, so the
+project's build tool writes the Maven repository directory.
 
 Use `roots <sourceSet> --output <file>` to write the source set's package
 macros and module roots to an HXML include. This command does not run Haxe

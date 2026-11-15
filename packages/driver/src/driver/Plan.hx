@@ -226,14 +226,22 @@ class Plan {
             }
             args.push("-D");
             args.push("package-shell=emit");
-            args.push("-D");
-            args.push("package-artifacts=emit");
-            if (bundle.target == "ts") {
+            if (bundle.mavenPublication != null) {
+                // The bundle's publication command writes the Maven repository
+                // directory during the pack action, so the compiler writes no
+                // artifact of its own (bundle driver spec 59).
                 args.push("-D");
-                args.push("package-tsc=" + packageTsc);
-            } else if (bundle.target == "kotlin") {
+                args.push("package-artifacts=none");
+            } else {
                 args.push("-D");
-                args.push("package-kotlinc=" + packageKotlinc);
+                args.push("package-artifacts=emit");
+                if (bundle.target == "ts") {
+                    args.push("-D");
+                    args.push("package-tsc=" + packageTsc);
+                } else if (bundle.target == "kotlin") {
+                    args.push("-D");
+                    args.push("package-kotlinc=" + packageKotlinc);
+                }
             }
         }
         return args;

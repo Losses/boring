@@ -14,5 +14,6 @@ typedef BundleSpec = {
     packageLicense:String,
     hasTests:Bool,
     hasComparison:Bool,
-    afterGen:Null<CommandStep>
+    afterGen:Null<CommandStep>,
+    mavenPublication:Null<CommandStep>
 };

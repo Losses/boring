@@ -50,6 +50,7 @@ A target configuration object:
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
 | `compare` | no | `false` to test a configuration without comparing its results to the baseline; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, a command run from the project root after generation, including generation performed by `pack`; `command` is required. |
+| `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, a command the `pack` action runs from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, which the driver empties before the run; `{version}` is replaced by `package.version`. `command` is required. |
 | `build` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, overriding the recipe's run step. |
 | `package` | no | `{ "name": "...", "version": "...", "license": "..." }`, the spec 24 and 25 identity. `name` and `version` are required for `pack`; `license` is optional and must be a nonempty string when present. |
@@ -98,7 +99,10 @@ mechanism alone or both together. Boring's own `boring.json` currently uses
   `package-license` when `package.license` is present. It also passes
   `package-shell=emit`, `package-artifacts=emit`, and `package-tsc=<executable>` on the
   `ts` target or `package-kotlinc=<executable>` on the `kotlin` target, each
-  resolved from the environment or from `PATH`. It does not infer a
+  resolved from the environment or from `PATH`. A configuration that
+  declares `mavenPublication` passes `package-shell=emit` and
+  `package-artifacts=none`, because its publication command writes the
+  Maven repository directory. It does not infer a
   consumer's license from boring's own repository license. A roots HXML
   that sets `package-license` should agree with `package.license` to avoid
   contradictory metadata in direct generation and driver packaging.
@@ -116,7 +120,7 @@ command, and whether `pack` spawns a host toolchain.
 | --- | --- | --- | --- |
 | `haxe` | `haxe` compiles generated test sources to JavaScript | `bun` runs the emitted JavaScript | nothing |
 | `ts` | none; `bun` transpiles | `bun test <gen-tests>` | `tsc` |
-| `kotlin` | `kotlinc`: library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc` |
+| `kotlin` | `kotlinc`: library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc`, or the configuration's publication command |
 | `rust` | `cargo test` in the crate root | `cargo test` | nothing |
 | `swift` | `swiftc`: library, then the test executable against it | the executable | nothing |
 | `dart` | none | `dart <gen-tests>/main.dart` | nothing |
@@ -185,6 +189,10 @@ after comparison succeeds.
 
 `pack` takes one or more ids with `package.name` and `package.version`. It
 reruns generation with packaging defines and runs `afterGen` when configured.
+A configuration that declares `mavenPublication` passes
+`package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
+publication command from the project root with `{maven}` replaced by that
+directory. The project's build tool writes the Maven repository directory.
 An explicit request for a configuration without `package` fails before any
 generation starts. The compiler writes the target's distribution artifacts.
 

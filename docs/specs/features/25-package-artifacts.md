@@ -61,6 +61,12 @@ stale artifacts of earlier versions), and a walk would pack them.
   written as the pom `groupId` and as the directory path under
   `maven/` with `.` separators replaced by `/`. The default is the
   package name.
+- `mavenPublication` is a `boring.json` field of bundle driver
+  spec 59. A Kotlin bundle that declares it hands the
+  Maven repository directory to the project's build tool: the pack action
+  passes `package-artifacts=none` and runs the command with `{maven}`
+  replaced by `<outRoot>/<id>/maven`. The compiler writes no artifact of
+  its own on that path.
 - `package-artifacts=emit` requires `package-shell=emit`: the artifact
   wraps the manifest, and a manifest the tree does not carry would
   make the artifact uninstallable. A compilation combining
@@ -249,6 +255,16 @@ The registry generator packs from release checkouts.
     pubspec. The asset base arrives as a command parameter because it
     names where the caller publishes; spec 59 states the options and the
     directory layout.
+
+12. **The project's build tool may own the Maven directory.** A Kotlin
+    bundle that declares `mavenPublication` (bundle driver spec 59) hands
+    the Maven repository directory to that command. The pack action passes
+    `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
+    command with `{maven}` replaced by that directory. Kotlin
+    Multiplatform publishes one root coordinate and one coordinate per
+    target, and only the project's Gradle build produces the target
+    artifacts, so this path lets the registry carry the coordinate set the
+    official Maven release publishes.
 
 ## Test hooks
 

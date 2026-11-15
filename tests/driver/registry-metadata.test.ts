@@ -6,16 +6,17 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 /**
- * The pack action, given a Gradle maven-publish directory, must label every
- * file with the artifactId of its directory and collect the module metadata,
- * so one Kotlin Multiplatform version carries a root coordinate and eight
- * target coordinates. The registry tool then emits one maven-metadata.xml and
- * one redirect rule per artifactId, and an old single-artifactId directory
- * still produces the alpha07 registry shape.
+ * The pack action runs the bundle's publication command, then labels every file
+ * of the Gradle maven-publish directory with the artifactId of its directory
+ * and collects the module metadata, so one Kotlin Multiplatform version carries
+ * a root coordinate and eight target coordinates. The registry tool then emits
+ * one maven-metadata.xml and one redirect rule per artifactId, and an old
+ * single-artifactId directory still produces the alpha07 registry shape.
  *
- * The Gradle publication itself is not produced here: pack does not call
- * Gradle. The test writes the publication directory Gradle would write
- * (maven/<groupPath>/<artifactId>/<version>/<artifactId>-<version>.<ext>).
+ * The test's publication command stands in for Gradle: it writes the
+ * publication directory
+ * (maven/<groupPath>/<artifactId>/<version>/<artifactId>-<version>.<ext>)
+ * into the {maven} directory the driver passes on the command line.
  */
 const ROOT = resolve(import.meta.dir, "../..");
 const DRIVER = resolve(ROOT, "out/driver/driver.js");
@@ -105,7 +106,7 @@ const ROOT_ID = "tiqian-engine";
 const TARGETS = ["jvm", "android", "iosarm64", "iossimulatorarm64", "macosarm64", "linuxx64", "linuxarm64", "mingwx64"];
 const IDS = [ROOT_ID].concat(TARGETS.map((target) => ROOT_ID + "-" + target));
 
-test("pack labels every Gradle maven file with its artifactId and collects .module", async () => {
+test("pack runs the publication command and labels every Gradle maven file", async () => {
   const current = fixture({
     id: "reference",
     target: "kotlin",
@@ -113,22 +114,43 @@ test("pack labels every Gradle maven file with its artifactId and collects .modu
     package: { name: ROOT_ID, version: VERSION, license: "MPL-2.0" },
   });
   fakeToolchain(current.dir);
-  const group = join(current.dir, "out", "reference", "maven", "org", "tiqian");
+  const project = JSON.parse(readFileSync(current.file, "utf8"));
+  project.bundles[0].mavenPublication = { command: process.execPath, args: [join(current.dir, "publish.ts"), "{maven}"] };
+  writeFileSync(current.file, JSON.stringify(project));
 
-  // The root coordinate is packaging=pom; every target publishes a pom beside
-  // its Gradle module metadata, and the payload differs by target: jar for the
-  // JVM, aar for Android, klib for Kotlin/Native.
-  writeFile(join(group, ROOT_ID, VERSION, ROOT_ID + "-" + VERSION + ".pom"), "root pom");
-  for (const id of IDS.slice(1)) {
-    writeFile(join(group, id, VERSION, id + "-" + VERSION + ".pom"), id + " pom");
-    writeFile(join(group, id, VERSION, id + "-" + VERSION + ".module"), id + " module");
-  }
-  writeFile(join(group, ROOT_ID + "-jvm", VERSION, ROOT_ID + "-jvm-" + VERSION + ".jar"), "jar");
-  writeFile(join(group, ROOT_ID + "-android", VERSION, ROOT_ID + "-android-" + VERSION + ".aar"), "aar");
-  writeFile(join(group, ROOT_ID + "-iosarm64", VERSION, ROOT_ID + "-iosarm64-" + VERSION + ".klib"), "klib");
+  // The publication command stands in for Gradle. The root coordinate is
+  // packaging=pom; every target publishes a pom beside its Gradle module
+  // metadata, and the payload differs by target: jar for the JVM, aar for
+  // Android, klib for Kotlin/Native.
+  writeFile(join(current.dir, "publish.ts"), [
+    'import { mkdirSync, writeFileSync } from "node:fs";',
+    'import { dirname, join } from "node:path";',
+    'const maven = process.argv[2];',
+    'const group = join(maven, "org", "tiqian");',
+    'const root = "tiqian-engine";',
+    'const version = "0.1.0-alpha08";',
+    'const targets = ["jvm", "android", "iosarm64", "iossimulatorarm64", "macosarm64", "linuxx64", "linuxarm64", "mingwx64"];',
+    'function put(id, name, text) {',
+    '  const path = join(group, id, version, name);',
+    '  mkdirSync(dirname(path), { recursive: true });',
+    '  writeFileSync(path, text);',
+    '}',
+    'put(root, root + "-" + version + ".pom", "root pom");',
+    'for (const target of targets) {',
+    '  const id = root + "-" + target;',
+    '  put(id, id + "-" + version + ".pom", id + " pom");',
+    '  put(id, id + "-" + version + ".module", id + " module");',
+    '}',
+    'put(root + "-jvm", root + "-jvm-" + version + ".jar", "jar");',
+    'put(root + "-android", root + "-android-" + version + ".aar", "aar");',
+    'put(root + "-iosarm64", root + "-iosarm64-" + version + ".klib", "klib");',
+    'writeFileSync(join(maven, "publication-ran.txt"), maven);',
+  ].join("\n"));
 
   const packed = pack(current, "tiqian-cjk", "tiqian");
   expect(packed.code, packed.output).toBe(0);
+  const mavenDir = join(current.dir, "out", "reference", "maven");
+  expect(readFileSync(join(mavenDir, "publication-ran.txt"), "utf8")).toBe(mavenDir);
 
   const metadataPath = join(current.dir, "registry-out", "tiqian-cjk", ROOT_ID, VERSION, "maven", "metadata.json");
   const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));

@@ -155,9 +155,23 @@ class Main {
         return resolveAgainst(project.root, joinPath(project.resultsDir, bundle.id + ".jsonl"));
     }
 
+    /**
+        The publication arguments with the {maven} and {version} placeholders
+        replaced by the bundle's Maven directory and package version.
+    **/
+    static function publicationArguments(args:Array<String>, mavenDir:String, version:String):Array<String> {
+        return [for (arg in args) publicationValue(arg, mavenDir, version)];
+    }
+
+    static function publicationValue(value:String, mavenDir:String, version:String):String {
+        final withMaven = StringTools.replace(value, "{maven}", mavenDir);
+        return StringTools.replace(withMaven, "{version}", version);
+    }
+
     static function genArgs(project:Project, bundle:BundleSpec, pack:Bool):Array<String> {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
-        final packageKotlinc = pack && bundle.target == "kotlin" ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
+        final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null
+            ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
         return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
             discoverSourceTypes(project, bundle.sourceSet));
     }
@@ -341,6 +355,19 @@ class Main {
                 final afterFailure = step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,
                     afterGen.args, afterGen.env, null);
                 if (afterFailure != null) exit(1);
+            }
+            final publication = bundle.mavenPublication;
+            if (pack && publication != null) {
+                final mavenDir = joinPath(joinPath(resolveAgainst(project.root, project.outRoot), bundle.id), "maven");
+                Host.deleteTree(mavenDir);
+                makeDirs(mavenDir);
+                final publicationEnv:Array<EnvVar> = [];
+                for (variable in publication.env) {
+                    publicationEnv.push({key: variable.key, value: publicationValue(variable.value, mavenDir, bundle.packageVersion)});
+                }
+                final publicationFailure = step(project, bundle, "pack", "mavenPublication", publication.command,
+                    publicationArguments(publication.args, mavenDir, bundle.packageVersion), publicationEnv, null);
+                if (publicationFailure != null) exit(1);
             }
         }
         if (pack && packRegistry != null) {

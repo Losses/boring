@@ -60,6 +60,16 @@ class Host {
         #end
     }
 
+    /** Removes one directory and every entry under it. */
+    public static function deleteTree(path:String):Void {
+        if (!exists(path)) return;
+        #if js
+        Syntax.code("require('fs').rmSync({0}, {recursive: true, force: true})", path);
+        #else
+        throw "deleteTree requires the JavaScript driver";
+        #end
+    }
+
     public static function readDir(path:String):Array<String> {
         #if js
         return Syntax.code("require('fs').readdirSync({0})", path);

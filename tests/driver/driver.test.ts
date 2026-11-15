@@ -109,6 +109,47 @@ test("gen runs afterGen with the project as working directory", () => {
   expect(readFileSync(join(dir, "marker.txt"), "utf8")).toBe("generated");
 });
 
+test("pack runs the maven publication command with the substituted output directory", () => {
+  const current = fixture({ bundles: [
+    { id: "reference", target: "kotlin", package: { name: "engine", version: "1.0.0" } },
+  ] });
+  const { dir, file } = current;
+  const project = JSON.parse(readFileSync(file, "utf8"));
+  project.bundles[0].mavenPublication = { command: process.execPath, args: [join(dir, "publish.ts"), "{maven}", "{version}"], env: { PROBE_VERSION: "{version}" } };
+  writeFileSync(file, JSON.stringify(project));
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  const fakeHaxe = join(bin, "haxe");
+  writeFileSync(fakeHaxe, "#!/bin/sh\nexit 0\n");
+  chmodSync(fakeHaxe, 0o755);
+  writeFileSync(join(dir, "publish.ts"),
+    'import { writeFileSync } from "node:fs";\nwriteFileSync(process.argv[2] + "/probe.txt", [process.argv[2], process.argv[3], process.env.PROBE_VERSION].join("|"));\n');
+  const result = run(file, ["pack", "reference"], { PATH: bin + ":" + process.env.PATH });
+  expect(result.code, result.output).toBe(0);
+  const mavenDir = join(dir, "out", "reference", "maven");
+  expect(readFileSync(join(mavenDir, "probe.txt"), "utf8")).toBe(mavenDir + "|1.0.0|1.0.0");
+});
+
+test("gen does not run the maven publication command", () => {
+  const current = fixture({ bundles: [
+    { id: "reference", target: "kotlin" },
+  ] });
+  const { dir, file } = current;
+  const project = JSON.parse(readFileSync(file, "utf8"));
+  project.bundles[0].mavenPublication = { command: process.execPath, args: [join(dir, "publish.ts"), "{maven}"] };
+  writeFileSync(file, JSON.stringify(project));
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  const fakeHaxe = join(bin, "haxe");
+  writeFileSync(fakeHaxe, "#!/bin/sh\nexit 0\n");
+  chmodSync(fakeHaxe, 0o755);
+  writeFileSync(join(dir, "publish.ts"),
+    'import { writeFileSync } from "node:fs";\nwriteFileSync(process.argv[2] + "/probe.txt", process.argv[2]);\n');
+  const result = run(file, ["gen", "reference"], { PATH: bin + ":" + process.env.PATH });
+  expect(result.code, result.output).toBe(0);
+  expect(readdirSync(join(dir, "out", "reference")).includes("maven")).toBe(false);
+});
+
 test("verify with pack ignores configurations without package metadata", () => {
   const { dir, file } = fixture({ bundles: [
     { id: "reference", target: "ts" },

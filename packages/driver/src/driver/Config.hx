@@ -8,7 +8,7 @@ import registry.JsonException;
 /** Parses the project file without host I/O or reflection. */
 class Config {
     static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "sourceSets", "rootsFile", "haxeArgs", "bundles"];
-    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen"];
+    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication"];
     static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env", "cargoArgs"];
@@ -249,13 +249,13 @@ class Config {
         return stepValue;
     }
 
-    static function command(fields:Array<JsonField>, where:String):Null<CommandStep> {
-        if (!has(fields, "afterGen")) return null;
-        final values = fieldsOf(field(fields, "afterGen"), '$where: field "afterGen"');
-        checkFields(values, COMMAND_FIELDS, '$where: afterGen');
-        final command = requiredString(values, "command", '$where: afterGen');
-        if (command == "") fail('$where: afterGen command must not be empty');
-        final result:CommandStep = {command: command, args: strings(values, "args", '$where: afterGen'), env: env(values, '$where: afterGen')};
+    static function command(fields:Array<JsonField>, name:String, where:String):Null<CommandStep> {
+        if (!has(fields, name)) return null;
+        final values = fieldsOf(field(fields, name), '$where: field "$name"');
+        checkFields(values, COMMAND_FIELDS, '$where: $name');
+        final command = requiredString(values, "command", '$where: $name');
+        if (command == "") fail('$where: $name command must not be empty');
+        final result:CommandStep = {command: command, args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name')};
         return result;
     }
 
@@ -343,6 +343,9 @@ class Config {
                 for (set in sourceSets) if (set.name == sourceSet) foundSet = true;
                 if (!foundSet) fail('boring.json: bundle "$id": unknown source set "$sourceSet"');
             }
+            if (has(values, "mavenPublication") && target != "kotlin") {
+                fail('boring.json: bundle "$id": field "mavenPublication" is only valid on the kotlin target');
+            }
             final bundle:BundleSpec = {
                 id: id, target: target, precision: precision == null ? "" : precision + "", hasTests: hasTests,
                 hasComparison: hasComparison,
@@ -351,7 +354,8 @@ class Config {
                 sourceSet: sourceSet,
                 build: step(values, "build", 'boring.json: bundle "$id"'),
                 run: runOverride,
-                afterGen: command(values, 'boring.json: bundle "$id"'),
+                afterGen: command(values, "afterGen", 'boring.json: bundle "$id"'),
+                mavenPublication: command(values, "mavenPublication", 'boring.json: bundle "$id"'),
                 packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense
             };
             bundles.push(bundle);
