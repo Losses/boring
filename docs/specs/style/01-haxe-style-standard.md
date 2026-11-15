@@ -43,7 +43,7 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 
 ## Rejection table
 
-Every row names a violation, states the construct that triggers it, and gives the detection point on the untyped tree or the typed tree. Every violation is fatal: the interception reports the first occurrence it reaches with the violation name, file, and line, and aborts before generation.
+Every row names a violation, states the construct that triggers it, and gives the detection point on the untyped tree or the typed tree. Every violation is fatal: the interception collects each occurrence it reaches and reports every one at the end of the walk with the violation name and the message, then aborts before generation.
 
 | Violation | Construct | Detection point |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ The interception is a Haxe macro in two passes:
 1. Every pipeline entry that compiles or generates from `samples` registers the interception macro, including the test compile in `tests/haxe/compile.hxml`.
 2. Pass 1 runs as a `@:build` macro over the untyped field expressions of every class, injected with `Compiler.addGlobalMetadata` and guarded by the source paths. The typer expands `array.map(fn)` into an inlined loop holding the function value and inlines `Reflect.hasField` into a prototype call; the untyped tree is the only layer where those source constructs survive, so `V02` through `V03` and the `V05` source forms check there. `V01` needs the iteration subject's static type and checks in pass 2, per the features/09 amendment of 2026-09-01.
 3. Pass 2 runs after the compiler types all modules and walks every typed expression of every guarded class; the remaining rows check there.
-4. Each walk step tests the rejection table above against the current node; the first hit calls `Context.fatalError` with the violation name, the file, and the line of the offending node, which aborts compilation. The error message format is `Vnn Name: message`, so test assertions match on the violation name.
+4. Each walk step tests the rejection table above against the current node and records a hit with the violation name and the position of the offending node. Pass 2 reports every recorded hit in one `Context.fatalError` at the end of the walk, which aborts compilation, so one compile names every violation in the guarded roots. Each line of the report keeps the `Vnn Name: message` shape, so test assertions match on the violation name.
 5. The interception performs no repair and no fallback. A rejection means the source changes or the specification that rejects it changes; nothing in between.
 
 The repository owns no generator yet; until one exists, the interception is the enforceable part of this specification and guards the Haxe tree against drifting into shapes the other trees cannot mirror.

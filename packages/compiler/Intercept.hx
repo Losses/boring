@@ -133,6 +133,9 @@ class Intercept {
 
     static var inConstructorBody:Bool = false;
 
+    /** Violations collected during one interception, reported together at its end. */
+    static var collectedViolations:Array<{code:String, name:String, detail:String, position:Position}> = [];
+
     /** Locals of the field body under walk initialized from a string
      * literal, keyed by TVar id (V18). */
     static var localStringLiterals:Map<Int, String> = new Map();
@@ -148,6 +151,7 @@ class Intercept {
 
     public static function run(rootPrefixes:Array<String>):Void {
         SharedModuleTrace.record("Intercept");
+        collectedViolations = [];
         SemanticExceptionLedger.validate();
         SemanticExceptionLedger.emitArtifact();
         SemanticPassRegistry.emitArtifact();
@@ -535,6 +539,7 @@ class Intercept {
                 default:
             }
         }
+        reportViolations();
     }
 
     static function recordFieldIndexFacts(classType:ClassType, fields:Array<ClassField>):Void {
@@ -1245,7 +1250,25 @@ class Intercept {
         };
     }
 
+    /**
+     * Reports every collected violation at the end of the interception, one
+     * line per violation, so a later rule is not hidden by the first one. One
+     * violation keeps the text and exit status of the immediate fatalError this
+     * method replaces.
+     */
+    static function reportViolations():Void {
+        if (collectedViolations.length == 0) {
+            return;
+        }
+        final lines:Array<String> = [];
+        for (index in 0...collectedViolations.length) {
+            final entry = collectedViolations[index];
+            lines.push('${entry.code} ${entry.name}: ${entry.detail}');
+        }
+        Context.fatalError(lines.join("\n"), collectedViolations[0].position);
+    }
+
     static function violation(code:String, name:String, detail:String, position:Position):Void {
-        Context.fatalError('$code $name: $detail', position);
+        collectedViolations.push({code: code, name: name, detail: detail, position: position});
     }
 }
