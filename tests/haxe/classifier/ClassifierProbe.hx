@@ -7,7 +7,6 @@ import ComparatorPlan.ComparatorFieldKind;
 import PolicyQueries;
 import StaticFieldHelper;
 import swiftcompiler.SwiftArrayBoundary;
-import swiftcompiler.SwiftType;
 #end
 
 /**
@@ -331,8 +330,6 @@ class ClassifierProbe {
 			+ attempt(() -> Std.string(SwiftArrayBoundary.isOptionalArrayType(t))));
 		record("  SwiftArrayBoundary.isBoundary(source, mutable destination) = "
 			+ attempt(() -> Std.string(SwiftArrayBoundary.isBoundary(t, mutableDestination()))));
-		record("  SwiftType.rawArrayElement       = "
-			+ attempt(() -> Std.string(SwiftType.rawArrayElement(t))));
 		record("  PolicyQueries.stdStringCategory = "
 			+ attempt(() -> Std.string(PolicyQueries.stdStringCategory(t))));
 	}

@@ -187,6 +187,8 @@ class SourceObserver {
         return switch (face) {
             case MutableArray(element): "MutableArray(" + display(element) + ")";
             case ReadOnlyArrayFace(element): "ReadOnlyArrayFace(" + display(element) + ")";
+            case SortedMapFace(key, value): "SortedMapFace(" + display(key) + ", " + display(value) + ")";
+            case SortedSetFace(element): "SortedSetFace(" + display(element) + ")";
             case OtherSourceType: "OtherSourceType";
             case UnresolvedSource(reason): "UnresolvedSource(" + reasonSpelling(reason) + ")";
         };
