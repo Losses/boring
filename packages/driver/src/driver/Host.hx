@@ -66,7 +66,7 @@ class Host {
         #if js
         Syntax.code("require('fs').rmSync({0}, {recursive: true, force: true})", path);
         #else
-        throw new DriverException(InvalidConfig("deleteTree requires the JavaScript driver"));
+        throw new DriverException(Unsupported("deleteTree requires the JavaScript driver"));
         #end
     }
 
