@@ -67,7 +67,8 @@ class RegistryMetadata {
             }
             archiveName = files[0].file;
             fields.push({key: "groupId", value: VText(files[0].groupId)});
-            fields.push({key: "artifacts", value: VList([for (entry in files) mavenArtifact(entry, config.assetBase)])});
+            final artifacts = [for (entry in files) mavenArtifact(entry, config.assetBase)];
+            fields.push({key: "artifacts", value: VList(artifacts)});
         } else {
             final match = artifactMatch(platform, stem, bundle.packageName);
             final found = findArtifacts(artifactDir, match, false);
@@ -77,23 +78,21 @@ class RegistryMetadata {
             }
             archiveName = found[0];
             final archive = artifactDir + "/" + archiveName;
-            switch platform {
-                case "swift":
-                    fields.push({key: "packageSwift", value: VText(Host.readText(genDir(project, bundle) + "/Package.swift"))});
-                    fields.push({key: "archive", value: VText("swift/" + config.repo + "/" + name + "/" + version + ".zip")});
-                    fields.push({key: "sha256", value: VText(sha256Hex(archive))});
-                case "npm":
-                    fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
-                    fields.push({key: "sha512", value: VText(sha512Base64(archive))});
-                case "cargo":
-                    fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
-                    fields.push({key: "sha256", value: VText(sha256Hex(archive))});
-                    fields.push({key: "features", value: featureRecord(cargoFeatures(project, bundle))});
-                case "pub":
-                    fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
-                    fields.push({key: "sha256", value: VText(sha256Hex(archive))});
-                    fields.push({key: "pubspec", value: parsePubspec(Host.readText(genDir(project, bundle) + "/pubspec.yaml"))});
-                case _:
+            if (platform == "swift") {
+                fields.push({key: "packageSwift", value: VText(Host.readText(genDir(project, bundle) + "/Package.swift"))});
+                fields.push({key: "archive", value: VText("swift/" + config.repo + "/" + name + "/" + version + ".zip")});
+                fields.push({key: "sha256", value: VText(sha256Hex(archive))});
+            } else if (platform == "npm") {
+                fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
+                fields.push({key: "sha512", value: VText(sha512Base64(archive))});
+            } else if (platform == "cargo") {
+                fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
+                fields.push({key: "sha256", value: VText(sha256Hex(archive))});
+                fields.push({key: "features", value: featureRecord(cargoFeatures(project, bundle))});
+            } else if (platform == "pub") {
+                fields.push({key: "url", value: VText(joinUrl(config.assetBase, archiveName))});
+                fields.push({key: "sha256", value: VText(sha256Hex(archive))});
+                fields.push({key: "pubspec", value: parsePubspec(Host.readText(genDir(project, bundle) + "/pubspec.yaml"))});
             }
         }
         final out = Host.resolve(project.root, config.out);
@@ -111,14 +110,12 @@ class RegistryMetadata {
 
     /** The registry platform of one bundle target, or null for a target that publishes nothing. */
     static function platformOf(target:String):Null<String> {
-        return switch target {
-            case "rust": "cargo";
-            case "ts": "npm";
-            case "kotlin": "maven";
-            case "swift": "swift";
-            case "dart": "pub";
-            case _: null;
-        }
+        if (target == "rust") return "cargo";
+        if (target == "ts") return "npm";
+        if (target == "kotlin") return "maven";
+        if (target == "swift") return "swift";
+        if (target == "dart") return "pub";
+        return null;
     }
 
     /**
@@ -148,13 +145,16 @@ class RegistryMetadata {
     /** The predicate one platform's artifact file name satisfies. */
     static function artifactMatch(platform:String, stem:String, packageName:String):String->Bool {
         final prefix = platform == "pub" ? stem.split("-").join("_") : stem;
-        final suffix = switch platform {
-            case "cargo": ".crate";
-            case "npm": ".tgz";
-            case "swift": ".zip";
-            case "pub": ".tar.gz";
-            case _: "";
-        };
+        var suffix = "";
+        if (platform == "cargo") {
+            suffix = ".crate";
+        } else if (platform == "npm") {
+            suffix = ".tgz";
+        } else if (platform == "swift") {
+            suffix = ".zip";
+        } else if (platform == "pub") {
+            suffix = ".tar.gz";
+        }
         return function(file:String):Bool {
             return StringTools.startsWith(file, prefix + "-") && StringTools.endsWith(file, suffix);
         };
@@ -254,7 +254,7 @@ class RegistryMetadata {
     static function findArtifacts(root:String, match:String->Bool, recursive:Bool):Array<String> {
         final found:Array<String> = [];
         collectArtifacts(root, "", match, recursive, found);
-        found.sort(Reflect.compare);
+        sortStrings(found);
         return found;
     }
 
@@ -269,6 +269,37 @@ class RegistryMetadata {
                 continue;
             }
             if (match(relative)) found.push(relative);
+        }
+    }
+
+    /**
+        A callback-free lexicographic sort of strings. The guarded subset
+        rejects a comparator sort, so the ordering is written out: insertion
+        sort states the same string order Reflect.compare does, and it keeps
+        equal entries in their original positions.
+    **/
+    static function sortStrings(items:Array<String>):Void {
+        for (i in 1...items.length) {
+            final x = items[i];
+            var j = i - 1;
+            while (j >= 0 && items[j] > x) {
+                items[j + 1] = items[j];
+                j = j - 1;
+            }
+            items[j + 1] = x;
+        }
+    }
+
+    /** The same callback-free ordering for a record's fields, by key. */
+    static function sortFieldsByKey(fields:Array<RegistryField>):Void {
+        for (i in 1...fields.length) {
+            final x = fields[i];
+            var j = i - 1;
+            while (j >= 0 && fields[j].key > x.key) {
+                fields[j + 1] = fields[j];
+                j = j - 1;
+            }
+            fields[j + 1] = x;
         }
     }
 
@@ -306,12 +337,16 @@ class RegistryMetadata {
                 }
             }
         }
-        features.sort(Reflect.compare);
+        sortStrings(features);
         return features;
     }
 
     static function featureRecord(features:Array<String>):RegistryValue {
-        return VRecord([for (feature in features) {key: feature, value: VList([])}]);
+        final fields = new Array<RegistryField>();
+        for (feature in features) {
+            fields.push({key: feature, value: VList([])});
+        }
+        return VRecord(fields);
     }
 
     static function joinUrl(base:String, file:String):String {
@@ -342,10 +377,12 @@ class RegistryMetadata {
         The pubspec of the packed Dart tree as a JSON object. The generated
         pubspec is flat: one top-level key per line, and one indented
         section whose entries become an object. A line without a key is
-        skipped.
+        skipped. The document is an ordered entry list because haxe.ds.Map
+        has no translation (V13); a pubspec is tens of lines, so the exact-key
+        scan costs nothing.
     **/
     static function parsePubspec(text:String):RegistryValue {
-        final document:Map<String, RegistryValue> = new Map();
+        final document = new Array<RegistryField>();
         var section:Null<String> = null;
         for (line in text.split("\n")) {
             final trimmed = StringTools.trim(line);
@@ -356,22 +393,45 @@ class RegistryMetadata {
             final value = StringTools.trim(line.substr(separator + 1));
             if (!StringTools.startsWith(line, " ")) {
                 if (value != "") {
-                    document.set(key, VText(value));
+                    setPubspecField(document, key, VText(value));
                     section = null;
                 } else {
-                    document.set(key, VRecord([]));
+                    setPubspecField(document, key, VRecord([]));
                     section = key;
                 }
             } else if (section != null) {
-                final existing = document.get(section);
-                if (existing == null) continue;
-                switch existing {
-                    case VRecord(sectionFields): sectionFields.push({key: key, value: VText(value)});
-                    case _:
-                }
+                final sectionFields = pubspecSection(document, section);
+                if (sectionFields == null) continue;
+                sectionFields.push({key: key, value: VText(value)});
             }
         }
-        return VRecord([for (key in document.keys()) {key: key, value: document.get(key)}]);
+        return VRecord(document);
+    }
+
+    /** The fields of the pubspec section one top-level key opened, or null. */
+    static function pubspecSection(document:Array<RegistryField>, key:String):Null<Array<RegistryField>> {
+        for (field in document) {
+            if (field.key != key) continue;
+            final value = field.value;
+            return switch value {
+                case VRecord(sectionFields): sectionFields;
+                case VText(_) | VList(_): null;
+            }
+        }
+        return null;
+    }
+
+    /** Records one top-level pubspec key, replacing the value of a key already present. */
+    static function setPubspecField(document:Array<RegistryField>, key:String, value:RegistryValue):Void {
+        var index = 0;
+        while (index < document.length) {
+            if (document[index].key == key) {
+                document[index] = {key: key, value: value};
+                return;
+            }
+            index++;
+        }
+        document.push({key: key, value: value});
     }
 
     /**
@@ -383,15 +443,27 @@ class RegistryMetadata {
     static function serialize(value:RegistryValue):String {
         return switch value {
             case VText(text): quote(text);
-            case VList(items):
-                final parts = [for (item in items) serialize(item)];
-                "[" + parts.join(", ") + "]";
-            case VRecord(fields):
-                final sorted = fields.copy();
-                sorted.sort(function(a:RegistryField, b:RegistryField):Int return Reflect.compare(a.key, b.key));
-                final parts = [for (field in sorted) quote(field.key) + ": " + serialize(field.value)];
-                "{" + parts.join(", ") + "}";
+            case VList(items): serializeList(items);
+            case VRecord(fields): serializeRecord(fields);
         }
+    }
+
+    static function serializeList(items:Array<RegistryValue>):String {
+        final parts = [for (item in items) serialize(item)];
+        return "[" + parts.join(", ") + "]";
+    }
+
+    static function serializeRecord(fields:Array<RegistryField>):String {
+        final sorted = sortedFields(fields);
+        final parts = [for (field in sorted) quote(field.key) + ": " + serialize(field.value)];
+        return "{" + parts.join(", ") + "}";
+    }
+
+    /** A copy of one record's fields in ascending key order. */
+    static function sortedFields(fields:Array<RegistryField>):Array<RegistryField> {
+        final sorted = fields.copy();
+        sortFieldsByKey(sorted);
+        return sorted;
     }
 
     static function quote(value:String):String {
