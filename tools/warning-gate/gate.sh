@@ -18,7 +18,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT" || exit 1
 
 LOG=$(mktemp)
-trap 'rm -f "$LOG"' EXIT
+trap 'rm -f "$LOG" "$LOG.driver"' EXIT
 
 FAIL=0
 log_tier() { # log_tier <tier-label> <PASS|FAIL>
@@ -39,7 +39,24 @@ log_tier "tier1 gen-warnings" "$t1"
 log_tier "tier2 compile-warnings" "$t2"
 
 # tier 3: unit tests.
-if bun run test >"$LOG" 2>&1; then
+#
+# `bun run test` collects tests/driver/** and tests/npm-pack-scoped/**, and every
+# case there spawns the built artifact out/driver/driver.js. Neither a gen:*
+# script nor the dev shell produces it in the worktree (the `driver` package
+# derivation compiles it inside its own build directory and installs it to
+# $out/share/boring/driver.js), so tier 3 compiles it here with the same command
+# the collected-suite job runs in its own step. Without it each collected case
+# fails with `error: Module not found ".../out/driver/driver.js"`, so a missing
+# prerequisite is reported as a test verdict: measured on a clean checkout,
+# 28 fail / 0 pass (27 in tests/driver/ plus tests/npm-pack-scoped/). A driver
+# build that does not run is NOT a skipped column - it fails tier 3, the same
+# way check.sh fails a column it could not measure.
+DRIVER_LOG="$LOG.driver"
+if ! mkdir -p out/driver || ! haxe packages/driver/driver.hxml >"$DRIVER_LOG" 2>&1; then
+  echo "gate: tier3 driver build failed:"
+  tail -40 "$DRIVER_LOG" || true
+  log_tier "tier3 unit-tests" FAIL
+elif bun run test >"$LOG" 2>&1; then
   log_tier "tier3 unit-tests" PASS
 else
   echo "gate: tier3 unit-tests failed:"
