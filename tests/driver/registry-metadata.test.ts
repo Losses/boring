@@ -7,9 +7,11 @@ import { dirname, join, resolve } from "node:path";
 
 /**
  * The pack action runs the bundle's publication command, then labels every file
- * of the Gradle maven-publish directory with the artifactId of its directory
- * and collects the module metadata, so one Kotlin Multiplatform version carries
- * a root coordinate and eight target coordinates. The registry tool then emits
+ * of the staged Gradle maven-publish directory with the artifactId of its
+ * directory and collects the module metadata, so one Kotlin Multiplatform
+ * version carries a root coordinate and eight target coordinates. The staged
+ * directory holds one package's publications, so no file name is filtered by
+ * the package stem. The registry tool then emits
  * one maven-metadata.xml and one redirect rule per artifactId, and an old
  * single-artifactId directory still produces the alpha07 registry shape.
  *
@@ -184,6 +186,44 @@ test("pack runs the publication command and labels every Gradle maven file", asy
     expect(redirects, entry.file).toContain(rule);
   }
 }, 300_000);
+
+test("pack collects every publication directory in the staged maven tree", async () => {
+  const current = fixture({
+    id: "reference",
+    target: "kotlin",
+    haxeArgs: ["-D", "package-artifact-stem=" + ROOT_ID],
+    package: { name: ROOT_ID, version: VERSION, license: "MPL-2.0" },
+  });
+  fakeToolchain(current.dir);
+  const project = JSON.parse(readFileSync(current.file, "utf8"));
+  project.bundles[0].mavenPublication = { command: process.execPath, args: [join(current.dir, "publish.ts"), "{maven}"] };
+  writeFileSync(current.file, JSON.stringify(project));
+  writeFile(join(current.dir, "publish.ts"), [
+    'import { mkdirSync, writeFileSync } from "node:fs";',
+    'import { dirname, join } from "node:path";',
+    'const maven = process.argv[2];',
+    'function put(id, name, text) {',
+    '  const path = join(maven, "org", "tiqian", id, version, name);',
+    '  mkdirSync(dirname(path), { recursive: true });',
+    '  writeFileSync(path, text);',
+    '}',
+    'const version = "0.1.0-alpha08";',
+    'put("tiqian-engine", "tiqian-engine-" + version + ".pom", "root pom");',
+    'put("tiqian-engine-android", "tiqian-engine-android-" + version + ".pom", "android pom");',
+    'put("tiqian-engine-android", "tiqian-engine-android-" + version + ".module", "android module");',
+    'put("engine-iosarm64", "engine-iosarm64-" + version + ".pom", "apple pom");',
+    'put("engine-iosarm64", "engine-iosarm64-" + version + ".module", "apple module");',
+  ].join("\n"));
+
+  const packed = pack(current, "tiqian-cjk", "tiqian");
+  expect(packed.code, packed.output).toBe(0);
+  const metadata = JSON.parse(readFileSync(
+    join(current.dir, "registry-out", "tiqian-cjk", ROOT_ID, VERSION, "maven", "metadata.json"), "utf8"));
+  const artifacts = metadata.artifacts as MavenArtifactEntry[];
+  expect(artifacts.length).toBe(5);
+  expect([...new Set(artifacts.map((entry) => entry.artifactId))].sort())
+    .toEqual(["engine-iosarm64", "tiqian-engine", "tiqian-engine-android"]);
+});
 
 test("a single-artifactId Gradle directory keeps the alpha07 registry shape", async () => {
   const name = "tiqian-engine-f64";

@@ -65,8 +65,10 @@ stale artifacts of earlier versions), and a walk would pack them.
   spec 59. A Kotlin bundle that declares it hands the
   Maven repository directory to the project's build tool: the pack action
   passes `package-artifacts=none` and runs the command with `{maven}`
-  replaced by `<outRoot>/<id>/maven`. The compiler writes no artifact of
-  its own on that path.
+  replaced by `<outRoot>/<id>/maven` and `{version}` replaced by
+  `package.version`. The version substitution keeps the staged version
+  directories equal to the metadata version. The compiler writes no artifact
+  of its own on that path.
 - `package-artifacts=emit` requires `package-shell=emit`: the artifact
   wraps the manifest, and a manifest the tree does not carry would
   make the artifact uninstallable. A compilation combining
@@ -264,7 +266,10 @@ The registry generator packs from release checkouts.
     Multiplatform publishes one root coordinate and one coordinate per
     target, and only the project's Gradle build produces the target
     artifacts, so this path lets the registry carry the coordinate set the
-    official Maven release publishes.
+    official Maven release publishes. The metadata collects every Maven file
+    in that directory: the directory holds exactly this package's
+    publications, and each publication names its own artifactId, so the file
+    name is not filtered by the package stem.
 
 ## Test hooks
 

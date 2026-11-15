@@ -161,21 +161,23 @@ class RegistryMetadata {
     }
 
     /**
-        The Maven files of one bundle's publication directory, each with the
-        artifactId the directory it sits in names. Gradle writes one
-        directory per artifactId, so one package version carries the Kotlin
-        Multiplatform root coordinate and its target modules; the payload
-        (jar, klib, aar), the pom and the Gradle module metadata are
-        collected. A file that names no artifactId directory falls back to
+        Every Maven file under one bundle's publication directory, each with
+        the artifactId the directory it sits in names. The pack action points
+        the project's publication command at a dedicated directory, so the
+        tree holds exactly that package's publications: the Kotlin
+        Multiplatform root coordinate and its target modules, with the
+        payload (jar, klib, aar), the pom and the Gradle module metadata.
+        The file name is not filtered by the stem, because a publication
+        names its own artifactId and the directory layout is the only
+        authority. A file that names no artifactId directory falls back to
         the stem, the single artifactId of the old shape.
     **/
     static function mavenArtifacts(artifactDir:String, stem:String, version:String):Array<MavenArtifact> {
         return [for (relative in findArtifacts(artifactDir + "/maven", function(relative:String):Bool {
             final file = baseName(relative);
             final extension = extensionOf(file);
-            return StringTools.startsWith(file, stem + "-")
-                && (extension == ".jar" || extension == ".pom" || extension == ".module"
-                    || extension == ".klib" || extension == ".aar");
+            return extension == ".jar" || extension == ".pom" || extension == ".module"
+                || extension == ".klib" || extension == ".aar";
         }, true)) {
             file: baseName(relative),
             artifactId: mavenArtifactIdOf(relative, version, stem),

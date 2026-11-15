@@ -972,7 +972,7 @@ Fields of a target configuration:
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
 | `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, run from the project root after generation, including generation by `pack`; `command` is required. |
-| `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, run by `pack` from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, which the driver empties before the run, and `{version}` is replaced by `package.version`; `command` is required. |
+| `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, run by `pack` from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, and `{version}` is replaced by `package.version`. The driver empties the directory before the run and collects every Maven file under it, so the command writes exactly this bundle's publication set. `command` is required. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
@@ -1128,8 +1128,9 @@ Use `pack <id>` to rerun Haxe generation with package defines. It also runs
 and `package.version`; the compiler writes the distribution artifacts.
 A configuration that declares `mavenPublication` passes
 `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
-publication command with `{maven}` replaced by that directory, so the
-project's build tool writes the Maven repository directory.
+publication command with `{maven}` replaced by that directory and
+`{version}` replaced by `package.version`, so the project's build tool
+writes the Maven repository directory under the version the metadata states.
 
 Use `roots <sourceSet> --output <file>` to write the source set's package
 macros and module roots to an HXML include. This command does not run Haxe
