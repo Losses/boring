@@ -52,11 +52,11 @@ the equality conflict documented in a-enum-comparison-review remains unresolved.
 Runtime controls cover direct and cross-module payload fields, both constructor
 orders, different payloads of one constructor, nullable absence and presence,
 sequence elements and prefixes, native enum fields, and generic record callbacks
-bound to payload and native enums. The previous thirteen output lines remain.
+bound to payload and native enums. The `enum-callbacks` row reports the payload-free native enum key only. The previous output lines remain.
 
 Retained attempts: y4zwTxBV reproduces the original six index errors; 41Qs53BC
 restores the invalid index operation and fails analysis; CopiLbWD omits the first
 constructor arm and fails sealed exhaustiveness. wxcGI4U4 observes an independent
 typedef field emission failure (undefined MarkAlias); typedef-field support is
-not established by this repair. Direct payload enum keys remain out of scope.
+not established by this repair. Payload enum fields remain out of scope as record keys: spec 16 kind 3 was narrowed to payload-free enums and the key gate rejects them, so the payload-enum key table was removed from EnumCases and payload-enum comparators are exercised through the resident comparators alone.
 

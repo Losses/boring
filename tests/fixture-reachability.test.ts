@@ -86,7 +86,21 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * stays watched by its script; this note is the pointer so nobody re-adds a
  * phantom +1.
  */
-const RECORDED_UNCOLLECTED = 42;
+/**
+ * 41, corrected from 42.
+ *
+ * t-mwhin835-5ebl: `tests/haxe/comparison-admission/` was a checkpoint
+ * duplicate of `comparison-source-admission/`, added the same day
+ * as the feature and superseded by it. Its 23 observed cases are a strict
+ * subset of the successor's 41 (no old-only case) and its expected TSV is
+ * byte-identical to the successor's first 23 lines; its probe passes a
+ * `Ref<ClassType>` to `ownParameterSlot`, which now takes a
+ * `SourceDeclarationIdentity`, and matches a two-field rejection result the
+ * current type widened to three, so it could not compile. It was removed
+ * because the successor covers every case; no migration was attempted.
+ * Lowering the record to the measured 41 is this deliberate move.
+ */
+const RECORDED_UNCOLLECTED = 41;
 
 interface Fixture {
   readonly name: string;

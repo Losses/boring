@@ -167,6 +167,8 @@ class AdmissionProbe {
 			case TermAlias(declaration, arguments, _): "alias " + identityName(declaration) + "[" + argumentText(arguments, root) + "]";
 			case TermNull(inner, _): "Null(" + termText(inner, root) + ")";
 			case TermReadOnlyArray(inner, _): "std.ReadOnlyArray(" + termText(inner, root) + ")";
+			case TermSortedMap(key, value, _): "std.SortedMap(" + termText(key, root) + "," + termText(value, root) + ")";
+			case TermSortedSet(element, _): "std.SortedSet(" + termText(element, root) + ")";
 			case TermUnsupported(type): "unsupported:" + describe(type, root);
 			case TermUnresolved(reason, _): "unresolved:" + Std.string(reason);
 		}
@@ -193,6 +195,8 @@ class AdmissionProbe {
 		return switch (facts.face) {
 			case MutableArray(element): "Array<" + describe(element, root) + ">";
 			case ReadOnlyArrayFace(element): "std.ReadOnlyArray<" + describe(element, root) + ">";
+			case SortedMapFace(key, value): "std.SortedMap<" + describe(key, root) + "," + describe(value, root) + ">";
+			case SortedSetFace(element): "std.SortedSet<" + describe(element, root) + ">";
 			case UnresolvedSource(reason): "unresolved:" + Std.string(reason);
 			case OtherSourceType: terminal(facts.resolvedType, root);
 		}

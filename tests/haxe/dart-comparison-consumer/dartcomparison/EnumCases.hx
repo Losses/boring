@@ -21,18 +21,16 @@ class AliasKey {
 }
 
 class EnumCases {
-    public static function payload():SortedMapBuilder<ComparedParameterKey<PrintedMark>, String> return SortedMap.builder();
     public static function nativeValue():SortedMapBuilder<ComparedParameterKey<NativeOrder>, String> return SortedMap.builder();
+    /** Payload-enum fields are rejected at the key-type gate since spec 16
+        kind 3 was narrowed to payload-free enums, so this record key stays
+        payload-free; payload-enum comparators are exercised through the
+        AliasKey resident comparator the native program calls. */
     public static function observe():String {
-        final table = payload();
-        table.put(new ComparedParameterKey(PrintedMark.Tag("x", 1)), "T");
-        table.put(new ComparedParameterKey(PrintedMark.Plain), "P");
-        table.put(new ComparedParameterKey(PrintedMark.Ring(9)), "R");
-        final values = table.build();
         final nativeTable = nativeValue();
         nativeTable.put(new ComparedParameterKey(NativeOrder.Alpha), "A");
         nativeTable.put(new ComparedParameterKey(NativeOrder.Zebra), "Z");
         final natives = nativeTable.build();
-        return values.valueAt(0) + values.valueAt(1) + values.valueAt(2) + ";" + natives.valueAt(0) + natives.valueAt(1);
+        return natives.valueAt(0) + natives.valueAt(1);
     }
 }
