@@ -70,8 +70,20 @@ class RegistryMetadata {
             final artifacts = [for (entry in files) mavenArtifact(entry, config.assetBase)];
             fields.push({key: "artifacts", value: VList(artifacts)});
         } else {
-            final match = artifactMatch(platform, stem, bundle.packageName);
-            final found = findArtifacts(artifactDir, match, false);
+            final prefix = platform == "pub" ? stem.split("-").join("_") : stem;
+            var suffix = "";
+            if (platform == "cargo") {
+                suffix = ".crate";
+            } else if (platform == "npm") {
+                suffix = ".tgz";
+            } else if (platform == "swift") {
+                suffix = ".zip";
+            } else if (platform == "pub") {
+                suffix = ".tar.gz";
+            }
+            final found = findArtifacts(artifactDir, function(file:String):Bool {
+                return StringTools.startsWith(file, prefix + "-") && StringTools.endsWith(file, suffix);
+            }, false);
             if (found.length == 0) {
                 fail('bundle "' + bundle.id + '": no ' + platform + ' artifact matched ' + stem + ' under ' + artifactDir);
                 return;
@@ -140,24 +152,6 @@ class RegistryMetadata {
 
     static function genDir(project:Project, bundle:BundleSpec):String {
         return Host.resolve(project.root, project.outRoot + "/" + bundle.id + "/gen");
-    }
-
-    /** The predicate one platform's artifact file name satisfies. */
-    static function artifactMatch(platform:String, stem:String, packageName:String):String->Bool {
-        final prefix = platform == "pub" ? stem.split("-").join("_") : stem;
-        var suffix = "";
-        if (platform == "cargo") {
-            suffix = ".crate";
-        } else if (platform == "npm") {
-            suffix = ".tgz";
-        } else if (platform == "swift") {
-            suffix = ".zip";
-        } else if (platform == "pub") {
-            suffix = ".tar.gz";
-        }
-        return function(file:String):Bool {
-            return StringTools.startsWith(file, prefix + "-") && StringTools.endsWith(file, suffix);
-        };
     }
 
     /**
@@ -290,6 +284,14 @@ class RegistryMetadata {
         }
     }
 
+    /** Whether one string list already holds the exact value. */
+    static function containsString(items:Array<String>, value:String):Bool {
+        for (item in items) {
+            if (item == value) return true;
+        }
+        return false;
+    }
+
     /** The same callback-free ordering for a record's fields, by key. */
     static function sortFieldsByKey(fields:Array<RegistryField>):Void {
         for (i in 1...fields.length) {
@@ -329,7 +331,7 @@ class RegistryMetadata {
                         if (declared != null) {
                             for (feature in declared.split(",")) {
                                 final trimmed = StringTools.trim(feature);
-                                if (trimmed != "" && !features.contains(trimmed)) features.push(trimmed);
+                                if (trimmed != "" && !containsString(features, trimmed)) features.push(trimmed);
                             }
                         }
                         index++;
@@ -361,7 +363,7 @@ class RegistryMetadata {
         #if js
         return cast Syntax.code('require("node:crypto").createHash("sha256").update(require("fs").readFileSync({0})).digest("hex")', path);
         #else
-        throw "registry metadata digests require the JavaScript driver";
+        throw new DriverException(InvalidConfig("registry metadata digests require the JavaScript driver"));
         #end
     }
 
@@ -369,7 +371,7 @@ class RegistryMetadata {
         #if js
         return cast Syntax.code('require("node:crypto").createHash("sha512").update(require("fs").readFileSync({0})).digest("base64")', path);
         #else
-        throw "registry metadata digests require the JavaScript driver";
+        throw new DriverException(InvalidConfig("registry metadata digests require the JavaScript driver"));
         #end
     }
 

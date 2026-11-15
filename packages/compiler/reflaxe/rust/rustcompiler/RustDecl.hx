@@ -4238,11 +4238,17 @@ lines.push("        }");
                         '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
                 ];
                 final fieldsHash = (function() { for (field in fields) if (!RustType.isHashType(field.type)) return false; return true; })();
-                final deriveAttr = RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) && fieldsHash ? "#[derive(Debug, Clone, Copy, PartialEq, Hash)]"
-                    : RustType.fieldsAllPartialEq(fields) && fieldsHash ? "#[derive(Debug, Clone, PartialEq, Hash)]"
-                    : RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]"
-                    : RustType.fieldsAllPartialEq(fields) ? "#[derive(Debug, Clone, PartialEq)]"
-                    : isAllCopy(fields) ? "#[derive(Debug, Clone, Copy)]" : "#[derive(Debug, Clone)]";
+                // The Eq query matches the enum path (enumAllEq treats a record
+                // typedef as Eq when its fields are): an enum whose payload nests
+                // this struct derives Eq, so the struct must derive it too.
+                final fieldsEq = (function() { for (field in fields) if (!RustType.isEqType(field.type)) return false; return true; })();
+                final allPartialEq = RustType.fieldsAllPartialEq(fields);
+                final deriveTraits = ["Debug", "Clone"];
+                if (isAllCopy(fields)) deriveTraits.push("Copy");
+                if (allPartialEq) deriveTraits.push("PartialEq");
+                if (allPartialEq && fieldsEq) deriveTraits.push("Eq");
+                if (allPartialEq && fieldsHash) deriveTraits.push("Hash");
+                final deriveAttr = "#[derive(" + deriveTraits.join(", ") + ")]";
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
 
                 // A record with a Float field derives PartialEq but not Hash
