@@ -883,7 +883,29 @@ class Intercept {
         }
     }
 
+    /**
+     * A class whose super chain reaches haxe.Exception. The message-only
+     * test needs this precondition: String carries a one-argument String
+     * constructor of the same shape, so without the chain check the
+     * message-only class test admits a raw string throw (V04) and a String
+     * catch type (V20).
+     */
+    static function isHaxeExceptionSubclass(classType:ClassType):Bool {
+        var parent = classType.superClass;
+        while (parent != null) {
+            final parentClass = parent.t.get();
+            if (parentClass.pack.join(".") == "haxe" && parentClass.name == "Exception") {
+                return true;
+            }
+            parent = parentClass.superClass;
+        }
+        return false;
+    }
+
     static function isMessageOnlyException(classType:ClassType):Bool {
+        if (!isHaxeExceptionSubclass(classType)) {
+            return false;
+        }
         var constructor = classType.constructor;
         if (constructor == null) {
             return false;
