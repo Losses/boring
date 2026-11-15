@@ -1,5 +1,5 @@
 // expect: V17 AssignArgExpression
-import boring.Console;
+import std.Console;
 
 class Case {
     static function helper(keep:Bool):Void {

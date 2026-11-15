@@ -1,5 +1,5 @@
 // expect: V03 Reflection
-import boring.Console;
+import std.Console;
 
 class Case {
     static function main():Void {

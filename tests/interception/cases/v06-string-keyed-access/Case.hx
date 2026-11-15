@@ -1,5 +1,5 @@
 // expect: V06 StringKeyedAccess
-import boring.Console;
+import std.Console;
 
 class Case {
     static function main():Void {

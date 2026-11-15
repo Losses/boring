@@ -1,5 +1,5 @@
 // expect: V20 TryRegionMixedDomains
-import boring.Console;
+import std.Console;
 import boring.VectorException;
 import std.UStringException;
 import std.UStringFault;

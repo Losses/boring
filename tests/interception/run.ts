@@ -35,6 +35,11 @@ for (const name of readdirSync(casesRoot).sort()) {
   writeFileSync(
     buildFile,
     [
+      // The Intercept macro and the rule modules it pulls in reference
+      // reflaxe.data.*, which only the pinned reflaxe haxelib provides;
+      // without this every case stops at "Type not found : reflaxe.data.*"
+      // before the interception under test ever runs.
+      "-lib reflaxe",
       "-cp packages/compiler",
       "-cp samples",
       `-cp ${guardPath}`,

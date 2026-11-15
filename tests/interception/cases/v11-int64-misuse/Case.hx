@@ -1,5 +1,5 @@
 // expect: V11 Int64Misuse
-import boring.Console;
+import std.Console;
 
 class Case {
     static function main():Void {

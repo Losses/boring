@@ -1,5 +1,5 @@
 // expect: V12 DataInheritance
-import boring.Console;
+import std.Console;
 
 class Base {
     public function new() {}

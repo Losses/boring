@@ -1,5 +1,5 @@
 // expect: V15 EnumDefaultArm
-import boring.Console;
+import std.Console;
 
 enum Color {
     Red;

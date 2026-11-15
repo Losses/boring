@@ -1,5 +1,5 @@
 // expect: V19 TryRegionControlFlow
-import boring.Console;
+import std.Console;
 import boring.VectorException;
 
 class Case {

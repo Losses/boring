@@ -1,5 +1,5 @@
 // expect: V13 HashMapCollection
-import boring.Console;
+import std.Console;
 
 class Case {
     static function main():Void {
