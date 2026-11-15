@@ -103,5 +103,55 @@ class Consumer {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
     }
   }, 120_000);
+
+  test("the resident Kotlin sorted tables implement Map and Set with no boundary conversion", () => {
+    const runtime = read("reference/kotlin/gen/runtime/SortedTable.kt");
+    expect(runtime).toContain("class SortedMapTable<K, V>(private val _keys: MutableList<K>, private val _values: MutableList<V>");
+    expect(runtime).toContain(") : Map<K, V>");
+    expect(runtime).toContain("class SortedSetTable<K>(private val _keys: MutableList<K>");
+    expect(runtime).toContain(") : Set<K>");
+    expect(runtime).toContain("override val size: Int get()");
+    expect(runtime).toContain("override val keys: Set<K>");
+    expect(runtime).toContain("override val values: Collection<V>");
+    expect(runtime).toContain("override val entries: Set<Map.Entry<K, V>>");
+    expect(runtime).toContain("override fun containsKey(key: K): Boolean");
+    expect(runtime).toContain("override fun containsAll(elements: Collection<K>): Boolean");
+    expect(runtime).toContain("fun keyAt(index: Int): K");
+    expect(runtime).toContain("fun valueAt(index: Int): V");
+    expect(runtime).toContain("fun at(index: Int): K");
+    expect(runtime).toContain("fun has(key: K): Boolean");
+    expect(runtime).not.toContain("fun size(): Int");
+
+    const sourceRoot = fs.mkdtempSync(path.join(root, ".kotlin-table-conformance-"));
+    try {
+      const probe = path.join(sourceRoot, "Probe.kt");
+      fs.writeFileSync(probe, `import boring.runtime.SortedMapTable
+import boring.runtime.SortedSetTable
+
+fun acceptsMap(m: Map<String, Int>): Int = m.size
+fun acceptsSet(s: Set<Int>): Int = s.size
+
+fun exercise(t: SortedMapTable<String, Int>, u: SortedSetTable<Int>): Int {
+    val m: Map<String, Int> = t
+    val s: Set<Int> = u
+    return acceptsMap(t) + acceptsSet(u) + m.keys.size + m.values.size + m.entries.size + s.size
+        + t.keyAt(0).length + u.at(0) + t.valueAt(0)
+}
+`);
+      const jar = path.join(sourceRoot, "probe.jar");
+      const result = Bun.spawnSync([
+        "kotlinc",
+        path.join(root, "reference/kotlin/gen/runtime/SortedTable.kt"),
+        probe,
+        "-d",
+        jar,
+      ]);
+      const diagnostics = result.stderr.toString() + result.stdout.toString();
+      expect(diagnostics).toBe("");
+      expect(result.exitCode).toBe(0);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+    }
+  }, 180_000);
 });
 

@@ -235,6 +235,12 @@ class KotlinDecl {
                 iface.name;
             }
         ];
+        final tableKind = sortedTableKind(cls);
+        if (tableKind == "map") {
+            ifaces.push("Map<K, V>");
+        } else if (tableKind == "set") {
+            ifaces.push("Set<K>");
+        }
         final ifaceStr = ifaces.length > 0 ? " : " + ifaces.join(", ") : "";
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         // @:dataClass opts into the Kotlin data class prefix (feature spec 27);
@@ -424,7 +430,7 @@ class KotlinDecl {
                         // equal size, so size().hashCode() is consistent even
                         // though it collides across equal-sized tables).
                         eqTerms.push('this.' + name + '.contentEquals(other.' + name + ')');
-                        hashTerms.push('this.' + name + '.size().hashCode()');
+                        hashTerms.push('this.' + name + '.size.hashCode()');
                     } else if (expr.isFloatType(a.type)) {
                         eqTerms.push('this.' + name + ' == other.' + name);
                         final fieldType = fieldTypes.exists(a.name) ? fieldTypes.get(a.name) : a.type;
@@ -447,6 +453,16 @@ class KotlinDecl {
                 lines.push("        return h");
                 lines.push("    }");
             }
+        }
+
+        if (tableKind == "map") {
+            lines.push("");
+            for (l in sortedMapInterfaceMembers())
+                lines.push(l);
+        } else if (tableKind == "set") {
+            lines.push("");
+            for (l in sortedSetInterfaceMembers())
+                lines.push(l);
         }
 
         lines.push("}");
@@ -1008,7 +1024,8 @@ class KotlinDecl {
     function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
         final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
         final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
-        final renderedName = a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name);
+        final rawName = a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name);
+        final renderedName = sortedTableFieldName(cls, rawName);
         return renderedName + ": " + types.of(parameterKotlinType(cls, fieldName, a, typeOverride)) + defaultText;
     }
 
@@ -1660,6 +1677,18 @@ class KotlinDecl {
 
     function funcDecl(cls:ClassType, f:ClassFuncData, isObject:Bool):Array<String> {
         expr.resetLocalNames();
+        // The resident sorted tables render their size as the Map/Set
+        // property so the class can implement the interface; every call
+        // site renders `.size` for the same receiver set.
+        final tableKind = sortedTableKind(cls);
+        if (tableKind != "" && f.field.name == "size") {
+            for (a in f.args) {
+                expr.reserveName(a.name);
+            }
+            final artifact = expr.prepareSource(cls, f, FunctionBody);
+            final body = expr.bodyFrom(artifact, cls, f, false);
+            return ['    override val size: ' + types.of(f.ret) + ' get() {'].concat(body.map(l -> "    " + l)).concat(["    }"]);
+        }
         // An override adopts the interface's parameter names: Kotlin's
         // supertype-name warning fires when the two differ.
         // (OverrideAdoptsInterfaceNames)
@@ -1711,7 +1740,10 @@ class KotlinDecl {
         // the modifier is required even though Haxe models no Any root, so
         // no superclass link exists to derive it from (feature spec 27).
         final overridesAny = (f.field.name == "toString" || f.field.name == "hashCode") && f.args.length == 0;
-        final overrideStr = (isInterfaceMethod(cls, f) || overridesAny) ? "override " : "";
+        // Map.get is the one Haxe member whose Kotlin name already matches
+        // the injected interface, so it needs the modifier.
+        final overridesInjected = tableKind == "map" && f.field.name == "get";
+        final overrideStr = (isInterfaceMethod(cls, f) || overridesAny || overridesInjected) ? "override " : "";
         // Kotlin requires override members to be at least as visible as the
         // overridden member (interface members are public), so drop private and
         // internal visibility when the override modifier is present.
@@ -1927,6 +1959,99 @@ class KotlinDecl {
 
     function isStructKeyCandidate(fields:Array<ClassField>):Bool {
         return PolicyQueries.isStructKeyCandidate(fields);
+    }
+
+    /**
+        The Kotlin collection interface a resident sorted table conforms
+        to, or the empty string elsewhere. The conformance is emitted from
+        this backend only: the one Haxe runtime source and the other four
+        targets keep the table shape.
+    **/
+    static function sortedTableKind(cls:ClassType):String {
+        if (!RuntimeResidents.isResident(cls.module)) {
+            return "";
+        }
+        return switch (cls.name) {
+            case "SortedMapTable": "map";
+            case "SortedSetTable": "set";
+            case _: "";
+        };
+    }
+
+    /**
+        The emitted Kotlin name of a resident table field. The backing
+        arrays rename so a class that implements Map can carry the ruled
+        keys/values properties.
+    **/
+    static function sortedTableFieldName(cls:ClassType, name:String):String {
+        if (sortedTableKind(cls) == "") {
+            return name;
+        }
+        return switch (name) {
+            case "keys": "_keys";
+            case "values": "_values";
+            case _: name;
+        };
+    }
+
+    /** The injected members that complete Map<K, V> on SortedMapTable. **/
+    static function sortedMapInterfaceMembers():Array<String> {
+        return [
+            '    override val keys: Set<K> = object : AbstractSet<K>() {',
+            '        override val size: Int get() = this@SortedMapTable.size',
+            '        override fun contains(element: K): Boolean = this@SortedMapTable.containsKey(element)',
+            '        override fun iterator(): Iterator<K> = object : Iterator<K> {',
+            '            private var index = 0',
+            '            override fun hasNext(): Boolean = index < this@SortedMapTable.size',
+            '            override fun next(): K = this@SortedMapTable.keyAt(index++)',
+            '        }',
+            '    }',
+            '',
+            '    override val values: Collection<V> = object : AbstractCollection<V>() {',
+            '        override val size: Int get() = this@SortedMapTable.size',
+            '        override fun contains(element: V): Boolean = this@SortedMapTable.containsValue(element)',
+            '        override fun iterator(): Iterator<V> = object : Iterator<V> {',
+            '            private var index = 0',
+            '            override fun hasNext(): Boolean = index < this@SortedMapTable.size',
+            '            override fun next(): V = this@SortedMapTable.valueAt(index++)',
+            '        }',
+            '    }',
+            '',
+            '    override val entries: Set<Map.Entry<K, V>> = object : AbstractSet<Map.Entry<K, V>>() {',
+            '        override val size: Int get() = this@SortedMapTable.size',
+            '        override fun iterator(): Iterator<Map.Entry<K, V>> = object : Iterator<Map.Entry<K, V>> {',
+            '            private var index = 0',
+            '            override fun hasNext(): Boolean = index < this@SortedMapTable.size',
+            '            override fun next(): Map.Entry<K, V> {',
+            '                val i = index++',
+            '                val k = this@SortedMapTable.keyAt(i)',
+            '                val v = this@SortedMapTable.valueAt(i)',
+            '                return object : Map.Entry<K, V> {',
+            '                    override val key: K get() = k',
+            '                    override val value: V get() = v',
+            '                }',
+            '            }',
+            '        }',
+            '    }',
+            '',
+            '    override fun isEmpty(): Boolean = this._keys.isEmpty()',
+            '    override fun containsKey(key: K): Boolean = this.locate(key) >= 0',
+            '    override fun containsValue(value: V): Boolean = this._values.contains(value)',
+        ];
+    }
+
+    /** The injected members that complete Set<K> on SortedSetTable. **/
+    static function sortedSetInterfaceMembers():Array<String> {
+        return [
+            '    override fun isEmpty(): Boolean = this._keys.isEmpty()',
+            '    override fun contains(element: K): Boolean = this.locate(element) >= 0',
+            '    override fun containsAll(elements: Collection<K>): Boolean = elements.all { this.contains(it) }',
+            '    override fun iterator(): Iterator<K> = object : Iterator<K> {',
+            '        private var index = 0',
+            '        override fun hasNext(): Boolean = index < this@SortedSetTable.size',
+            '        override fun next(): K = this@SortedSetTable.at(index++)',
+            '    }',
+        ];
     }
 
     function isSortedTable(t:Type):Bool {

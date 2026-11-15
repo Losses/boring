@@ -5098,7 +5098,7 @@ class KotlinExpr {
                 final getterProperty = getterOnlyProperty(owner.get(), name);
                 if (getterProperty != null)
                     return getterPropertyAccess(subj, getterProperty);
-                return instanceField(subj, name, cf);
+                return instanceField(subj, sortedTableFieldName(owner.get(), name), cf);
             case FAnon(cf):
                 return instanceField(subj, cf.get().name, cf);
             case FDynamic(name):
@@ -5482,13 +5482,13 @@ class KotlinExpr {
                 final index = depth == 0 ? "i" : "i" + depth;
                 final receiver = collectionReceiverName(depth);
                 final item = stdStringType(element, receiver + ".at(" + index + ")", true, origin, depth + 1);
-                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'[\'); val n = ${receiver}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
+                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'[\'); val n = ${receiver}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
             case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final receiver = collectionReceiverName(depth);
                 final itemKey = stdStringType(key, receiver + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, receiver + ".valueAt(" + index + ")", true, origin, depth + 1);
-                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'{\'); val n = ${receiver}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
+                'run { val sb = StringBuilder(); val ${receiver} = ${value}; sb.append(\'{\'); val n = ${receiver}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
             case IsHashMap(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
@@ -6033,6 +6033,9 @@ class KotlinExpr {
                 return expr(subj) + ".length";
             case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
+                if (name == "size" && args.length == 0 && isSortedTableOwner(owner.get())) {
+                    return expr(subj) + ".size";
+                }
                 final methodOnNullableCast = switch (subj.expr) {
                     case TCast(inner, _) if (!cf.get().kind.match(FVar(_, _)) && isNullType(inner.t)
                         && !receiverProven(inner)): true;
@@ -7251,6 +7254,36 @@ class KotlinExpr {
             case OpBoolAnd | OpBoolOr | OpAdd | OpMult: true;
             case _: false;
         }
+    }
+
+    /**
+        The Kotlin name of a resident sorted table field: the backing
+        arrays rename so the emitted class can carry Map.keys/values.
+    **/
+    static function sortedTableFieldName(owner:ClassType, name:String):String {
+        if (!RuntimeResidents.isResident(owner.module)) {
+            return name;
+        }
+        if (owner.name != "SortedMapTable" && owner.name != "SortedSetTable") {
+            return name;
+        }
+        return switch (name) {
+            case "keys": "_keys";
+            case "values": "_values";
+            case _: name;
+        };
+    }
+
+    /**
+        Whether the owning member belongs to a resident sorted table or
+        its extern. The Kotlin size member of such a receiver is the
+        interface property, so call sites render `.size`.
+    **/
+    static function isSortedTableOwner(owner:ClassType):Bool {
+        if (owner.module == "std.SortedMap" || owner.module == "std.SortedSet") {
+            return true;
+        }
+        return RuntimeResidents.isResident(owner.module) && (owner.name == "SortedMapTable" || owner.name == "SortedSetTable");
     }
 
     function fieldName(fa:FieldAccess):String {

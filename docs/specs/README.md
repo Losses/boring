@@ -128,7 +128,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 16 | [16-dataclass-sorted-keys.md](stdlib/16-dataclass-sorted-keys.md) | Complete | Lexicographic ordering and comparator eligibility for `@:dataClass` keys in sorted collections. |
 | 17 | [17-platform-modules.md](stdlib/17-platform-modules.md) | Complete | Host-backed filesystem, environment, process-argument, and path module routing on each target. |
 | 18 | [18-non-null-require.md](stdlib/18-non-null-require.md) | Complete | Narrowed Std.string operands: the member synthesis renders nullable fields through its null comparison with the target's non-null assertion. |
-| 20 | [20-sorted-table-platform-interfaces.md](stdlib/20-sorted-table-platform-interfaces.md) | Draft | Whether the Kotlin target presents std.SortedMap and std.SortedSet as Map and Set: the three kotlinc conflicts, four candidates, the five-target impact, and the tiqian count. |
+| 20 | [20-sorted-table-platform-interfaces.md](stdlib/20-sorted-table-platform-interfaces.md) | Complete | The Kotlin resident sorted tables implement Map and Set while the public type stays the table: the three kotlinc conflicts, four candidates, the five-target impact, and the tiqian count. |
 
 ### Style specifications
 
