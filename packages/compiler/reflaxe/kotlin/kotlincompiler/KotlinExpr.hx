@@ -1630,7 +1630,13 @@ class KotlinExpr {
                 return exceptionVariant(c.get(), args[0]);
             case _:
         }
-        return expr(x);
+        final rendered = expr(x);
+        // A Haxe throw whose value is the diagnostic text itself carries no
+        // Throwable for Kotlin. Wrap the message in the class haxe.Exception
+        // lowers to (KotlinType maps it to RuntimeException) so the text
+        // survives at runtime; every other throw operand is already a
+        // Throwable-shaped expression and stays untouched.
+        return isStringType(inner.t) ? "RuntimeException(" + rendered + ")" : rendered;
     }
 
     /**
