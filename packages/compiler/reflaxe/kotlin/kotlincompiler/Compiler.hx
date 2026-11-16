@@ -324,10 +324,12 @@ class Compiler extends PluginCompiler<Compiler> {
                 final savePath = computeRelativePath(kotlinOutput, testFileRel);
                 PackageArtifacts.saveTreeFile(output, savePath, content);
                 writeOriginSidecar(savePath, content);
+                removeDepartedTreeCopy(kotlinOutput, modulePath(module));
             } else {
                 final savePath = modulePath(module);
                 PackageArtifacts.saveTreeFile(output, savePath, content);
                 writeOriginSidecar(savePath, content);
+                removeDepartedTreeCopy(kotlinTestOutput, modulePath(module));
             }
         }
 
@@ -935,6 +937,26 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function modulePath(module:String):String {
         return module.split(".").join("/") + ".kt";
+    }
+
+    /**
+        A module belongs to exactly one tree. The unit decision above routes
+        it, and the tree it left keeps no copy: output trees are reused
+        across runs, and a module whose unit changed (a `@:mainOnly` added to
+        the types only test code references) would otherwise stay in both
+        trees, so a consumer that compiles the main output together with the
+        test root reports a redeclaration for every type the file declares.
+    **/
+    function removeDepartedTreeCopy(tree:Null<String>, path:String):Void {
+        if (tree == null) {
+            return;
+        }
+        final stale = tree + "/" + path;
+        for (candidate in [stale, stale + ".emit-origin.json"]) {
+            if (sys.FileSystem.exists(candidate) && !sys.FileSystem.isDirectory(candidate)) {
+                sys.FileSystem.deleteFile(candidate);
+            }
+        }
     }
 
     /** Test-only invariant-checker positive control: when

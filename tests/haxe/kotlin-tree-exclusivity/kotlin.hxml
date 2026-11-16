@@ -1,0 +1,20 @@
+# Two-run fixture for the tree-exclusivity rule: a module whose unit changes
+# between generation runs must leave no copy in the tree it left. The first
+# run compiles trees.SharedTest only, so Shared is referenced by test code
+# alone and the closure routes it into the test root. The second run adds
+# trees.Entry, a shipping-tree referencer, so Shared returns to the main root
+# while both output trees are reused. Run from the worktree root:
+#   haxe tests/haxe/kotlin-tree-exclusivity/kotlin.hxml \
+#     -D kotlin-output=<gen> -D kotlin-test-output=<gen-tests> trees.SharedTest
+#   haxe tests/haxe/kotlin-tree-exclusivity/kotlin.hxml \
+#     -D kotlin-output=<gen> -D kotlin-test-output=<gen-tests> trees.SharedTest trees.Entry
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-tree-exclusivity/probe
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-tree-exclusivity'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
