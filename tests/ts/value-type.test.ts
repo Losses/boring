@@ -82,6 +82,63 @@ function runMutation(sourceRoot: string, output: string, target: MutationTarget)
   };
 }
 
+// A value wrapper whose members cover the three emission shapes the Swift and
+// Dart wrappers must distinguish: a plain static factory, an implicit-cast
+// static factory, and an instance method that throws. The Swift factory and
+// the throwing instance method both need the throws marker; the Dart
+// extension type needs static on the two factories only.
+const staticMemberShape = `package mutation;
+
+class BlankFaceException extends haxe.Exception {
+  public function new(message:String) super(message);
+}
+
+@:valueType
+abstract StaticFace(String) from String {
+  public inline function new(value:String) this = value;
+
+  public static function of(value:String):StaticFace {
+    if(StringTools.trim(value) == "") throw new BlankFaceException("blank");
+    return new StaticFace(value);
+  }
+
+  @:from public static function fromString(value:String):StaticFace
+    return of(value);
+
+  public function validate():StaticFace {
+    if(this.length == 0) throw new BlankFaceException("empty");
+    return this;
+  }
+
+  public function toString():String return this;
+}
+
+class StaticFaceConsumer {
+  public static function run(value:StaticFace):StaticFace return value.validate();
+}
+`;
+
+function staticMemberHxml(sourceRoot: string, output: string, target: MutationTarget): string {
+  const runtimeDefines = target.id === "dart"
+    ? ["-D runtime-import=@boring/runtime", "-D runtime-emit=."]
+    : [];
+  return [
+    "-lib reflaxe",
+    "-lib boring",
+    `-cp ${path.join(root, target.shadow)}`,
+    `-cp ${path.join(root, target.shadow.replace("/std-shadow", ""))}`,
+    `-cp ${path.join(root, "samples")}`,
+    `-cp ${sourceRoot}`,
+    `--macro Intercept.run(["${sourceRoot}"])`,
+    `--macro ${target.compiler}`,
+    ...runtimeDefines,
+    `-D ${target.define}=${output}`,
+    `-D ${target.define.replace("-output", "-test-output")}=${output}-tests`,
+    "mutation.StaticFace",
+    "",
+  ].join("\n");
+}
+
 describe("value wrapper generated trees", () => {
   test("renders the five target representations and member forms", () => {
     const ts = read("reference/ts/gen/boring/ValueTypeOps.ts");
@@ -168,4 +225,30 @@ describe("value wrapper generated trees", () => {
     // explicit timeout raises only the harness patience for those
     // subprocesses, never the asserted behavior.
   }, 720_000);
+
+  test("renders value wrapper static members as static with Swift throws", () => {
+    const sourceRoot = fs.mkdtempSync(path.join(root, ".value-type-mutation-static-"));
+    try {
+      fs.mkdirSync(path.join(sourceRoot, "mutation"), { recursive: true });
+      fs.writeFileSync(path.join(sourceRoot, "mutation/StaticFace.hx"), staticMemberShape);
+      for(const target of mutationTargets) {
+        if(target.id !== "swift" && target.id !== "dart") continue;
+        const hxml = path.join(sourceRoot, `${target.id}.hxml`);
+        fs.writeFileSync(hxml, staticMemberHxml(sourceRoot, path.join(sourceRoot, target.id), target));
+        const compile = Bun.spawnSync(["haxe", hxml], { cwd: root });
+        expect(compile.exitCode, compile.stdout.toString() + compile.stderr.toString()).toBe(0);
+      }
+      const swift = fs.readFileSync(path.join(sourceRoot, "swift/mutation/StaticFace.swift"), "utf8");
+      expect(swift).toContain("public static func of(_ value: [UInt16]) throws -> StaticFace {");
+      expect(swift).toContain("public static func fromString(_ value: [UInt16]) throws -> StaticFace {");
+      expect(swift).toContain("public func validate() throws -> StaticFace {");
+      const dart = fs.readFileSync(path.join(sourceRoot, "dart/lib/mutation/static_face.dart"), "utf8");
+      expect(dart).toContain("static StaticFace of(String value) {");
+      expect(dart).toContain("static StaticFace fromString(String value) {");
+      expect(dart).toContain("StaticFace validate() {");
+      expect(read("reference/swift/gen/boring/StaticStateOps.swift")).toContain("public static func install(_ value: [UInt16]) -> Void {");
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
