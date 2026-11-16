@@ -70,8 +70,19 @@ kotlin {
 }
 
 // The generated suite carries @boring.test.Test cases and is not a JUnit suite,
-// so it gets its own JVM compilation and runs through the generated TestMainKt
-// (the same split tiqian/engine/build.gradle.kts used).
+// so it gets its own JVM compilation and runs through the generated TestMainKt.
+// The compilation lived in tiqian/engine/build.gradle.kts before this project
+// took the publication host over.
+//
+// No dependencies are declared for this compilation on purpose. tiqian's engine
+// build declared kotlin("test"), kotlinx-serialization-json:1.8.1 and the two
+// platform projects (":platforms:jvm:shaping", ":platforms:jvm:skia") on the
+// same compilation, and the generated suite uses none of them: its imports name
+// packages this tree emits (org.tiqian.*, std.UStringException) and
+// kotlin.math.pow, with no kotlinx, org.tiqian.platform, skiko or skia symbol
+// anywhere in the emitted gen and gen-tests trees. The runtime classpath below
+// carries the Kotlin standard library plus annotations. Check that observation
+// before adding a dependency here.
 val jvmGeneratedTestCompilation = kotlin.targets.getByName("jvm").compilations.create("generatedTest") {
     defaultSourceSet.dependsOn(kotlin.sourceSets.getByName("commonMain"))
 }
