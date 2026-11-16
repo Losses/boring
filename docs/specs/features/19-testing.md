@@ -331,6 +331,12 @@ source-set split of the Kotlin ecosystem:
   runner's environment and appends to the runner's result file, edges
   that a shipping source set compiled for every Kotlin platform cannot
   carry. Both files keep one package across the two source sets.
+- The two trees are reused across runs, so the routing decision also
+  removes the module's file from the tree it left. A module whose unit
+  changed between runs, such as a type that gained `@:mainOnly` after
+  test code alone referenced it, would otherwise stay in both trees,
+  and a consumer that compiles the main output together with the test
+  root reports a redeclaration of every type the file declares.
 
 ```kotlin
 package tests

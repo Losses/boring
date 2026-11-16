@@ -655,6 +655,14 @@
       ]
     },
     {
+      "path": "tests/haxe/kotlin-tree-exclusivity/kotlin.hxml",
+      "mode": "compile",
+      "reason": "tests/kotlin/tree-exclusivity.test.ts runs the entry twice and adds the second run's trees.Entry root; the entry's own trees.SharedTest root is what the smoke compiles, with kotlin-output and kotlin-test-output from the tree-output default",
+      "targets": [
+        "kotlin"
+      ]
+    },
+    {
       "path": "tests/haxe/kotlin-var-field-smartcast/kotlin-gen.hxml",
       "mode": "compile",
       "targets": [
