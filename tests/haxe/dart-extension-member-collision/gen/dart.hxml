@@ -18,3 +18,5 @@
 -D runtime-emit=.
 pub.ExtensionOverloads
 pub.ExtensionOverloadsConsumer
+pub.ReversedOverloads
+pub.ReversedOverloadsConsumer

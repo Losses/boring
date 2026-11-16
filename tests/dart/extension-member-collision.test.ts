@@ -18,6 +18,8 @@ const outRoot = "out/dart-extension-member-collision";
 const tree = path.join(root, outRoot, "gen/dart");
 const library = path.join(tree, "lib/pub/extension_overloads.dart");
 const consumer = path.join(tree, "lib/pub/extension_overloads_consumer.dart");
+const reversedLibrary = path.join(tree, "lib/pub/reversed_overloads.dart");
+const reversedConsumer = path.join(tree, "lib/pub/reversed_overloads_consumer.dart");
 
 describe("Dart extension member collision", () => {
   test("the later declaration keeps its class and the call site qualifies it", async () => {
@@ -45,5 +47,18 @@ describe("Dart extension member collision", () => {
     // The call sites follow the two shapes.
     expect(consumerText).toContain("mode.mark()");
     expect(consumerText).toContain("ExtensionOverloadsExtra.mark(mode, \"!\")");
+
+    // Falsifiable direction: the same two declarations in the opposite
+    // source order move the fallback to the declaration that comes second,
+    // so the rule follows declaration order and nothing about the class
+    // names (a name-based rule would pick Extra in both directions).
+    const reversedLibraryText = fs.readFileSync(reversedLibrary, "utf8");
+    const reversedConsumerText = fs.readFileSync(reversedConsumer, "utf8");
+    expect(reversedLibraryText).toContain("String mark(String suffix) {");
+    expect(reversedLibraryText).toContain("final class ReversedOverloads {");
+    expect(reversedLibraryText).toContain("static String mark(");
+    expect(reversedConsumerText).toContain("mode.mark(\"!\")");
+    expect(reversedConsumerText).toContain("ReversedOverloads.mark(mode)");
+    expect(reversedLibraryText).not.toContain("final class ReversedOverloadsExtra {");
   }, 120000);
 });
