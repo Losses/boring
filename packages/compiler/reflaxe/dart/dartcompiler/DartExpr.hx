@@ -898,13 +898,18 @@ class DartExpr {
                     else if (coalescingValue != null)
                         DefaultArgExpander.coalescingLocalType(coalescingValue, v.t)
                     else if (!mutated.exists(v.id) && (!isNullLeafType(init.t)
-                        || guardedTernaryNonNullInit(init))
+                        || guardedTernaryNonNullInit(init)
+                        || flowPromotedLocal(init))
                         && EnumQueryExpander.markerKind(init) != QLookup)
                         // Haxe already narrowed the initializer (a null-guard
                         // ternary types as the non-null element), but Dart does
                         // not promote a final local declared with an explicit
                         // nullable annotation, so a later use fails E_nullable.
                         // Declare the non-null element instead. (FinalLocalPromotion)
+                        // A read of a local the emitter already declared non-null
+                        // carries the same proof: `final dRef = maxStretch` must
+                        // not name a nullable type while `maxStretch` itself
+                        // renders non-null. (PromotedLocalInitializer)
                         DefaultArgExpander.withoutNull(v.t)
                     else
                         v.t;
