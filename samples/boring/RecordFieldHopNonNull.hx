@@ -10,10 +10,11 @@ package boring;
  *
  * Pinned to the main (shipping) unit with @:mainOnly: the test-support
  * closure would otherwise reclassify this module to tests, because its only
- * Haxe referencer is tests.ConsumerShapeCorpusTests (the corpus runs the same
- * hop at runtime). The regression pin reads the generated .kt from the main
- * tree (reference/kotlin/gen/boring/RecordFieldHopNonNull.kt), so the sample
- * must stay in gen; pinning the unit keeps the class shape untouched.
+ * Haxe referencer is tests.ConsumerShapeCorpusTests (which runs the same hop
+ * at runtime). The regression pin reads the generated .kt from the main tree
+ * (reference/kotlin/gen/boring/RecordFieldHopNonNull.kt), so the sample must
+ * stay in gen. Pinning the unit decides which tree receives the file; the
+ * emitted class keeps its shape.
  **/
 typedef RecordFieldHopRow = {
 	var items:Array<String>;
