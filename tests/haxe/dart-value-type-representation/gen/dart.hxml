@@ -1,0 +1,19 @@
+# Dart generation of the minimal value-type representation fixture (task
+# t-mwj0u89s-xc1m). The runner passes -D dart-output=... and
+# -D dart-test-output=... on the command line. A marked value type's
+# property accessor is inlined to the representation, so a read in a
+# representation position names the extension type's representation field.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dart-value-type-representation
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dart-value-type-representation'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+pub.FaceRef
+pub.FaceRefConsumer

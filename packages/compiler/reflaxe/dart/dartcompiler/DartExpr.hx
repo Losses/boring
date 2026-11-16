@@ -930,7 +930,7 @@ class DartExpr {
                 }
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: expr(init);
+                    default: representationText(init);
                 };
                 if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
                     initText = intToFloatText(initText);
@@ -1051,7 +1051,7 @@ class DartExpr {
                     case TSwitch(_, _, _):
                         return switchReturn(inner, depth);
                     case _:
-                        var rendered = expr(ret);
+                        var rendered = representationText(ret);
                         if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
                             rendered = intToFloatText(rendered);
                         final nonNullReturn = switch (inner.expr) {
@@ -1744,6 +1744,43 @@ class DartExpr {
         declaration context. The set matches the declaration site, so
         renamed representation references stay consistent there too.
     **/
+    /**
+        A value rendered in a position that demands the representation type
+        (argument, return, initializer, assignment): a cast out of a marked
+        wrapper to its representation reads the stored field there.
+        Operator operands keep the wrapper and render through
+        valueTypeOperand, so this rule lists positions instead of excluding
+        them. (ValueTypeCastUnboxAtPosition)
+    **/
+    function representationText(e:TypedExpr):String {
+        final node = stripOuterNonCast(e);
+        final castWrapper = switch (node.expr) {
+            case TCast(inner, _):
+                final abs = ValueTypeSupport.markedAbstractOfType(inner.t);
+                abs != null && ValueTypeSupport.isRepresentationOf(node.t, abs) ? abs : null;
+            case _: null;
+        };
+        if (castWrapper != null) {
+            final representationName = DartDecl.representationField(castWrapper);
+            final inner = switch (node.expr) {
+                case TCast(inner, _): inner;
+                case _: node;
+            };
+            final innerText = expr(inner);
+            if (representationName.length > 0 && !StringTools.endsWith(innerText, "." + representationName))
+                return innerText + "." + representationName;
+        }
+        return expr(e);
+    }
+
+    /** Parenthesis and metadata wrappers only; a cast stays visible. */
+    function stripOuterNonCast(e:TypedExpr):TypedExpr {
+        return switch (e.expr) {
+            case TParenthesis(inner) | TMeta(_, inner): stripOuterNonCast(inner);
+            case _: e;
+        };
+    }
+
     function implStaticFields(abs:AbstractType):Array<ClassField> {
         return abs.impl == null ? [] : abs.impl.get().statics.get();
     }
@@ -1913,7 +1950,7 @@ class DartExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                var rText = expr(r);
+                var rText = representationText(r);
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
                     rText = intToFloatText(rText);
                 return map == null ? assignTarget(l) + " = " + rText : expr(map.receiver) + "[" + expr(map.key) + "] = " + rText;
@@ -2664,7 +2701,7 @@ class DartExpr {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
-                var t = (demandsValue && nullableValue(a)) ? requiredValueText(a) : expr(a);
+                var t = (demandsValue && nullableValue(a)) ? requiredValueText(a) : representationText(a);
                 if (pt != null && isIntOrLongType(emittedType(a)) && isFloatType(pt)) t = intToFloatText(t);
                 t;
             }

@@ -488,6 +488,7 @@ class DartDecl {
         if (first == null)
             Context.error("value type constructor must take its representation", cls.pos);
         final fieldName = valueTypeFieldName(abs, [for (f in funcFields) f.field]);
+        representationFields.set(representationKey(abs), fieldName);
         final lines:Array<String> = [
             "extension type " + info.name + "(" + types.of(info.representation) + " " + fieldName + ") {"
         ];
@@ -572,6 +573,25 @@ class DartDecl {
         name also collides). Wrappers without a clash keep the constructor
         parameter name, leaving their output byte-identical.
     **/
+    /**
+        The representation field name each declaration chose, keyed by the
+        abstract's module and name, so a read in another module uses the
+        same name the declaration emitted.
+    **/
+    static final representationFields:Map<String, String> = [];
+
+    static function representationKey(abs:AbstractType):String {
+        return abs.module + "|" + abs.name;
+    }
+
+    /** The representation field of a marked value type. */
+    public static function representationField(abs:AbstractType):String {
+        final key = representationKey(abs);
+        if (representationFields.exists(key))
+            return representationFields.get(key);
+        return ValueTypeSupport.representationFieldName(abs);
+    }
+
     public static function valueTypeFieldName(abs:AbstractType, fields:Array<ClassField>):String {
         final ctor = ValueTypeSupport.constructorField(abs);
         final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
