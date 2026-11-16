@@ -42,10 +42,12 @@ class DartDecl {
     var seqEqualsNeeded = false;
 
     /**
-        Extension declarations are grouped per library, not per class
-        (spec 10): every marked extension function over the same receiver
-        type shares one declaration, and Dart rejects a second extension of
-        the same name inside one library. The first class of a module that
+        Extension declarations are grouped per library (spec 10): every
+        marked extension function over the same receiver type shares one
+        declaration, and Dart rejects a second extension of the same name
+        inside one library. A grouping per class lets two classes of one
+        Haxe module emit that declaration twice, so the grouping covers the
+        whole module. The first class of a module that
         contributes a receiver inserts a placeholder at its declaration
         position; generateFilesManually renders the merged block there once
         every class of the module has been lowered.
@@ -234,10 +236,11 @@ class DartDecl {
             }
         }
         // One extension name covers every function over the same receiver
-        // in the library, not only in this class: Dart rejects a second
-        // extension of the same name in a library, so same-receiver
-        // functions from every class of the module share one declaration
-        // (spec 10). The first contributing class leaves a placeholder at
+        // in the library: Dart rejects a second extension of the same name
+        // in a library, so same-receiver functions from every class of the
+        // module share one declaration (spec 10). A grouping per class would
+        // emit that declaration once per class. The first contributing
+        // class leaves a placeholder at
         // its position; the merged block renders there at file assembly.
         // The receiver order is the first-encounter order, keeping the
         // output independent of map iteration order.
