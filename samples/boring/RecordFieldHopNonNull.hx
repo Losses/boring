@@ -3,11 +3,10 @@ package boring;
 /**
  * R1 regression sample (DeclaredFieldNonNull, record fields): a typedef
  * record field read off a nullable receiver renders through the receiver's
- * double-bang extraction, so a later length read keeps a plain dot. A record
- * field is an FAnon access rather than an FInstance one; treating it as a
- * propagating nullable chain hop emits a safe call and turns the Int length
- * into Int?, which the Kotlin function return and a non-null Int parameter
- * both reject.
+ * double-bang extraction, so a later length read keeps a plain dot. The
+ * record field access arrives as FAnon; treating that hop as a propagating
+ * nullable chain hop emits a safe call and turns the Int length into Int?,
+ * which the Kotlin function return and a non-null Int parameter both reject.
  **/
 typedef RecordFieldHopRow = {
 	var items:Array<String>;

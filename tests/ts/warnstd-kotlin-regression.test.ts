@@ -31,10 +31,10 @@ describe("warnstd kotlin regression samples", () => {
 
   test("DeclaredFieldNonNull: a record field hop keeps the extraction and drops the hop safe call", () => {
     const out = gen("RecordFieldHopNonNull.kt");
-    // A typedef record field is an FAnon access, not an FInstance one; the
-    // receiver still renders through its own !! extraction, so the length
-    // read must keep a plain dot. A propagating safe call here yields Int?
-    // at a Kotlin Int return (and argument) and does not compile.
+    // A typedef record field access arrives as FAnon; the receiver still
+    // renders through its own !! extraction, so the length read must keep a
+    // plain dot. A propagating safe call here yields Int? at a Kotlin Int
+    // return (and argument) and does not compile.
     expect(out).toContain("return r!!.items.size");
     expect(out).toContain("RecordFieldHopNonNull.take(r!!.items.size)");
     expect(out).not.toContain("items?.size");

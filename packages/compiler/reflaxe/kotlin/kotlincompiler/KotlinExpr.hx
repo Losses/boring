@@ -3716,9 +3716,9 @@ class KotlinExpr {
                     // an unproven nullable subject, and the
                     // (SafeCallHopHardening) rule hardens the same way
                     // after an earlier safe-call hop. A record field
-                    // (a typedef anonymous structure) is an FAnon access,
-                    // not an FInstance one, and instanceField extracts it
-                    // the same way, so the hop must be exempt for both.
+                    // (a typedef anonymous structure) arrives as an FAnon
+                    // access, and instanceField extracts it the same way,
+                    // so the hop is exempt for both access kinds.
                     // (DeclaredFieldNonNull)
                     final hopExtracted = switch (fa) {
                         case FInstance(_, _, cf) | FAnon(cf):
