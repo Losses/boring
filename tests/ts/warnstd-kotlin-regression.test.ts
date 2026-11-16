@@ -29,6 +29,17 @@ describe("warnstd kotlin regression samples", () => {
     expect(out).not.toContain("\n    var next: WidenedFieldNonNull");
   });
 
+  test("DeclaredFieldNonNull: a record field hop keeps the extraction and drops the hop safe call", () => {
+    const out = gen("RecordFieldHopNonNull.kt");
+    // A typedef record field is an FAnon access, not an FInstance one; the
+    // receiver still renders through its own !! extraction, so the length
+    // read must keep a plain dot. A propagating safe call here yields Int?
+    // at a Kotlin Int return (and argument) and does not compile.
+    expect(out).toContain("return r!!.items.size");
+    expect(out).toContain("RecordFieldHopNonNull.take(r!!.items.size)");
+    expect(out).not.toContain("items?.size");
+  });
+
   test("CharCodeNoToString: the fromCharCode template drops the redundant toString on its String branch", () => {
     const out = gen("FromCharCodeToString.kt");
     // The template binds the scalar once, so the String branch renders

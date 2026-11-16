@@ -703,6 +703,7 @@ tests.TestLitEdgeTests
 tests.SharedHandleTests
 # R1 warn-zero regression samples (one mechanism each)
 boring.WidenedFieldNonNull
+boring.RecordFieldHopNonNull
 boring.FromCharCodeToString
 boring.ShiftPopStatement
 boring.GuardedNonNullTernaryElvis
