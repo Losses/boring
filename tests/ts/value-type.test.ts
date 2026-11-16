@@ -118,7 +118,7 @@ class StaticFaceConsumer {
 }
 `;
 
-function staticMemberHxml(sourceRoot: string, output: string, target: MutationTarget): string {
+function staticMemberHxml(sourceRoot: string, output: string, target: MutationTarget, rootType = "mutation.StaticFace"): string {
   const runtimeDefines = target.id === "dart"
     ? ["-D runtime-import=@boring/runtime", "-D runtime-emit=."]
     : [];
@@ -134,7 +134,7 @@ function staticMemberHxml(sourceRoot: string, output: string, target: MutationTa
     ...runtimeDefines,
     `-D ${target.define}=${output}`,
     `-D ${target.define.replace("-output", "-test-output")}=${output}-tests`,
-    "mutation.StaticFace",
+    rootType,
     "",
   ].join("\n");
 }
@@ -251,4 +251,55 @@ describe("value wrapper generated trees", () => {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
     }
   }, 120_000);
+
+// An inline representation accessor returns `this` as the wrapper's stored
+// representation. Haxe lowers the access to an unboxing cast, and Kotlin keeps
+// a value class inline, so the emitted argument names the stored field and
+// never passes the wrapper into a representation-typed slot.
+const fieldAccessShape = `package mutation;
+
+@:valueType
+abstract FaceId(String) {
+  public static function of(value:String):FaceId return cast value;
+
+  public var value(get, never):String;
+
+  inline function get_value():String
+    return this;
+
+  public function toString():String
+    return this;
+}
+
+class FaceIdConsumer {
+  public static function consume(value:String):Void {}
+
+  public static function run():Void {
+    var id = FaceId.of("x");
+    consume(id.value);
+    consume(id.toString());
+  }
+}
+`;
+
+test("reads an inline representation accessor as the stored field", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(root, ".value-type-mutation-field-"));
+  try {
+    fs.mkdirSync(path.join(sourceRoot, "mutation"), { recursive: true });
+    // The consumer is the fixture module's main type, so the generation entry
+    // can name it directly.
+    fs.writeFileSync(path.join(sourceRoot, "mutation/FaceIdConsumer.hx"), fieldAccessShape);
+    const kotlin = mutationTargets.find(target => target.id === "kotlin")!;
+    const hxml = path.join(sourceRoot, "kotlin.hxml");
+    fs.writeFileSync(hxml, staticMemberHxml(sourceRoot, path.join(sourceRoot, "kotlin"), kotlin, "mutation.FaceIdConsumer"));
+    const compile = Bun.spawnSync(["haxe", hxml], { cwd: root });
+    expect(compile.exitCode, compile.stdout.toString() + compile.stderr.toString()).toBe(0);
+    const generated = fs.readFileSync(path.join(sourceRoot, "kotlin/mutation/FaceIdConsumer.kt"), "utf8");
+    expect(generated).toContain("value class FaceId(val value: String)");
+    expect(generated).toMatch(/consume\(id\.value\)/);
+    expect(generated).toMatch(/consume\(id\.toString\(\)\)/);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+  }
+}, 120_000);
 });
