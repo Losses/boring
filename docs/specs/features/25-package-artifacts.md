@@ -61,14 +61,16 @@ stale artifacts of earlier versions), and a walk would pack them.
   written as the pom `groupId` and as the directory path under
   `maven/` with `.` separators replaced by `/`. The default is the
   package name.
-- `mavenPublication` is a `boring.json` field of bundle driver
-  spec 59. A Kotlin bundle that declares it hands the
-  Maven repository directory to the project's build tool: the pack action
-  passes `package-artifacts=none` and runs the command with `{maven}`
-  replaced by `<outRoot>/<id>/maven` and `{version}` replaced by
-  `package.version`. The version substitution keeps the staged version
-  directories equal to the metadata version. The compiler writes no artifact
-  of its own on that path.
+- `mavenPublication` and `kmpPublication` are `boring.json` fields of
+  bundle driver spec 59. A Kotlin bundle that declares either hands the
+  Maven repository directory to a publication build: the pack action
+  passes `package-artifacts=none` and fills `<outRoot>/<id>/maven`.
+  `mavenPublication` runs the declared command with `{maven}` and
+  `{version}` replaced; `kmpPublication` runs the Gradle project installed
+  with the driver with the same directory, `package.version` and the
+  driver-derived `gen` and `gen-tests` directories. Both keep the staged
+  version directories equal to the metadata version. The compiler writes no
+  artifact of its own on that path.
 - `package-artifacts=emit` requires `package-shell=emit`: the artifact
   wraps the manifest, and a manifest the tree does not carry would
   make the artifact uninstallable. A compilation combining
@@ -259,7 +261,8 @@ The registry generator packs from release checkouts.
     directory layout.
 
 12. **The project's build tool may own the Maven directory.** A Kotlin
-    bundle that declares `mavenPublication` (bundle driver spec 59) hands
+    bundle that declares `mavenPublication` or `kmpPublication` (bundle driver
+    spec 59) hands
     the Maven repository directory to that command. The pack action passes
     `package-artifacts=none`, empties `<outRoot>/<id>/maven`, and runs the
     command with `{maven}` replaced by that directory. Kotlin

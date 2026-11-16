@@ -170,7 +170,7 @@ class Main {
 
     static function genArgs(project:Project, bundle:BundleSpec, pack:Bool):Array<String> {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
-        final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null
+        final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null && !bundle.kmpPublication
             ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
         return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
             discoverSourceTypes(project, bundle.sourceSet));
@@ -336,6 +336,73 @@ class Main {
         return out;
     }
 
+    /**
+        The Gradle project that produces the Kotlin Multiplatform publication of
+        a kmpPublication bundle. The flake installs it beside the driver and the
+        wrapper exports its path; the path is read-only, so the step redirects
+        every Gradle output under the bundle's outRoot directory.
+    **/
+    static function publicationProject():String {
+        final candidates:Array<String> = [];
+        // The driver package installs the project and its wrapper exports this
+        // path, so a published driver always finds its own copy.
+        final configured = Host.env("BORING_PUBLICATION_PROJECT");
+        if (configured != null && configured.length > 0) candidates.push(configured);
+        // A driver run outside its wrapper falls back to the flake source tree
+        // a caller exports, then to the haxelib checkout a tiqian devShell
+        // stages beside its project file.
+        final source = Host.env("BORING_SOURCE");
+        if (source != null && source.length > 0) candidates.push(joinPath(source, "kotlin-publication"));
+        candidates.push(joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath("git", "kotlin-publication")));
+        for (candidate in candidates) {
+            if (exists(candidate) && Host.isDirectory(candidate)) return candidate;
+        }
+        fail("bundle driver: kmpPublication found no publication project; tried " + candidates.join(", "));
+        return "";
+    }
+
+    /**
+        The built-in Kotlin Multiplatform publication of one pack run: the same
+        <outRoot>/<id>/maven directory the bundled command used, filled by the
+        publication project that ships with the driver (bundle driver spec 59).
+    **/
+    static function publishKotlinBundle(project:Project, bundle:BundleSpec):Null<BundleStepFailure> {
+        final bundleRoot = joinPath(resolveAgainst(project.root, project.outRoot), bundle.id);
+        final mavenDir = joinPath(bundleRoot, "maven");
+        Host.deleteTree(mavenDir);
+        makeDirs(mavenDir);
+        final projectDir = publicationProject();
+        final sourceWrapper = joinPath(projectDir, "gradlew");
+        if (!exists(sourceWrapper)) {
+            fail('bundle "${bundle.id}": the publication project has no gradlew: $sourceWrapper');
+        }
+        // Gradle 9 refuses to configure a project whose root directory cannot
+        // be written (it writes build/reports/problems there), so the installed
+        // project is copied per run. The installed tree stays the source of
+        // record and is never written; every output lives under outRoot.
+        final workDir = joinPath(bundleRoot, "gradle");
+        final runDir = joinPath(workDir, "project");
+        Host.deleteTree(runDir);
+        Host.copyTree(projectDir, runDir);
+        final wrapper = joinPath(runDir, "gradlew");
+        final buildDir = joinPath(workDir, "build");
+        final cacheDir = joinPath(workDir, "project-cache");
+        makeDirs(buildDir);
+        makeDirs(cacheDir);
+        final args:Array<String> = [
+            "-p", runDir,
+            "publishToMavenLocal",
+            "-PmavenDir=" + mavenDir,
+            "-PpublicationVersion=" + bundle.packageVersion,
+            "-PkotlinGenDir=" + genDir(project, bundle),
+            "-PkotlinGenTestsDir=" + genTestsDir(project, bundle),
+            "-PbuildRoot=" + buildDir,
+            "--project-cache-dir=" + cacheDir,
+            "--no-daemon"
+        ];
+        return step(project, bundle, "pack", "kmpPublication", wrapper, args, [], workDir);
+    }
+
     static function actionGen(project:Project, bundles:Array<BundleSpec>, pack:Bool):Void {
         for (bundle in bundles) {
             if (pack && bundle.packageName == "") {
@@ -357,6 +424,10 @@ class Main {
                 if (afterFailure != null) exit(1);
             }
             final publication = bundle.mavenPublication;
+            if (pack && publication == null && bundle.kmpPublication) {
+                final kmpFailure = publishKotlinBundle(project, bundle);
+                if (kmpFailure != null) exit(1);
+            }
             if (pack && publication != null) {
                 final mavenDir = joinPath(joinPath(resolveAgainst(project.root, project.outRoot), bundle.id), "maven");
                 Host.deleteTree(mavenDir);

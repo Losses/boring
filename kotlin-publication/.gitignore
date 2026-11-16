@@ -1,0 +1,11 @@
+# Gradle state and outputs of the publication project. The generated Kotlin
+# tree this project consumes lives under reference/kotlin-f32 or a -P path, not
+# here, so everything below is disposable build state.
+.gradle/
+.kotlin/
+build/
+engine/build/
+# The generated suite writes trace files under engine-haxe/out when it runs;
+# the default working directory is the repository root, so this entry only
+# matters when a caller runs the suite with the project directory as cwd.
+engine-haxe/

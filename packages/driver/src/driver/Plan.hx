@@ -226,7 +226,7 @@ class Plan {
             }
             args.push("-D");
             args.push("package-shell=emit");
-            if (bundle.mavenPublication != null) {
+            if (bundle.mavenPublication != null || bundle.kmpPublication) {
                 // The bundle's publication command writes the Maven repository
                 // directory during the pack action, so the compiler writes no
                 // artifact of its own (bundle driver spec 59).

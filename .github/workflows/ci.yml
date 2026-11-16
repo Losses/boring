@@ -5,6 +5,18 @@ on:
     branches:
       - master
   pull_request:
+  # The kotlin-publication job below is manual while alpha08 is in flight; it
+  # pins a tiqian revision and a version for the nine Maven artifacts.
+  workflow_dispatch:
+    inputs:
+      tiqian-ref:
+        description: tiqian revision whose engine Kotlin tree is published
+        required: true
+        default: main
+      version:
+        description: version for the nine org.tiqian:tiqian-engine publications
+        required: true
+        default: 0.1.0-alpha08
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -752,3 +764,80 @@ jobs:
             echo "::error::the collected domain contains files under out/ - the generated tree is being swept into the count"
             exit 1
           fi
+
+  # The nine org.tiqian:tiqian-engine Maven publications used to be produced by
+  # tiqian's Gradle build. The publication host is this repository now: the
+  # driver installs kotlin-publication/ and runs it on the pack action for a
+  # Kotlin bundle that declares kmpPublication: true, so the tiqian project file
+  # carries no command and no path.
+  #
+  # The tree is generated from tiqian's engine-haxe sources with this checkout's
+  # driver. This repository's own kotlin-f32 emission is the codec's JVM-only
+  # tree (gen/runtime/Console.kt calls System.err, gen/runtime/Process.kt calls
+  # ProcessBuilder), so the native and Android targets cannot compile it.
+  #
+  # Dispatch only: the job needs a tiqian revision that a release has chosen and
+  # that carries the kmpPublication marker, and it must not turn every push red
+  # before that revision exists. Move it to push/pull_request with a fixed
+  # tiqian-ref after alpha08.
+  kotlin-publication:
+    name: Kotlin publication (nine tiqian-engine Maven artifacts)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - name: Allow user namespaces for the Swift FHS wrapper
+        run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Check out the tiqian sources the engine tree is generated from
+        uses: actions/checkout@v4
+        with:
+          repository: tiqian-cjk/tiqian
+          ref: ${{ inputs.tiqian-ref }}
+          path: engine-src
+      - name: Stage the haxelib view of the tiqian checkout
+        run: |
+          nix develop -c bash -c '
+            set -euo pipefail
+            cd engine-src
+            mkdir -p .haxelib/boring
+            ln -sfn "$GITHUB_WORKSPACE" .haxelib/boring/git
+            ln -sfn "$GITHUB_WORKSPACE/.haxelib/reflaxe" .haxelib/reflaxe
+            ln -sfn "$GITHUB_WORKSPACE/.haxelib/format" .haxelib/format
+            ln -sfn "$GITHUB_WORKSPACE/.haxelib/formatter" .haxelib/formatter
+            printf "%s\n" "$GITHUB_WORKSPACE" > .haxelib/boring/.dev
+            bash tools/setup-haxe-env.sh "$GITHUB_WORKSPACE"
+            boring roots engine --project boring.json --output engine-haxe/targets/classes.hxml
+          '
+      - name: Generate and publish through the driver
+        run: |
+          nix develop -c bash -c '
+            set -euo pipefail
+            cd engine-src
+            boring pack kotlin-f32 --project boring.json
+          '
+      - name: Assert the nine coordinates
+        run: |
+          set -euo pipefail
+          maven="$GITHUB_WORKSPACE/engine-src/engine-haxe/out/kotlin-f32/maven/org/tiqian"
+          expected="$(printf "%s\n" \
+            tiqian-engine tiqian-engine-android tiqian-engine-iosarm64 \
+            tiqian-engine-iossimulatorarm64 tiqian-engine-jvm \
+            tiqian-engine-linuxarm64 tiqian-engine-linuxx64 \
+            tiqian-engine-macosarm64 tiqian-engine-mingwx64 | sort)"
+          actual="$(cd "$maven" && ls | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "artifactId set does not match the nine tiqian-engine coordinates" >&2
+            diff <(printf "%s\n" "$expected") <(printf "%s\n" "$actual") >&2 || true
+            exit 1
+          fi
+          printf "%s\n" "$actual"
+      - name: Run the generated Kotlin suite from the same tree
+        run: |
+          TREE="$GITHUB_WORKSPACE/engine-src/engine-haxe/out/kotlin-f32"
+          ./kotlin-publication/gradlew -p kotlin-publication generatedTestSuite \
+            -PpublicationVersion="${{ inputs.version }}" \
+            -PkotlinGenDir="$TREE/gen" \
+            -PkotlinGenTestsDir="$TREE/gen-tests" \
+            --no-daemon
