@@ -478,7 +478,7 @@ class SwiftExpr {
                 };
                 if (endOmitted) types.resident ? "Array(" + s + "[max(0, Int(" + start + "))...])" : "String(decoding: "
                     + s
-                    + ".utf16.dropFirst(Int(max(0, "
+                    + ".utf16.dropFirst(Int(Swift.max(0, "
                     + start
                     + "))), as: UTF16.self)"; else if (types.resident) "Array(" + s + "[Int(" + start + ")..<Int("
                     + coalescingDefaultText(args[1],
@@ -2594,7 +2594,11 @@ class SwiftExpr {
                 return expr(locals.get(v.id));
             case _:
         }
-        final rendered = expr(value);
+        // A representation operand strips the unboxing cast: this function
+        // appends the stored field itself, so rendering the cast would name the
+        // field twice. Non-wrapper operands keep their cast rendering because
+        // no field is appended for them. (ValueTypeCastUnbox)
+        final rendered = expr(asRepresentation && wrapperOperand ? source : value);
         final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
         final alreadyRepresentation = switch (stripWrap(value).expr) {
             case TLocal(v) if (subst.exists(v.id)
@@ -2871,6 +2875,31 @@ class SwiftExpr {
         if (SwiftArrayBoundary.isBoundary(inner.t, target))
             return arrayBoundaryText(inner, target);
         final rendered = expr(inner);
+        // A cast out of a marked value wrapper to its representation reads the
+        // stored field. Swift stores the representation in the wrapper struct,
+        // so the unify check below would otherwise treat the cast as identity
+        // and pass the wrapper into a representation-typed slot; Haxe lowers
+        // an inline accessor that returns `this` as the representation to
+        // exactly this cast. Inside the wrapper's own body the synthetic this
+        // local is already bound to the field name, so it is not named twice.
+        // (ValueTypeCastUnbox)
+        final castWrapper = switch (Context.follow(inner.t)) {
+            case TAbstract(ref, params) if (params.length == 0):
+                final abs = ref.get();
+                ValueTypeSupport.isMarkedAbstract(abs) ? abs : null;
+            case _: null;
+        };
+        if (castWrapper != null && ValueTypeSupport.isRepresentationOf(target, castWrapper)) {
+            final representationName = ValueTypeSupport.representationFieldName(castWrapper);
+            final alreadyField = switch (stripWrap(inner).expr) {
+                case TLocal(v) if (subst.exists(v.id)):
+                    final bound = subst.get(v.id);
+                    bound == representationName || StringTools.endsWith(bound, "." + representationName);
+                case _: false;
+            };
+            if (!alreadyField)
+                return rendered + "." + representationName;
+        }
         // Haxe unifies Int with Float, so an Int operand in a Float cast is
         // transparent; Swift needs the explicit conversion.
         if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
@@ -4491,8 +4520,17 @@ class SwiftExpr {
                         return "(" + expr(subj) + "[" + mapKeyText(args[0]) + "] != nil)";
                     if (name == "get" && args.length == 1)
                         return expr(subj) + "[" + mapKeyText(args[0]) + "]";
-                    if (name == "set" && args.length == 2)
-                        return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + expr(args[1]);
+                    if (name == "set" && args.length == 2) {
+                        // A map value on the Array/ReadOnlyArray boundary needs
+                        // the same container conversion as an assignment or a
+                        // parameter: the subscript's value type is the declared
+                        // ReadOnlyArray, while the Haxe argument is the mutable
+                        // Array. (ReadOnlyMapValue)
+                        final valueType = mapValueType(subj.t);
+                        final valueText = valueType != null && SwiftArrayBoundary.isBoundary(args[1].t, valueType)
+                            ? arrayBoundaryText(args[1], valueType) : expr(args[1]);
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + valueText;
+                    }
                     if (name == "remove" && args.length == 1)
                         return "(" + expr(subj) + ".removeValue(forKey: " + mapKeyText(args[0]) + ") != nil)";
                     if (name == "clear" && args.length == 0)
@@ -4709,11 +4747,11 @@ class SwiftExpr {
                         + s
                         + "; let _n = _a.count; let _f = "
                         + from
-                        + "; let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n);";
+                        + "; let _s = _f < 0 ? Swift.max(_n + _f, 0) : Swift.min(_f, _n);";
                     if (endOmitted) {
                         body += " return " + open + "_a[_s..<_n]" + close + " }())";
                     } else {
-                        body += " let _t = Int(" + expr(args[1]) + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
+                        body += " let _t = Int(" + expr(args[1]) + "); let _e0 = _t < 0 ? Swift.max(_n + _t, 0) : Swift.min(_t, _n);"
                             + " let _e = _e0 < _s ? _s : _e0; return " + open + "_a[_s..<_e]" + close + " }())";
                     }
                     return wrapped ? arrayRuntimeText(body) : body;
@@ -4740,15 +4778,15 @@ class SwiftExpr {
                         // folds to the same value with no unreachable branch and
                         // matches the Array.slice lowering above.
                         if (endOmitted) {
-                            return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : min(_f, _n); return Array(_a[_s..<_n]) }())";
+                            return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : Swift.min(_f, _n); return Array(_a[_s..<_n]) }())";
                         }
                         final to = "Int(" + expr(args[1]) + ")";
-                        return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : _f; let _t = " + to + "; let _e = _t < 0 ? 0 : _t; let _lo = _e < _s ? _e : _s; let _hi = _e < _s ? _s : _e; return Array(_a[min(_lo, _n)..<min(_hi, _n)]) }())";
+                        return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : _f; let _t = " + to + "; let _e = _t < 0 ? 0 : _t; let _lo = _e < _s ? _e : _s; let _hi = _e < _s ? _s : _e; return Array(_a[Swift.min(_lo, _n)..<Swift.min(_hi, _n)]) }())";
                     }
                     if (endOmitted) {
                         // dropFirst counts Characters. The suffix cut uses UTF-16
                         // units through the unit view.
-                        return "String(decoding: " + s + ".utf16.dropFirst(Int(max(0, " + expr(args[0]) + "))), as: UTF16.self)";
+                        return "String(decoding: " + s + ".utf16.dropFirst(Int(Swift.max(0, " + expr(args[0]) + "))), as: UTF16.self)";
                     }
                     return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
                 }
@@ -5528,6 +5566,19 @@ class SwiftExpr {
         and the null key traps at the lookup, so the key takes the same force
         unwrap a value position takes.
     **/
+    /** The declared value type of a map receiver, or null when it is not a map. */
+    function mapValueType(t:Type):Null<Type> {
+        return switch (Context.follow(t)) {
+            case TInst(def, params) if (def.get().module == "std.HashMap" && params.length == 2): params[1];
+            case TInst(def, params) if (def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): params[1];
+            case TInst(def, params) if (PolicyQueries.isMapImplementation(def.get()) && params.length == 2): params[1];
+            case TType(def, params) if (def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2): params[1];
+            case TAbstract(def, params) if (def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): params[1];
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): mapValueType(params[0]);
+            case _: null;
+        };
+    }
+
     function mapKeyText(key:TypedExpr):String {
         return narrowedText(key);
     }
