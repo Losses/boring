@@ -3037,6 +3037,17 @@ class DartExpr {
                 if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
                     final nativeName = markedField.isPublic ? fName : "_" + fName;
                     if (StaticFunctionMarkers.isExtension(markedField)) {
+                        if (Compiler.isExtensionFallback(cls, fName)) {
+                            // A colliding member name keeps the class namespace:
+                            // the receiver stays the first argument of the
+                            // class-qualified static call. staticRef is not
+                            // usable here because the field is still marked
+                            // and it would render the top-level form.
+                            final classPrefix = imports.value(cls.module, cls.name);
+                            final classHead = classPrefix.length > 0 ? classPrefix + "." + cls.name : cls.name;
+                            probeTextEmitted = true;
+                            return classHead + "." + nativeName + "(" + rendered + ")";
+                        }
                         if (markedField.isPublic) {
                             imports.useExtension(module);
                         }

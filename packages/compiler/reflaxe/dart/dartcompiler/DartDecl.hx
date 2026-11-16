@@ -169,8 +169,11 @@ class DartDecl {
                 imports.reserveName(name);
             }
         }
-        final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
-        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // A marked extension function whose member name another declaration
+        // of the same library already renders stays in its declaring class: a
+        // Dart extension cannot overload a member (see Compiler.extensionFallbacks).
+        final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field) && !Compiler.isExtensionFallback(cls, f.field.name)) f];
+        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field) || Compiler.isExtensionFallback(cls, f.field.name)) f];
         // A marked static final leaves its holder namespace: the declaration
         // emits as a constant at library scope, which is the shape the reference
         // site already reads (features/10 field form).
@@ -803,7 +806,7 @@ class DartDecl {
     // @:allow members use a public Dart name so allowed cross-library references compile.
     // Dart's Object.hashCode is a getter, so a source method with that name
     // must use a distinct Dart member name to avoid a method and getter clash.
-    static function dartMemberName(field:ClassField):String {
+    public static function dartMemberName(field:ClassField):String {
         final base = field.name == "hashCode" ? "hashCodeValue" : builtinValueName(field.name);
         return field.isPublic || field.meta.has(":allow") ? base : "_" + base;
     }
