@@ -8,7 +8,9 @@ class AllowGuest {
     }
 
     public static function useCounter():Int {
-        AllowHost.counter = AllowHost.counter + 2;
+        // The shared counter takes the compound form: its read and its store
+        // happen under one lock. (P-1a compound operation)
+        AllowHost.counter += 2;
         return AllowHost.counter;
     }
 

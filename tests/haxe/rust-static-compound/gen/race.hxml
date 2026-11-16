@@ -1,0 +1,13 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/rust-static-compound
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/rust-static-compound'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+probe.StaticCompoundRace
+runtime.UString

@@ -124,6 +124,35 @@ defect went unobserved before the probe.
    references on all five targets; no lock or wrapper applies to the const
    form.
 
+7. A compound operation on a ThreadSafeShared static is a generation error.
+   Every access takes the lock on its own, so a value read out of the static
+   and written back to it is two lock acquisitions with user work between
+   them, and two threads can interleave them: the stored entries stop
+   matching their indices and the process keeps the corrupted table. The
+   tiqian plan-width defect is this shape: `fiveToThe` grew a shared power
+   table by reading its tail and appending to it, and a concurrent fill
+   serialized 144 as 0.009216.
+
+   `RustStaticCompound` walks one function body and rejects a write whose
+   stored value or element index derives from a read of the same static. A
+   tainted local carries the derivation through assignments and calls: the
+   power table's digits local was read from the table, passed through
+   `timesSmall`, and appended, so the append is rejected at its own site.
+   The diagnostic names the static and the two accepted forms:
+
+   - An atomic compound assignment (`counter += 2`), which the target renders
+     as `*counter.lock()... += 2` with one guard over the read and the store.
+   - A table built locally and published in one assignment whose value reads
+     no part of the static (`table = buildTable(k)`), so concurrent writers
+     publish equal complete tables and a reader observes one of them.
+
+   A read in one function and a write in another are separate operations by
+   construction and are not paired. A read-only function and a write-only
+   function carry no such check. A write whose value is independent of the
+   static stays accepted even when a stale read chose the branch that reaches
+   it: that branch can choose a different assignment, and it cannot leave
+   entries that disagree with their indices.
+
 ## Samples and tests
 
 - `samples/boring/StaticStateOps.hx` graduates with both assignment forms
@@ -148,3 +177,13 @@ defect went unobserved before the probe.
 - Mutation checks: a static initializer outside the sanctioned set, for
   example `static var seed:Int = computeBase();`, stops generation with
   `static field initializers accept null, literal, and empty array forms only`.
+- `tests/haxe/rust-static-compound/` holds the pair that pins rule 7.
+  `probe/StaticCompoundRace.hx` is the read-then-append shape, and
+  `gen/race.hxml` is a `reject` entry in `tests/haxe/fixtures.json` with the
+  pinned diagnostic. `probe/StaticCompoundOnce.hx` is the accepted form and
+  `gen/rust.hxml` compiles it. `tests/rust-static-compound.test.ts` asserts
+  the rejection, the single-assignment shape, and the result of 8 threads
+  reading and publishing the table for 500 rounds.
+- `samples/boring/AllowGuest.hx` returns the shared counter through the
+  compound assignment form, so the access fixture keeps its cross-class
+  static write without the rejected shape.

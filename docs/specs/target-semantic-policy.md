@@ -202,6 +202,18 @@ Each entry carries the six required elements:
    cannot silently leave the cargo default scheduler selected. A crate with no
    static has no realization to gate and carries no such check.
 
+7. Compound operation: a write to a ThreadSafeShared static whose stored
+   value or element index derives from a read of the same static in the same
+   function is a generation error (`RustStaticCompound`). The read and the
+   write take the lock separately, so another thread can interleave them and
+   leave stored entries that no longer match their indices. An atomic
+   compound assignment stays accepted because one guard covers its read and
+   its store. A whole-value assignment whose value reads no part of the
+   static stays accepted, because concurrent writers then publish equal
+   complete values and a reader observes one of them. The rejection fixture
+   is `tests/haxe/rust-static-compound/gen/race.hxml`, and the accepted form
+   is `tests/haxe/rust-static-compound/gen/rust.hxml`.
+
 Migration (Astra arbitration, 2026-11-12): `LazyLock<Mutex<SingleThread<T>>>`
 is retired. A class-handle static that used it lowers as ThreadAffine, and its
 read clones the handle out of the owner-thread slot. A mutable static whose

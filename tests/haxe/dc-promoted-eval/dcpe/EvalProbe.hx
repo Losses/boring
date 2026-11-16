@@ -25,7 +25,9 @@ class EvalProbe {
 	public static var callCount:Int = 0;
 
 	public static function nextKind():Kind {
-		callCount = callCount + 1;
+		// The shared counter takes the compound form: its read and its store
+		// happen under one lock. (P-1a compound operation)
+		callCount += 1;
 		return Kind.B(21);
 	}
 

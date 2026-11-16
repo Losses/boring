@@ -1172,6 +1172,11 @@ class RustExpr {
                 if (a.name == proj.engineName) { engineType = a.type; break; }
             rewriteFieldProjection(f.expr, proj.engineName, engineType, proj.fields);
         }
+        // A ThreadSafeShared static is locked per access, so a value read out
+        // of it and written back to it is two operations with user work
+        // between them. Reject that shape on the body the renderer is about
+        // to lower. (P-1a compound operation)
+        RustStaticCompound.audit(f.expr, isSharedStaticField);
         final lines = blockLines(statementsOf(f.expr), 1, true);
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
         currentFunctionMutatesSelf = previousFunctionMutatesSelf;
@@ -1277,6 +1282,9 @@ class RustExpr {
         scanLocals(f.expr);
         scanMutableRefLends(f.expr);
         scanLocalFunctionFallibility(f.expr);
+        // A constructor body reaches the compound-operation audit the same way
+        // a method body does. (P-1a compound operation)
+        RustStaticCompound.audit(f.expr, isSharedStaticField);
         final argNames = [for (a in f.args) a.name];
         final fieldInits = new Map<String, String>();
         final fallbackBindings:Array<String> = [];
@@ -10109,6 +10117,22 @@ class RustExpr {
             && !RustDecl.usesLazyLockStatic(cls, field, state)
             && !RustDecl.isHandleBackedStaticField(field, types.of(field.type))
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
+    }
+
+    /**
+        Whether a static field is ThreadSafeShared for the compound-operation
+        audit: the emitted item carries a Mutex and the value is reachable
+        from every thread. A ThreadAffine static lives in the owner thread's
+        slot, so a read and a write of it never meet on two threads.
+        (P-1a compound operation)
+    **/
+    function isSharedStaticField(cls:ClassType, field:ClassField):Bool {
+        if (!isGuardStaticField(cls, field.name))
+            return false;
+        final rendered = types.of(field.type);
+        if (RustDecl.isHandleBackedStaticField(field, rendered))
+            return false;
+        return !RustDecl.isNonSendStaticType(rendered);
     }
 
     function staticItemPath(cls:ClassType, name:String):String {
