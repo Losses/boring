@@ -86,7 +86,8 @@ class Plan {
 
     public static function testSteps(project:Project, bundle:BundleSpec, generatedDir:String, genTests:String, build:String,
         results:String, genFiles:Array<String>, testFiles:Array<String>, haxeMain:String,
-        swiftModule:Null<String>, systemPackage:Null<String>, host:String, existingLibraryPath:String):Array<ExecutionStep> {
+        swiftModule:Null<String>, systemPackage:Null<String>, host:String, existingLibraryPath:String,
+        swiftLoader:Null<String>, swiftHostLibraries:Null<String>):Array<ExecutionStep> {
         if (!bundle.hasTests) throw new DriverException(InvalidConfig('bundle "${bundle.id}": this target configuration has test=false and cannot run the test action'));
         final steps:Array<ExecutionStep> = [];
         final runEnv = bundle.run.env.copy();
@@ -137,11 +138,16 @@ class Plan {
             // -Onone in build.args (swiftc keeps the last optimization flag).
             addStep(steps, "build library", "swiftc", ["-emit-library", "-emit-module", "-O", "-wmo"].concat(importArgs).concat(genFiles)
                 .concat(bundle.build.args).concat(["-module-name", module, "-o", build + "/" + swiftLibraryName(module, host)]), project.root, bundle.build.env);
+            final interpreterArgs = swiftInterpreterArgs(host, swiftLoader);
             addStep(steps, "build test executable", "swiftc", ["-O", "-wmo"].concat(importArgs).concat(testFiles).concat(bundle.build.args)
-                .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs).concat(["-o", build + "/test-runner"]), project.root, bundle.build.env);
+                .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs).concat(interpreterArgs)
+                .concat(["-o", build + "/test-runner"]), project.root, bundle.build.env);
             addStep(steps, "stage resources", "sh", ["-c", "if [ -d " + generatedDir + "/Resources ]; then mkdir -p " + build + "/Contents/Resources && cp -r " + generatedDir + "/Resources/. " + build + "/Contents/Resources/; fi"], project.root, bundle.build.env);
             final runPaths = systemPackage == null ? build : build + ":" + packagePath;
-            final libraryVariable:EnvVar = {key: swiftLibraryPathVariable(host), value: existingLibraryPath == "" ? runPaths : runPaths + ":" + existingLibraryPath};
+            final hostPaths:Array<String> = [];
+            if (host != "darwin" && swiftHostLibraries != null && swiftHostLibraries != "") hostPaths.push(swiftHostLibraries + "");
+            if (existingLibraryPath != "") hostPaths.push(existingLibraryPath);
+            final libraryVariable:EnvVar = {key: swiftLibraryPathVariable(host), value: hostPaths.length == 0 ? runPaths : runPaths + ":" + hostPaths.join(":")};
             runEnv.push(libraryVariable);
             addStep(steps, "run", build + "/test-runner", bundle.run.args, project.root, runEnv);
         } else {
@@ -156,6 +162,23 @@ class Plan {
 
     public static function swiftLibraryPathVariable(host:String):String {
         return host == "darwin" ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
+    }
+
+    /**
+        The link arguments that pin the ELF interpreter of the test
+        executable. The swiftc wrapper records the generic /lib64 path while
+        the executable RUNPATH resolves libc to the devShell glibc, so a host
+        whose system loader is older than that glibc aborts the process
+        before main. The development shell exports the loader that matches
+        the glibc it links, and every other Swift test binary in this
+        repository pins it the same way. Darwin and a host without the pin
+        keep the toolchain default.
+    **/
+    public static function swiftInterpreterArgs(host:String, loader:Null<String>):Array<String> {
+        if (host == "darwin" || loader == null) return [];
+        final path = loader + "";
+        if (path.length == 0) return [];
+        return ["-Xlinker", "-dynamic-linker", "-Xlinker", path];
     }
 
     /**

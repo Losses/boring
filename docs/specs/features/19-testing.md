@@ -711,8 +711,13 @@ order, catching thrown values, recording the pass or fail line to the
 jsonl results file the consistency run reads, and exiting nonzero on any
 failure. `std.TestPlatform` lowers inline: `raise` is `throw`,
 `currentTestId` reads a file-scope variable the harness sets around each
-test, and number-to-text rendering uses string interpolation. The binary
-runs under `LD_LIBRARY_PATH=$BORING_SWIFT_LIBDISPATCH`.
+test, and number-to-text rendering uses string interpolation. The driver
+links the binary with the interpreter named by
+`BORING_SWIFT_DYNAMIC_LINKER` and runs it under
+`LD_LIBRARY_PATH=$BORING_SWIFT_LIBDISPATCH`. The pin keeps the interpreter
+and the libc the binary RUNPATH resolves on the same glibc; without it a host
+whose system loader is older than the development shell glibc aborts the
+process during startup.
 
 ### Dart target rulings
 
