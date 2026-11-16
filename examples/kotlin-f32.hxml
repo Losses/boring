@@ -719,3 +719,17 @@ boring.P21PrivateAccessorClash
 boring.TopLevelConstOps
 boring.HolderConstOps
 tests.TopLevelConstTests
+
+# Consumer shapes (task t-mwjknb81-1npd): the emitted shapes a downstream
+# consumer uses that the samples did not cover. Each sample is guarded to the
+# targets whose emitter owns the shape; the test class registers every id on
+# every target.
+boring.ExtensionSliceMinOps
+boring.ValueTypeStaticMemberOps
+boring.ValueTypeAccessorFace
+boring.ValueTypeAccessorReadOps
+boring.ExtensionLibraryGroupOps
+boring.ExtensionMemberCollisionOps
+boring.NarrowedLocalDeclarationOps
+boring.SharedStaticPublishOps
+tests.ConsumerShapeCorpusTests
