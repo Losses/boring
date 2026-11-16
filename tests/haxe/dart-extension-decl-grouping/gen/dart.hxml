@@ -1,0 +1,20 @@
+# Dart generation of the minimal extension-grouping fixture (task
+# t-mwj1re1f-becy). The runner passes -D dart-output=... and
+# -D dart-test-output=... on the command line. The fixture declares two
+# extension-holder classes in one module over the same receiver; the
+# emitted library must carry exactly one extension declaration (spec 10
+# groups per library, and Dart rejects a repeated extension name).
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dart-extension-decl-grouping
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dart-extension-decl-grouping'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+pub.ExtensionHolders
+pub.ExtensionHoldersConsumer

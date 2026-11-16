@@ -514,7 +514,11 @@ class Compiler extends PluginCompiler<Compiler> {
             final savedPath = isTest ? testRel + "/" + DartImports.libraryPathOf(module) : "lib/" + DartImports.libraryPathOf(module);
             final filePath = isTest ? testOutput + "/" + DartImports.libraryPathOf(module) : dartOutput + "/lib/" + DartImports.libraryPathOf(module);
             final ctx = contexts.get(module);
-            final body = parts.get(module).join("\n\n");
+            // Extension declarations are grouped across every class of this
+            // module (spec 10); the placeholders left at the first
+            // contributing class's position render here, before the import
+            // block is written from the same context.
+            final body = ctx.renderExtensionBlocks(parts.get(module).join("\n\n"));
             final seqEq = ctx.needsSeqEquals() ? "\n\n" + DartDecl.seqEqualsSource() : "";
             final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput, body) + "\n" + body + seqEq + "\n";
             PackageArtifacts.saveTreeFile(output, savedPath, content);
@@ -556,7 +560,9 @@ class Compiler extends PluginCompiler<Compiler> {
             for (resident in RuntimeResidents.MODULES) {
                 final moduleParts = parts.get(resident);
                 if (moduleParts != null && moduleParts.length > 0) {
-                    residentParts.push(moduleParts.join("\n\n"));
+                    final residentDecl = contexts.get(resident);
+                    final joined = moduleParts.join("\n\n");
+                    residentParts.push(residentDecl == null ? joined : residentDecl.renderExtensionBlocks(joined));
                 }
             }
             final runtimeSeqEq = anyNeedsSeqEquals(RuntimeResidents.MODULES) ? "\n\n" + DartDecl.seqEqualsSource() : "";
@@ -577,7 +583,9 @@ class Compiler extends PluginCompiler<Compiler> {
                 for (resident in RuntimeResidents.TEST_MODULES) {
                     final moduleParts = parts.get(resident);
                     if (moduleParts != null && moduleParts.length > 0) {
-                        testResidentParts.push(moduleParts.join("\n\n"));
+                        final residentDecl = contexts.get(resident);
+                        final joined = moduleParts.join("\n\n");
+                        testResidentParts.push(residentDecl == null ? joined : residentDecl.renderExtensionBlocks(joined));
                     }
                 }
                 final hostImports = "import 'dart:io';\nimport 'dart:typed_data';\nimport '"

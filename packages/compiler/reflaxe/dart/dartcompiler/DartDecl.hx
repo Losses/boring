@@ -41,6 +41,56 @@ class DartDecl {
     /** Whether any emitted equality compares a list field. */
     var seqEqualsNeeded = false;
 
+    /**
+        Extension declarations are grouped per library, not per class
+        (spec 10): every marked extension function over the same receiver
+        type shares one declaration, and Dart rejects a second extension of
+        the same name inside one library. The first class of a module that
+        contributes a receiver inserts a placeholder at its declaration
+        position; generateFilesManually renders the merged block there once
+        every class of the module has been lowered.
+    **/
+    final extensionOwners:Map<String, Array<{cls:ClassType, f:ClassFuncData}>> = [];
+    final extensionReceiverOrder:Array<String> = [];
+
+    /** The placeholder paragraph standing in for one receiver's merged block. */
+    public function extensionPlaceholder(receiverType:String):String {
+        return "\u0001dart-extension:" + receiverType + "\u0001";
+    }
+
+    /**
+        Record one class's marked functions for one receiver. The first
+        contribution returns the placeholder that marks this library's
+        declaration position; later contributions return null and only add
+        their functions to the same block.
+    **/
+    public function groupExtensions(cls:ClassType, receiverType:String, funcs:Array<ClassFuncData>):Null<String> {
+        if (!extensionOwners.exists(receiverType)) {
+            extensionOwners.set(receiverType, []);
+            extensionReceiverOrder.push(receiverType);
+            for (f in funcs)
+                extensionOwners.get(receiverType).push({cls: cls, f: f});
+            return extensionPlaceholder(receiverType);
+        }
+        for (f in funcs)
+            extensionOwners.get(receiverType).push({cls: cls, f: f});
+        return null;
+    }
+
+    /**
+        Replace every placeholder in one library body with its merged
+        extension block. Idempotent: a rendered body holds no placeholder.
+    **/
+    public function renderExtensionBlocks(body:String):String {
+        for (receiverType in extensionReceiverOrder) {
+            final placeholder = extensionPlaceholder(receiverType);
+            if (body.indexOf(placeholder) < 0)
+                continue;
+            body = StringTools.replace(body, placeholder, extensionDeclGroup(receiverType, extensionOwners.get(receiverType)).join("\n"));
+        }
+        return body;
+    }
+
     public function new(selfModule:String) {
         this.imports = new DartImports(selfModule);
         this.types = new DartType(imports);
@@ -183,9 +233,12 @@ class DartDecl {
                 imports.reserveName(name);
             }
         }
-        // One extension name covers every function over the same receiver:
-        // Dart rejects a second extension of the same name in a library,
-        // so same-receiver functions share one declaration (spec 10).
+        // One extension name covers every function over the same receiver
+        // in the library, not only in this class: Dart rejects a second
+        // extension of the same name in a library, so same-receiver
+        // functions from every class of the module share one declaration
+        // (spec 10). The first contributing class leaves a placeholder at
+        // its position; the merged block renders there at file assembly.
         // The receiver order is the first-encounter order, keeping the
         // output independent of map iteration order.
         final extractedParts:Array<String> = [];
@@ -207,7 +260,9 @@ class DartDecl {
             extensionGroups.get(receiverType).push(f);
         }
         for (receiverType in extensionOrder) {
-            extractedParts.push(extensionDeclGroup(cls, receiverType, extensionGroups.get(receiverType)).join("\n"));
+            final placeholder = groupExtensions(cls, receiverType, extensionGroups.get(receiverType));
+            if (placeholder != null)
+                extractedParts.push(placeholder);
         }
         if (remainingVars.length == 0 && ordinaryFuncs.length == 0) {
             return extractedParts.join("\n\n");
@@ -970,13 +1025,16 @@ class DartDecl {
 
     /**
         One extension declaration holding every marked extension function
-        over the same receiver type. Dart rejects a second extension of
-        the same name inside one library, so the grouping is mandatory
-        (spec 10).
+        over the same receiver type in this library. Dart rejects a second
+        extension of the same name inside one library, so the grouping is
+        mandatory (spec 10). Each entry keeps the class that declared the
+        function: scoped local names and the body render against it.
     **/
-    function extensionDeclGroup(cls:ClassType, receiverType:String, funcs:Array<ClassFuncData>):Array<String> {
+    function extensionDeclGroup(receiverType:String, entries:Array<{cls:ClassType, f:ClassFuncData}>):Array<String> {
         final lines:Array<String> = ["extension " + dartExtensionName(receiverType) + " on " + receiverType + " {"];
-        for (f in funcs) {
+        for (entry in entries) {
+            final cls = entry.cls;
+            final f = entry.f;
             for (a in f.args) {
                 expr.reserveName(a.name);
             }

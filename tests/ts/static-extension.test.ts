@@ -105,6 +105,7 @@ describe("top-level and extension function lowering", () => {
     expect(extensionConsumer).toContain("return extension_ops.ExtensionMode.hot.modeLabel(\"!\");");
     expect(extensionConsumer).toContain("return \"core\".stringLabel(\"@\");");
     expect(extensionConsumer).not.toContain("ExtensionOps.");
+
   });
 
   test("Rust uses an inherent impl only for the owned receiver", () => {
