@@ -80,6 +80,12 @@ test("the runtime carries no unconditional Send/Sync wrapper over Rc or RefCell"
   expect(runtime).not.toContain("SingleThread");
 });
 
+// The audit reads every emitted Rust file: 2046 ".rs" files totalling 4.9 MB
+// in the tree this budget was measured against. The full suite runs 527 test
+// files in parallel on a cold CI filesystem, where this test took 5439.93ms
+// against bun's default 5s, so the default does not cover the parallel cold
+// read. 30s covers about 5.5x the measured CI wall time and still fails on a
+// real slowdown.
 test("every static declares a mode that matches its emitted Rust item", () => {
   const files = allRustFiles(GEN);
   expect(files.length).toBeGreaterThan(0);
@@ -110,7 +116,7 @@ test("every static declares a mode that matches its emitted Rust item", () => {
       expect(where).not.toContain("RefCell<");
     }
   }
-});
+}, 30000);
 
 /** A probe class whose static holds a class handle, so the compilation
  * emits a ThreadAffine static and the harness gate is observable. */
