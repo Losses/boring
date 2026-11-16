@@ -6313,6 +6313,16 @@ class RustExpr {
                         return isTypeCopy(getNullInnerType(inner.t)) ? "*" + ref : ref + ".clone()";
                     }
                 }
+                // A cast from a String-backed value wrapper to its declared
+                // representation reads the stored field: the wrapper keeps the
+                // owned UString in field 0.
+                final castAbstract = isNullType(inner.t) ? null : ValueTypeSupport.markedAbstractOfType(inner.t);
+                if (castAbstract != null && isStringType(castAbstract.type) && isStringType(e.t)) {
+                    imports.requireType(castAbstract.module, castAbstract.name);
+                    // The source binding stays readable after the cast, so the
+                    // stored UString clones out of it.
+                    return expr(inner) + ".0.clone()";
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside
@@ -6567,7 +6577,11 @@ class RustExpr {
                 final valueText = ValueTypeSupport.isFloatRepresentation(abs) && isIntType(emittedType(value))
                     ? intToFloatText(operand)
                     : operand;
-                wrapperName + "(" + valueText + ")";
+                // A String wrapper stores the owned UString while the inline
+                // constructor argument is a borrowed Haxe String, so the
+                // construction boundary converts the representation.
+                final storedText = isStringType(abs.type) ? ownedStringSlotText(valueText) : valueText;
+                wrapperName + "(" + storedText + ")";
         };
     }
 
@@ -11719,11 +11733,14 @@ class RustExpr {
                 if (field.name == "_new") {
                     imports.requireType(abs.module, abs.name);
                     final rendered = ctorCallArgs(c.get(), args);
-                    if (ValueTypeSupport.constructorThrows(abs)) {
-                        final call = abs.name + "::new(" + rendered + ")";
+                    // The wrapper constructor owns the representation
+                    // conversion: a String wrapper takes &UStr and stores the
+                    // owned UString. Every construction calls it, so a
+                    // borrowed argument never reaches the tuple field.
+                    final call = abs.name + "::new(" + rendered + ")";
+                    if (ValueTypeSupport.constructorThrows(abs))
                         return call + (isFallible ? "?" : ".unwrap()");
-                    }
-                    return abs.name + "(" + rendered + ")";
+                    return call;
                 }
                 if (field.name == "toString" && args.length > 0) {
                     // A null guard narrows the complete field path (for
@@ -11748,14 +11765,35 @@ class RustExpr {
                         case Unary(_): args.length > 0 ? "-" + expr(args[0]) : abs.name;
                     };
                 }
+                // A wrapper member carries the same propagation suffix as any
+                // other callee: a throwing member inside a throwing function
+                // propagates its error, and its Result is not wrapped again at
+                // the caller's return.
+                final q = errorPropagationSuffix(c, cf, true);
+                // The declared String parameter lowers to the borrowed view,
+                // so a call site adapts the argument the same way an ordinary
+                // method call does.
+                final declaredArgs = switch (cf.get().type) {
+                    case TFun(declared, _): declared;
+                    case _: [];
+                };
+                final memberArg = (index:Int) -> {
+                    final arg = args[index];
+                    final declared = index < declaredArgs.length ? declaredArgs[index].t : null;
+                    declared != null && isStringType(declared) && isStringType(arg.t)
+                        ? stringViewArg(arg) : expr(arg);
+                };
                 if (ValueTypeSupport.hasReceiver(field) && args.length > 0) {
                     return expr(args[0])
                         + "."
                         + RustImports.toSnakeCase(field.name)
                         + "("
-                        + [for (i in 1...args.length) expr(args[i])].join(", ") + ")";
+                        + [for (i in 1...args.length) memberArg(i)].join(", ") + ")" + q;
                 }
-                return abs.name + "::" + RustImports.toSnakeCase(field.name) + "(" + [for (a in args) expr(a)].join(", ") + ")";
+                // The call names the wrapper type, so a cross-module site
+                // imports it.
+                imports.requireType(abs.module, abs.name);
+                return abs.name + "::" + RustImports.toSnakeCase(field.name) + "(" + [for (i in 0...args.length) memberArg(i)].join(", ") + ")" + q;
             case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                 final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
                 if (abs == null)
@@ -14723,7 +14761,10 @@ class RustExpr {
             if (ValueTypeSupport.constructorThrows(valueType)) {
                 return valueType.name + "::new(" + rendered + ")" + (isFallible ? constructorPropagationSuffix(c) : ".unwrap()");
             }
-            return valueType.name + "(" + rendered + ")";
+            // The emitted constructor converts the argument into the stored
+            // representation, so a non-throwing wrapper constructs through it
+            // as well.
+            return valueType.name + "::new(" + rendered + ")";
         }
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
