@@ -202,6 +202,12 @@ class ValueTypeSupport {
         return ctor != null && expressionContainsThrow(ctor.expr());
     }
 
+    /** True when `t` is exactly the representation stored by the wrapper. */
+    public static function isRepresentationOf(t:Null<Type>, abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
+        return t != null && sameType(t, abs.type);
+    }
+
     /** The stored field name used by each target's wrapper declaration. */
     public static function representationFieldName(abs:AbstractType):String {
         SharedModuleTrace.record("ValueTypeSupport");

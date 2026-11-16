@@ -2230,6 +2230,32 @@ class KotlinExpr {
                         return castTarget.name + "(" + castText + ")";
                     }
                 }
+                // A cast out of a marked wrapper to its representation reads
+                // the stored field. Kotlin keeps the representation inline in
+                // the value class and does not unbox it at an argument,
+                // assignment or return, so an inline accessor that returns
+                // `this` as the representation (Haxe lowers `value` to
+                // `cast wrapper`) must name the field or the wrapper leaks
+                // into a site that takes the representation.
+                final castWrapper = switch (Context.follow(inner.t)) {
+                    case TAbstract(ref, params) if (params.length == 0):
+                        final abs = ref.get();
+                        ValueTypeSupport.isMarkedAbstract(abs) ? abs : null;
+                    case _: null;
+                };
+                if (castWrapper != null) {
+                    final representationName = ValueTypeSupport.representationFieldName(castWrapper);
+                    // Inside the wrapper's own body the synthetic this local is
+                    // bound to the representation field, so the operand already
+                    // names the representation and must not name it twice.
+                    // (ValueTypeCastUnbox)
+                    final alreadyField = switch (stripWrap(inner).expr) {
+                        case TLocal(v) if (subst.exists(v.id)): subst.get(v.id) == representationName;
+                        case _: false;
+                    };
+                    if (!alreadyField && ValueTypeSupport.isRepresentationOf(e.t, castWrapper))
+                        return expr(inner) + "." + representationName;
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside
@@ -2341,6 +2367,37 @@ class KotlinExpr {
         }
     }
 
+    /**
+        The operand of a cast out of a marked wrapper to its representation.
+        Such a cast names no field: the wrapper stores the representation, and
+        the Kotlin emitter appends the stored field at the site that needs it.
+    **/
+    function wrapperCastInner(e:TypedExpr):Null<TypedExpr> {
+        return switch (e.expr) {
+            case TCast(inner, _):
+                final abs = ValueTypeSupport.markedAbstractOfType(inner.t);
+                abs != null && ValueTypeSupport.isRepresentationOf(e.t, abs) ? inner : null;
+            case _: null;
+        };
+    }
+
+    /**
+        The two wrapper operands of an equality whose sides both unbox the same
+        value wrapper. Kotlin compares value classes by their stored
+        representation, so the wrapper comparison already carries the source's
+        meaning and the operands are lowered without the unboxing cast.
+    **/
+    function sameWrapperCastPair(l:TypedExpr, r:TypedExpr):Null<{left:TypedExpr, right:TypedExpr}> {
+        final left = wrapperCastInner(l);
+        final right = wrapperCastInner(r);
+        if (left == null || right == null)
+            return null;
+        final leftAbs = ValueTypeSupport.markedAbstractOfType(left.t);
+        final rightAbs = ValueTypeSupport.markedAbstractOfType(right.t);
+        return leftAbs != null && rightAbs != null && ValueTypeSupport.sameAbstract(leftAbs, rightAbs)
+            ? {left: left, right: right} : null;
+    }
+
     /** Lowers an abstract implementation block to a Kotlin value wrapper. */
     function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
         final plan = ValueTypePlan.planValueTypeSynthetic(wrapper, value, {
@@ -2442,7 +2499,16 @@ class KotlinExpr {
                 return expr(locals.get(v.id));
             case _:
         }
-        final rendered = expr(value);
+        // The operator path appends the representation field itself, so an
+        // outer unboxing cast on the operand is stripped here: its target is
+        // exactly the value this function is about to name, and rendering it
+        // would name the field twice. (ValueTypeCastUnbox)
+        final renderedSource = switch (value.expr) {
+            case TCast(inner, _) if (abs != null && wrapperCastInner(value) != null
+                && ValueTypeSupport.sameAbstract(ValueTypeSupport.markedAbstractOfType(inner.t), abs)): inner;
+            case _: value;
+        };
+        final rendered = expr(renderedSource);
         final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
         final alreadyRepresentation = switch (stripWrap(value).expr) {
             case TLocal(v) if (subst.exists(v.id) && subst.get(v.id) == fieldName): true;
@@ -4533,6 +4599,18 @@ class KotlinExpr {
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
+                // A Kotlin value class compares structurally, so an equality
+                // whose two sides both read the same wrapper's representation
+                // keeps the wrapper comparison the source wrote; the stored
+                // representation is what Kotlin compares either way.
+                // (ValueTypeEquality)
+                if (op == OpEq || op == OpNotEq) {
+                    final wrapperPair = sameWrapperCastPair(l, r);
+                    if (wrapperPair != null) {
+                        l = wrapperPair.left;
+                        r = wrapperPair.right;
+                    }
+                }
                 // A null comparison on a subject whose Haxe type carries no
                 // Null wrapper is a constant: the Swift target applies the
                 // same rule. (NonOptionalNilComparison)
