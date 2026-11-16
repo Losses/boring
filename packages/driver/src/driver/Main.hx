@@ -343,16 +343,22 @@ class Main {
         every Gradle output under the bundle's outRoot directory.
     **/
     static function publicationProject():String {
+        final candidates:Array<String> = [];
+        // The driver package installs the project and its wrapper exports this
+        // path, so a published driver always finds its own copy.
         final configured = Host.env("BORING_PUBLICATION_PROJECT");
-        final value:String = configured == null ? "" : configured;
-        if (value.length == 0) {
-            fail("bundle driver: kmpPublication needs BORING_PUBLICATION_PROJECT (the boring flake driver wrapper sets it)");
-            return "";
+        if (configured != null && configured.length > 0) candidates.push(configured);
+        // A driver run outside its wrapper falls back to the flake source tree
+        // a caller exports, then to the haxelib checkout a tiqian devShell
+        // stages beside its project file.
+        final source = Host.env("BORING_SOURCE");
+        if (source != null && source.length > 0) candidates.push(joinPath(source, "kotlin-publication"));
+        candidates.push(joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath("git", "kotlin-publication")));
+        for (candidate in candidates) {
+            if (exists(candidate) && Host.isDirectory(candidate)) return candidate;
         }
-        if (!exists(value) || !Host.isDirectory(value)) {
-            fail('bundle driver: BORING_PUBLICATION_PROJECT is not a directory: $value');
-        }
-        return value;
+        fail("bundle driver: kmpPublication found no publication project; tried " + candidates.join(", "));
+        return "";
     }
 
     /**

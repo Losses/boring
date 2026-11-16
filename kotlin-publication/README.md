@@ -19,8 +19,13 @@ the published API and do not change when the publication host changes.
 ## How the driver runs it
 
 The flake installs this directory into the driver package and the `boring`
-wrapper exports its path as `BORING_PUBLICATION_PROJECT`. On `pack`, a bundle
-with `kmpPublication: true` gets these arguments:
+wrapper exports its path as `BORING_PUBLICATION_PROJECT`. A driver started
+without its wrapper resolves, in order, `$BORING_SOURCE/kotlin-publication`
+(the flake source tree tiqian exports) and then
+`<cwd>/.haxelib/boring/git/kotlin-publication` (the checkout a tiqian devShell
+stages). None of these is a sibling checkout: a published driver always finds
+its own copy. On `pack`, a bundle with `kmpPublication: true` gets these
+arguments:
 
 ```
 gradlew -p <per-run copy> publishToMavenLocal
@@ -42,8 +47,10 @@ the copy that ships with the driver, so a flake pin change replaces it.
 
 ## Input tree
 
-The Kotlin sources are a driver output. The driver passes `gen` and
-`gen-tests` explicitly; the defaults below serve a standalone invocation:
+The Kotlin sources are a driver output. The driver passes absolute `gen` and
+`gen-tests` paths derived from the project root, so the build resolves no path
+through the process working directory; the defaults below serve a standalone
+invocation:
 
 - `reference/kotlin-f32/gen` and `reference/kotlin-f32/gen-tests`, produced by
   `bun run gen:kotlin-f32`;
