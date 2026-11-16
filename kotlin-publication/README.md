@@ -41,9 +41,18 @@ gradlew -p <per-run copy> publishToMavenLocal
 The installed project is read-only, and Gradle 9 refuses to configure a project
 whose root directory cannot be written (it writes `build/reports/problems`
 there: `Configuring project ':' without an existing directory is not allowed`).
-The driver therefore copies the installed project to `<outRoot>/<id>/gradle/project`
-before the run and never writes the installed tree. The source of record stays
-the copy that ships with the driver, so a flake pin change replaces it.
+The driver therefore deletes `<outRoot>/<id>/gradle/project` and copies the
+installed project into it on every pack run, and never writes the installed
+tree. The source of record stays the copy that ships with the driver, so a flake
+pin change replaces it. The copy is 10 files and about 75 KB; the Gradle build
+and project cache beside it (`<outRoot>/<id>/gradle/build` and
+`project-cache`) persist between pack runs on purpose so the second run
+reuses the compiled targets.
+
+The wrapper downloads Gradle 9.6.0 (about 140 MB compressed, 152 MB unpacked)
+into `GRADLE_USER_HOME` on the first run of a CI job. That download is a
+new cost of this project: a job that does not cache `GRADLE_USER_HOME` pays
+it once per run.
 
 ## Input tree
 

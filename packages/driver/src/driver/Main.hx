@@ -170,7 +170,7 @@ class Main {
 
     static function genArgs(project:Project, bundle:BundleSpec, pack:Bool):Array<String> {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
-        final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null
+        final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null && !bundle.kmpPublication
             ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
         return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
             discoverSourceTypes(project, bundle.sourceSet));
