@@ -2535,19 +2535,22 @@ class SwiftExpr {
             case ValueTypeBinary(op, left, right):
                 final field = plan.field;
                 if (field == null) expr(value) else {
-                    final asRepresentation = nativeOperator && field.name == currentField;
-                    final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op, isIntTyped(left) && isIntTyped(right)) + " "
-                        + valueTypeOperand(right, locals, abs, asRepresentation);
-                    nativeOperator
-                    && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+                    // Swift wrapper types are structs: the representation-level
+                    // arithmetic is what the inlined wrapper operator body
+                    // carries, so both operands are read as the stored field and
+                    // the result is re-wrapped. Leaving an operand wrapped would
+                    // emit e.g. `Double + Ic` because the wrapper has no
+                    // implicit conversion to its representation.
+                    // (ValueTypeArithmeticOperand)
+                    final rendered = valueTypeOperand(left, locals, abs, true) + " " + opStr(op, isIntTyped(left) && isIntTyped(right)) + " "
+                        + valueTypeOperand(right, locals, abs, true);
+                    abs.name + "(" + rendered + ")";
                 }
             case ValueTypeUnary(op, subject):
                 final field = plan.field;
                 if (field == null) expr(value) else {
-                    final asRepresentation = nativeOperator && field.name == currentField;
-                    final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
-                    nativeOperator
-                    && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+                    final rendered = "-" + valueTypeOperand(subject, locals, abs, true);
+                    abs.name + "(" + rendered + ")";
                 }
             case _:
                 // An inline wrapper constructor binds its argument to a local
@@ -2571,7 +2574,15 @@ class SwiftExpr {
     }
 
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
-        var source = value;
+        // A synthetic local of the wrapper block stands for its bound value;
+        // resolve it before the representation decision so an accessor over a
+        // static field is unboxed like any other wrapper operand.
+        // (ValueTypeArithmeticOperand)
+        final resolved = switch (stripWrap(value).expr) {
+            case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+            case _: value;
+        };
+        var source = resolved;
         var wrapperOperand = false;
         var decorated = true;
         while (decorated) {
@@ -2589,18 +2600,13 @@ class SwiftExpr {
                     decorated = false;
             }
         }
-        switch (stripWrap(value).expr) {
-            case TLocal(v) if (locals.exists(v.id)):
-                return expr(locals.get(v.id));
-            case _:
-        }
         // A representation operand strips the unboxing cast: this function
         // appends the stored field itself, so rendering the cast would name the
         // field twice. Non-wrapper operands keep their cast rendering because
         // no field is appended for them. (ValueTypeCastUnbox)
-        final rendered = expr(asRepresentation && wrapperOperand ? source : value);
+        final rendered = expr(asRepresentation && wrapperOperand ? source : resolved);
         final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
-        final alreadyRepresentation = switch (stripWrap(value).expr) {
+        final alreadyRepresentation = switch (stripWrap(resolved).expr) {
             case TLocal(v) if (subst.exists(v.id)
                 && (subst.get(v.id) == fieldName || StringTools.endsWith(subst.get(v.id), "." + fieldName))): true;
             case _: false;
