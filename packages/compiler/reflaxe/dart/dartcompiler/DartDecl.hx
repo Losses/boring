@@ -221,8 +221,11 @@ class DartDecl {
                 imports.reserveName(name);
             }
         }
-        final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
-        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // A marked extension function whose member name another declaration
+        // of the same library already renders stays in its declaring class: a
+        // Dart extension cannot overload a member (see Compiler.extensionFallbacks).
+        final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field) && !Compiler.isExtensionFallback(cls, f.field.name)) f];
+        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field) || Compiler.isExtensionFallback(cls, f.field.name)) f];
         // A marked static final leaves its holder namespace: the declaration
         // emits as a constant at library scope, which is the shape the reference
         // site already reads (features/10 field form).
@@ -546,6 +549,7 @@ class DartDecl {
         if (first == null)
             Context.error("value type constructor must take its representation", cls.pos);
         final fieldName = valueTypeFieldName(abs, [for (f in funcFields) f.field]);
+        representationFields.set(representationKey(abs), fieldName);
         final lines:Array<String> = [
             "extension type " + info.name + "(" + types.of(info.representation) + " " + fieldName + ") {"
         ];
@@ -630,6 +634,25 @@ class DartDecl {
         name also collides). Wrappers without a clash keep the constructor
         parameter name, leaving their output byte-identical.
     **/
+    /**
+        The representation field name each declaration chose, keyed by the
+        abstract's module and name, so a read in another module uses the
+        same name the declaration emitted.
+    **/
+    static final representationFields:Map<String, String> = [];
+
+    static function representationKey(abs:AbstractType):String {
+        return abs.module + "|" + abs.name;
+    }
+
+    /** The representation field of a marked value type. */
+    public static function representationField(abs:AbstractType):String {
+        final key = representationKey(abs);
+        if (representationFields.exists(key))
+            return representationFields.get(key);
+        return ValueTypeSupport.representationFieldName(abs);
+    }
+
     public static function valueTypeFieldName(abs:AbstractType, fields:Array<ClassField>):String {
         final ctor = ValueTypeSupport.constructorField(abs);
         final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
@@ -861,7 +884,7 @@ class DartDecl {
     // @:allow members use a public Dart name so allowed cross-library references compile.
     // Dart's Object.hashCode is a getter, so a source method with that name
     // must use a distinct Dart member name to avoid a method and getter clash.
-    static function dartMemberName(field:ClassField):String {
+    public static function dartMemberName(field:ClassField):String {
         final base = field.name == "hashCode" ? "hashCodeValue" : builtinValueName(field.name);
         return field.isPublic || field.meta.has(":allow") ? base : "_" + base;
     }

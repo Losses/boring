@@ -209,7 +209,28 @@
       ]
     },
     {
+      "path": "tests/haxe/dart-extension-member-collision/gen/dart.hxml",
+      "mode": "compile",
+      "targets": [
+        "dart"
+      ]
+    },
+    {
+      "path": "tests/haxe/dart-narrowed-local-declaration/gen/dart.hxml",
+      "mode": "compile",
+      "targets": [
+        "dart"
+      ]
+    },
+    {
       "path": "tests/haxe/dart-runtime-import-depth/gen/dart.hxml",
+      "mode": "compile",
+      "targets": [
+        "dart"
+      ]
+    },
+    {
+      "path": "tests/haxe/dart-value-type-representation/gen/dart.hxml",
       "mode": "compile",
       "targets": [
         "dart"

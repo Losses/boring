@@ -13,6 +13,7 @@ import reflaxe.ReflectCompiler;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import StaticFunctionMarkers;
 import StaticReferenceScan;
 import TestClassFlush;
 import EmitSink;
@@ -70,6 +71,14 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /** Classes whose flattened public statics would share a library name. */
     public static final collidingStaticsClasses:Map<String, Bool> = [];
+
+    /**
+        Marked extension functions that must stay in their declaring class:
+        a later declaration over the same receiver renders the same Dart
+        member name, and a Dart extension cannot overload a member. Keyed
+        `module.Class.field`.
+    **/
+    public static final extensionFallbacks:Map<String, Bool> = [];
 
     /**
         Modules whose resident or std source files must be compiled even
@@ -250,6 +259,54 @@ class Compiler extends PluginCompiler<Compiler> {
                         }
                 }
         }
+        extensionFallbacks.clear();
+        // A Dart extension cannot overload a member, so two marked extension
+        // functions over the same receiver that render one member name cannot
+        // share the library's extension declaration. The first declaration
+        // (source position order) keeps the extension spelling; the rest stay
+        // in their declaring class, which the collision set keeps emitted.
+        final extensionClaims = new Map<String, Array<{cls:ClassType, field:ClassField, min:Int}>>();
+        for (mt in mtypes) {
+            switch (mt) {
+                case TClassDecl(c):
+                    final cls = c.get();
+                    if (cls.isExtern || RuntimeResidents.isResident(cls.module) || !inSourceScope(cls.pos)) {
+                        continue;
+                    }
+                    for (f in cls.statics.get()) {
+                        if (!StaticFunctionMarkers.isExtension(f)) {
+                            continue;
+                        }
+                        final receiver = switch (f.type) {
+                            case TFun(args, _): args.length > 0 ? haxe.macro.TypeTools.toString(args[0].t) : null;
+                            case _: null;
+                        };
+                        if (receiver == null) {
+                            continue;
+                        }
+                        final key = cls.module + "\u0000" + receiver + "\u0000" + DartDecl.dartMemberName(f);
+                        if (!extensionClaims.exists(key)) {
+                            extensionClaims.set(key, []);
+                        }
+                        extensionClaims.get(key).push({cls: cls, field: f, min: Context.getPosInfos(f.pos).min});
+                    }
+                case _:
+            }
+        }
+        for (key in extensionClaims.keys()) {
+            final claims = extensionClaims.get(key);
+            if (claims.length < 2) {
+                continue;
+            }
+            claims.sort((a, b) -> a.min - b.min);
+            var claimIndex = 1;
+            while (claimIndex < claims.length) {
+                final claim = claims[claimIndex];
+                extensionFallbacks.set(claim.cls.module + "." + claim.cls.name + "." + claim.field.name, true);
+                collidingStaticsClasses.set(claim.cls.module + "." + claim.cls.name, true);
+                claimIndex++;
+            }
+        }
         final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
             && (RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)));
         for (key in referenced.keys())
@@ -400,6 +457,11 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
         }
         return result;
+    }
+
+    /** Whether a marked extension function stays in its declaring class. */
+    public static function isExtensionFallback(cls:ClassType, fieldName:String):Bool {
+        return extensionFallbacks.exists(cls.module + "." + cls.name + "." + fieldName);
     }
 
     public static function keepStaticsClass(cls:ClassType):Bool {

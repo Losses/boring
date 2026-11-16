@@ -1,0 +1,19 @@
+# Dart generation of the minimal narrowed-local fixture (task
+# t-mwj1rejm-ntwj). The runner passes -D dart-output=... and
+# -D dart-test-output=... on the command line. Two locals are non-null by
+# construction — one read after a null guard, one read from a local the
+# emitter already declared non-null — so the emitted declarations must not
+# name a nullable type.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dart-narrowed-local-declaration
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dart-narrowed-local-declaration'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+narrow.NarrowedLocalOps
