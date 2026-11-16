@@ -752,3 +752,150 @@ jobs:
             echo "::error::the collected domain contains files under out/ - the generated tree is being swept into the count"
             exit 1
           fi
+
+  # Nothing in the four jobs above compiles the output of a consumer project:
+  # they generate and test boring's own sample bundles, so an emitter defect is
+  # green here and only red when a consumer re-pins boring and a real target
+  # compiler reads the generated tree. All four emitter defects of the 2026-11
+  # batch (Kotlin, Swift, Dart, Rust) reached a release candidate this way: the
+  # boring PR was green, the tiqian pin red. This job closes that gap without
+  # changing the four jobs (they keep their full suites and matrices).
+  #
+  # It checks out a fixed consumer commit (Losses/tiqian) and runs the
+  # consumer's own compile points over the trees THIS checkout's driver
+  # generates:
+  #
+  #   * the boring flake input is overridden with "path:$GITHUB_WORKSPACE", so
+  #     the tiqian devShell, its .haxelib/boring projection and the boring
+  #     driver inside it all come from this checkout, not from the commit
+  #     tiqian's flake.lock pins;
+  #   * the bundle list is read from tiqian's boring.json, not from a matrix
+  #     kept here, so a bundle the consumer adds enters the gate by existing;
+  #   * boring gen runs every bundle (a generation failure is red first);
+  #   * boring pack runs the bundles whose compile point lives in pack
+  #     (TypeScript through package-tsc, Kotlin through package-kotlinc or the
+  #     KMP publication), and tools/compile-bundles.py compiles Swift, Dart and
+  #     Rust and records the pack-compiled bundles. Both tables live in the
+  #     consumer's tool, so no target can be added without a compile point and
+  #     no bundle is skipped by an allowlist here.
+  #
+  # The consumer ref is a commit, not a branch: a moving ref would let a red PR
+  # turn green (or a green one turn red) with no change in this repository.
+  # Bump it in its own commit when the consumer expects a newer driver API.
+  consumer-compile:
+    name: consumer compile (tiqian, every bundle)
+    runs-on: ubuntu-latest
+    # 13 bundles: generation plus one target compiler invocation per bundle,
+    # including cargo build --release and a KMP publication. tiqian's own
+    # bundle-verification lane allows 240 minutes for the same work.
+    timeout-minutes: 240
+    env:
+      TIQIAN_REPOSITORY: Losses/tiqian
+      # tiqian release/alpha08 as of 2026-11-16; carries tools/compile-bundles.py.
+      TIQIAN_REF: f2c316f24707fb7bef526213213e34aac674af95
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      # The Swift FHS wrapper needs unprivileged user namespaces; same
+      # relaxation as the linux and collected-suite jobs.
+      - name: Allow user namespaces for the Swift FHS wrapper
+        run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Check out the pinned consumer commit
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TIQIAN_REPOSITORY }}
+          ref: ${{ env.TIQIAN_REF }}
+          path: tiqian
+      # The script is written to a file instead of inlined in the nix develop
+      # command line: it holds nested heredocs (the project-file readers) and
+      # four quoting layers, which single-line quoting mangles silently.
+      - name: Stage the consumer compile script
+        run: |
+          cat > "$RUNNER_TEMP/consumer-compile.sh" <<'CONSUMER_COMPILE'
+          #!/usr/bin/env bash
+          # Consumer compile gate, run inside the tiqian devShell by the
+          # consumer-compile job. The boring flake input is overridden to the
+          # checkout under test, so the boring driver is this PR's driver.
+          set -euo pipefail
+
+          # The Unicode data files the Haxe generation reads are not tracked by
+          # tiqian; its own lanes stage them from the boring input
+          # (bundle-verification.yml "Stage the pinned generation inputs").
+          # With the override in place that input is this checkout.
+          bash tools/setup-haxe-env.sh
+
+          # boring pack is the compile point for the TypeScript (package-tsc)
+          # and Kotlin (package-kotlinc or the KMP publication) targets, so the
+          # pack toolchain has to resolve. A clean runner has no tsc and the
+          # flake devShell ships none, so pack stops at "pack on the ts target
+          # needs tsc" before any artifact is built; this is the same shim
+          # tiqian's release workflow writes (release.yml "Pack every bundle and
+          # write the registry tree").
+          BORING_PACKAGE_TSC="$RUNNER_TEMP/boring-package-tsc"
+          printf '#!/usr/bin/env bash\nexec bun x --bun typescript@5.9.3/bin/tsc "$@"\n' > "$BORING_PACKAGE_TSC"
+          chmod +x "$BORING_PACKAGE_TSC"
+          export BORING_PACKAGE_TSC
+
+          # The bundle list is boring.json, not a matrix kept here: a bundle the
+          # consumer adds enters this gate by existing, and no target can be
+          # left out by an allowlist. The file is JSON with // line comments
+          # (the driver strips them), so strip them the same way before parsing.
+          # An optional argument list filters by target (used for the pack set).
+          bundle_ids() {
+            python3 - "$@" <<'PY'
+          import json, re, sys
+          wanted = set(sys.argv[1:])
+          text = re.sub(r"(?m)^[ \t]*//.*$", "", open("boring.json", encoding="utf-8").read())
+          for bundle in json.loads(text)["bundles"]:
+              if not wanted or bundle["target"] in wanted:
+                  print(bundle["id"])
+          PY
+          }
+
+          mapfile -t bundles < <(bundle_ids)
+          if [ "${#bundles[@]}" -eq 0 ]; then
+            echo "::error::boring.json declares no bundle"
+            exit 1
+          fi
+          echo "consumer-compile: ${#bundles[@]} bundle(s) declared by boring.json: ${bundles[*]}"
+
+          # 1. Generate every bundle with this checkout's driver. A generation
+          #    defect is red here, before any target compiler runs.
+          boring gen "${bundles[@]}" --project boring.json
+
+          # 2. The compile matrix is the consumer's own (tools/compile-bundles.py
+          #    PACK_COMPILES / TOOL_COMPILES). Assert every declared bundle has a
+          #    compile point before compiling, so a new target cannot ride along
+          #    with no compiler and no bundle can be dropped silently.
+          matrix="$(python3 tools/compile-bundles.py --list)"
+          printf '%s\n' "$matrix"
+          rows=$(printf '%s\n' "$matrix" | tail -n +2 | wc -l)
+          if [ "$rows" -ne "${#bundles[@]}" ]; then
+            echo "::error::compile matrix lists $rows row(s) for ${#bundles[@]} declared bundle(s)"
+            exit 1
+          fi
+          if printf '%s\n' "$matrix" | tail -n +2 | awk '$NF == "none" { found = 1 } END { exit !found }'; then
+            echo "::error::a declared bundle has no compile point (the matrix lists 'none')"
+            exit 1
+          fi
+
+          # 3. Pack the bundles whose compile point is inside pack (TypeScript
+          #    and Kotlin), then run the consumer's compile point for the rest.
+          mapfile -t packed < <(bundle_ids ts kotlin)
+          if [ "${#packed[@]}" -gt 0 ]; then
+            boring pack "${packed[@]}" --project boring.json
+          fi
+
+          compile_rc=0
+          python3 tools/compile-bundles.py --project boring.json || compile_rc=$?
+          echo "consumer-compile: ${#bundles[@]} bundle(s); pack-compiled ${#packed[@]}; compile-bundles rc=$compile_rc"
+          exit "$compile_rc"
+          CONSUMER_COMPILE
+          chmod +x "$RUNNER_TEMP/consumer-compile.sh"
+      - name: Generate and compile every consumer bundle
+        working-directory: tiqian
+        run: |
+          set -euo pipefail
+          test -f "$RUNNER_TEMP/consumer-compile.sh"
+          nix develop --override-input boring "path:$GITHUB_WORKSPACE" -c bash "$RUNNER_TEMP/consumer-compile.sh"
+
