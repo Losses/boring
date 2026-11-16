@@ -182,9 +182,10 @@ abstract Ic(Float) from Float {
 ```
 
 The declared members accept: the constructor with an optional body that
-validates and throws; instance methods; `@:op` statics over the wrapper
-type; a `toString` member; and static fields of the wrapper type whose
-initializers are constructor calls over closed constants. A marker on an
+validates and throws; instance methods; static methods; `@:op` statics
+over the wrapper type; a `toString` member; and static fields of the
+wrapper type whose initializers are constructor calls over closed
+constants. A marker on an
 abstract whose representation is outside the closed class, on a generic
 abstract, or on any non-abstract declaration stops the compilation with
 `value type markers accept single-field abstracts over a primitive
@@ -196,8 +197,8 @@ representation only`. Unmarked abstracts keep the erasure ruling above.
 | --- | --- |
 | Kotlin | `import kotlin.jvm.JvmInline` followed by `@JvmInline value class Name(val field: Rep)` with the declared members. The JVM target adds `kotlin.jvm.*` to its default imports; a common source set resolves the annotation only through the explicit import, and a value class without the annotation is rejected outside JVM source sets. `@:op` members render as `operator fun`; static fields render inside `companion object`; construction sites render `Name(rep)`. |
 | TypeScript | `export type Name = Rep;` and member functions in the module file with the value first, following the `@:extension` shape of `docs/specs/features/10-static-extension.md`; operators render as those functions and operator call sites render as direct calls to them; a validating constructor renders as a module function that validates, throws, and returns the representation. |
-| Swift | `struct Name: Equatable, Hashable` with the representation as a `let` field, the declared members, static operators as members of the struct, and `toString` as `CustomStringConvertible`; validation renders in `init`. |
-| Dart | `extension type Name(Rep field)` with the declared members and operators; `toString` renders as a declared `String toString()`; a validating constructor renders as a factory function that constructs, validates, and throws, and construction sites route through it. |
+| Swift | `struct Name: Equatable, Hashable` with the representation as a `let` field, the declared members, static operators as members of the struct, and `toString` as `CustomStringConvertible`; a static method renders as a `static func` and declares `throws` when its body throws; validation renders in `init`. |
+| Dart | `extension type Name(Rep field)` with the declared members and operators; a static method renders as a `static` member; `toString` renders as a declared `String toString()`; a validating constructor renders as a factory function that constructs, validates, and throws, and construction sites route through it. |
 | Rust | `#[derive(...)] pub struct Name(pub Rep);` with the declared members in an inherent `impl`, operators as the matching standard trait implementations (`Add` for `+`, `Neg` for the prefix minus), `toString` as `Display`, validation in a constructor function following the error convention of `docs/specs/features/06-errors-and-results.md`. Derives follow the representation: `PartialEq` always; `Eq` and `Hash` only when the representation holds them, so a `Float` representation derives `PartialEq` alone. |
 
 Equality, hashing, and rendering are observable: two wrappers over equal
