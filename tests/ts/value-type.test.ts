@@ -169,6 +169,10 @@ describe("value wrapper generated trees", () => {
       expect(swift).toContain("static func +(lhs: Ic, rhs: Ic) -> Ic");
       expect(swift).toContain("static prefix func -(value: Ic) -> Ic");
       expect(swift).toContain("struct FontFaceId: Equatable, Hashable, CustomStringConvertible");
+      // Swift wrappers are structs: representation arithmetic must unbox both
+      // operands and re-wrap the result, or the consumer emits `Double + Ic`.
+      expect(read("reference/swift/gen-tests/boring/ValueTypeConsumer.swift"))
+        .toContain("let total = Ic(first.count + Ic.ZERO.count)");
     });
 
     const dart = read("reference/dart/gen/lib/boring/value_type_ops.dart");
