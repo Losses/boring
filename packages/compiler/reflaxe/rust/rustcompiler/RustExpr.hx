@@ -12557,6 +12557,14 @@ class RustExpr {
                         final joined = freshRegionName("joined");
                         final index = freshRegionName("index");
                         final receiver = nullableMethodReceiver(subj, false);
+                        // Haxe reads the array and leaves it usable, so the
+                        // builder binding borrows a place expression and a
+                        // later read of the same local stays valid (E0382).
+                        // A freshly built value keeps its ownership: a borrow
+                        // of a temporary ends at the binding statement
+                        // (E0716).
+                        final joinSource = reusableReadText(stripRenderedParens(receiver))
+                            && !StringTools.startsWith(receiver, "&") ? "&" + receiver : receiver;
                         // A nullable receiver whose unwrap applies to a
                         // temporary (a clone or a lookup result) ends that
                         // temporary's lifetime at the semicolon; split into
@@ -12582,7 +12590,7 @@ class RustExpr {
                                 + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
                                 + index + " += 1; } UString::from(out.as_str()) }";
                         }
-                        return "{ let " + joined + " = " + receiver + "; let mut out = String::new(); let n = "
+                        return "{ let " + joined + " = " + joinSource + "; let mut out = String::new(); let n = "
                             + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
                             + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
                             + index + " += 1; } UString::from(out.as_str()) }";
