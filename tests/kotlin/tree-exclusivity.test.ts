@@ -51,12 +51,12 @@ test("a module whose unit changes leaves no copy in the tree it left", () => {
   fs.mkdirSync(path.join(out, "gen"), { recursive: true });
   fs.mkdirSync(path.join(out, "gen-tests"), { recursive: true });
 
-  const testRun = generate(["trees.SharedTest"]);
+  const testRun = generate([]);
   expect(testRun.code, "run 1: " + testRun.output).toBe(0);
   expect(generated("gen-tests/trees/Shared.kt"), "run 1 routes Shared into the test tree").toBe(true);
   expect(generated("gen/trees/Shared.kt"), "run 1 keeps Shared out of the main tree").toBe(false);
 
-  const mainRun = generate(["trees.SharedTest", "trees.Entry"]);
+  const mainRun = generate(["trees.Entry"]);
   expect(mainRun.code, "run 2: " + mainRun.output).toBe(0);
   expect(generated("gen/trees/Shared.kt"), "run 2 routes Shared into the main tree").toBe(true);
   expect(generated("gen-tests/trees/Shared.kt"), "run 2 leaves no copy in the test tree").toBe(false);
