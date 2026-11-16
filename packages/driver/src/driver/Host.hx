@@ -75,20 +75,9 @@ class Host {
         #if js
         Syntax.code("require('fs').cpSync({0}, {1}, {recursive: true})", from, to);
         #else
-        copyTreeInner(from, to);
+        throw new DriverException(Unsupported("copyTree requires the JavaScript driver"));
         #end
     }
-
-    #if !js
-    static function copyTreeInner(from:String, to:String):Void {
-        if (isDirectory(from)) {
-            makeDirs(to);
-            for (entry in readDir(from)) copyTreeInner(join(from, entry), join(to, entry));
-        } else {
-            sys.io.File.copy(from, to);
-        }
-    }
-    #end
 
     public static function readDir(path:String):Array<String> {
         #if js

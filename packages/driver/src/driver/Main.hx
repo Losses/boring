@@ -342,22 +342,29 @@ class Main {
         wrapper exports its path; the path is read-only, so the step redirects
         every Gradle output under the bundle's outRoot directory.
     **/
+    static function isPublicationProject(path:String):Bool {
+        return path.length > 0 && exists(path) && Host.isDirectory(path);
+    }
+
     static function publicationProject():String {
-        final candidates:Array<String> = [];
         // The driver package installs the project and its wrapper exports this
-        // path, so a published driver always finds its own copy.
+        // path, so a published driver always finds its own copy. A driver run
+        // outside its wrapper falls back to the flake source tree a caller
+        // exports, then to the haxelib checkout a tiqian devShell stages beside
+        // its project file.
         final configured = Host.env("BORING_PUBLICATION_PROJECT");
-        if (configured != null && configured.length > 0) candidates.push(configured);
-        // A driver run outside its wrapper falls back to the flake source tree
-        // a caller exports, then to the haxelib checkout a tiqian devShell
-        // stages beside its project file.
-        final source = Host.env("BORING_SOURCE");
-        if (source != null && source.length > 0) candidates.push(joinPath(source, "kotlin-publication"));
-        candidates.push(joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath("git", "kotlin-publication")));
-        for (candidate in candidates) {
-            if (exists(candidate) && Host.isDirectory(candidate)) return candidate;
+        if (configured != null) {
+            final value:String = configured;
+            if (isPublicationProject(value)) return value;
         }
-        fail("bundle driver: kmpPublication found no publication project; tried " + candidates.join(", "));
+        final source = Host.env("BORING_SOURCE");
+        if (source != null) {
+            final fromSource = joinPath(source, "kotlin-publication");
+            if (isPublicationProject(fromSource)) return fromSource;
+        }
+        final fromHaxelib = joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath("git", "kotlin-publication"));
+        if (isPublicationProject(fromHaxelib)) return fromHaxelib;
+        fail("bundle driver: kmpPublication found no publication project; tried BORING_PUBLICATION_PROJECT, $BORING_SOURCE/kotlin-publication and <cwd>/.haxelib/boring/git/kotlin-publication");
         return "";
     }
 
