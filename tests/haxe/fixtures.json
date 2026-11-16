@@ -995,6 +995,21 @@
       ]
     },
     {
+      "path": "tests/haxe/rust-static-compound/gen/race.hxml",
+      "mode": "reject",
+      "diagnostic": "P-1a compound operation",
+      "targets": [
+        "rust"
+      ]
+    },
+    {
+      "path": "tests/haxe/rust-static-compound/gen/rust.hxml",
+      "mode": "compile",
+      "targets": [
+        "rust"
+      ]
+    },
+    {
       "path": "tests/haxe/rust-static-read-ownership/gen/rust.hxml",
       "mode": "compile",
       "targets": [
