@@ -210,9 +210,12 @@ Each entry carries the six required elements:
    compound assignment stays accepted because one guard covers its read and
    its store. A whole-value assignment whose value reads no part of the
    static stays accepted, because concurrent writers then publish equal
-   complete values and a reader observes one of them. The rejection fixture
-   is `tests/haxe/rust-static-compound/gen/race.hxml`, and the accepted form
-   is `tests/haxe/rust-static-compound/gen/rust.hxml`.
+   complete values and a reader observes one of them. The realization keeps
+   the lock at one access: a guard widened across the read and the write
+   would cover arbitrary user code, and a re-entered lock on the same thread
+   deadlocks because the standard library has no reentrant lock. The rejection
+   fixture is `tests/haxe/rust-static-compound/gen/race.hxml`, and the
+   accepted form is `tests/haxe/rust-static-compound/gen/rust.hxml`.
 
 Migration (Astra arbitration, 2026-11-12): `LazyLock<Mutex<SingleThread<T>>>`
 is retired. A class-handle static that used it lowers as ThreadAffine, and its

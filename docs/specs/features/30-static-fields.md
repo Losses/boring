@@ -153,6 +153,16 @@ defect went unobserved before the probe.
    it: that branch can choose a different assignment, and it cannot leave
    entries that disagree with their indices.
 
+   The emitter does not widen the lock to cover the compound operation. A
+   guard that spans the read and the write would span arbitrary user code, and
+   a function called inside that span which touches the same static would take
+   the same lock again on the same thread. The standard library has no
+   reentrant lock, so that guard deadlocks at run time, and a lock over the
+   whole program would serialize every static access while still failing a
+   compound operation that spans two functions. The rejection keeps the lock
+   at one access and moves the compound operation into a source form the
+   target expresses atomically.
+
 ## Samples and tests
 
 - `samples/boring/StaticStateOps.hx` graduates with both assignment forms
