@@ -254,8 +254,8 @@ describe("value wrapper generated trees", () => {
 
 // An inline representation accessor returns `this` as the wrapper's stored
 // representation. Haxe lowers the access to an unboxing cast, and Kotlin keeps
-// a value class inline, so the emitted argument must name the stored field
-// instead of passing the wrapper into a representation-typed slot.
+// a value class inline, so the emitted argument names the stored field and
+// never passes the wrapper into a representation-typed slot.
 const fieldAccessShape = `package mutation;
 
 @:valueType
