@@ -480,9 +480,15 @@ class Main {
             final variable = Plan.swiftLibraryPathVariable(host);
             final previousPath = Host.env(variable);
             final existingPath = previousPath == null ? "" : previousPath;
+            // The development shell exports the loader that matches the glibc
+            // it links and the library directories the pinned loader can no
+            // longer take from the host. Both reach the Swift test recipe.
+            final swiftLoader = bundle.target == "swift" ? Host.env("BORING_SWIFT_DYNAMIC_LINKER") : null;
+            final swiftHostLibraries = bundle.target == "swift" ? Host.env("BORING_SWIFT_LIBDISPATCH") : null;
             try {
                 final steps = Plan.testSteps(project, bundle, generated, genTests, build, results,
-                    genFiles, testFiles, haxeTestMain(project, bundle), swiftModule, systemPackage, host, existingPath);
+                    genFiles, testFiles, haxeTestMain(project, bundle), swiftModule, systemPackage, host, existingPath,
+                    swiftLoader, swiftHostLibraries);
                 for (planned in steps) {
                     final stepFailure = step(project, bundle, "test", planned.name, planned.command, planned.args, planned.env, planned.cwd);
                     if (stepFailure != null) {

@@ -176,7 +176,7 @@ class DriverPlanTests {
         for (bundle in project.bundles) {
             final steps = Plan.testSteps(project, bundle, "/project/gen", "/project/gen-tests", "/project/build",
                 "/project/results/" + bundle.id + ".jsonl", ["library.kt"], ["test.kt"], "TestMain",
-                "Codec", null, "darwin", "");
+                "Codec", null, "darwin", "", null, null);
             final signatures:Array<String> = [];
             for (step in steps) {
                 final environment:Array<String> = [];
@@ -188,6 +188,51 @@ class DriverPlanTests {
         }
         if (actual.copy().join(";") != expected.join(";")) {
             throw new DriverException(InvalidConfig("driver target command plan differs: " + actual.copy().join(";")));
+        }
+        // A Linux host whose development shell exports the matching loader:
+        // the test executable links that interpreter and the run step keeps
+        // the library directories the pinned loader no longer takes from the
+        // host. The library keeps the toolchain default, since a shared
+        // library carries no interpreter.
+        final linuxActual:Array<String> = [];
+        for (step in Plan.testSteps(project, project.bundles[4], "/project/gen", "/project/gen-tests", "/project/build",
+            "/project/results/swift.jsonl", ["library.kt"], ["test.kt"], "TestMain", "Codec", null, "linux", "",
+            "/dev/loader", "/dev/libs")) {
+            final environment:Array<String> = [];
+            for (item in step.env) environment.push(item.key + "=" + item.value);
+            linuxActual.push(step.name + "|" + step.command + "|" + step.args.join(",") + "|" + step.cwd
+                + "|" + environment.join(","));
+        }
+        final expectedLinux = "build library|swiftc|-emit-library,-emit-module,-O,-wmo,library.kt,-module-name,Codec,-o,/project/build/libCodec.so|/project|"
+            + ";build test executable|swiftc|-O,-wmo,test.kt,-I,/project/build,-L,/project/build,-lCodec,-Xlinker,-dynamic-linker,-Xlinker,/dev/loader,-o,/project/build/test-runner|/project|"
+            + ";stage resources|sh|-c,if [ -d /project/gen/Resources ]; then mkdir -p /project/build/Contents/Resources && cp -r /project/gen/Resources/. /project/build/Contents/Resources/; fi|/project|"
+            + ";run|/project/build/test-runner||/project|BORING_TEST_RESULTS=/project/results/swift.jsonl,LD_LIBRARY_PATH=/project/build:/dev/libs";
+        if (linuxActual.join(";") != expectedLinux) {
+            throw new DriverException(InvalidConfig("driver swift loader plan differs: " + linuxActual.join(";")));
+        }
+        for (step in Plan.testSteps(project, project.bundles[4], "/project/gen", "/project/gen-tests", "/project/build",
+            "/project/results/swift.jsonl", ["library.kt"], ["test.kt"], "TestMain", "Codec", null, "linux", "",
+            null, null)) {
+            if (step.args.indexOf("-dynamic-linker") >= 0) {
+                throw new DriverException(InvalidConfig("driver pinned the swift interpreter without a loader: " + step.name));
+            }
+            for (item in step.env) {
+                if (item.key == "LD_LIBRARY_PATH" && item.value != "/project/build") {
+                    throw new DriverException(InvalidConfig("driver added a library path without a loader: " + item.value));
+                }
+            }
+        }
+        for (step in Plan.testSteps(project, project.bundles[4], "/project/gen", "/project/gen-tests", "/project/build",
+            "/project/results/swift.jsonl", ["library.kt"], ["test.kt"], "TestMain", "Codec", null, "darwin", "",
+            "/dev/loader", "/dev/libs")) {
+            if (step.args.indexOf("-dynamic-linker") >= 0) {
+                throw new DriverException(InvalidConfig("driver pinned the swift interpreter on darwin: " + step.name));
+            }
+            for (item in step.env) {
+                if (item.key == "DYLD_LIBRARY_PATH" && item.value != "/project/build") {
+                    throw new DriverException(InvalidConfig("driver added a Linux library path on darwin: " + item.value));
+                }
+            }
         }
     }
 
