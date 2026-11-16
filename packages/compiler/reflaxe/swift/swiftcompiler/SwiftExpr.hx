@@ -2535,12 +2535,12 @@ class SwiftExpr {
             case ValueTypeBinary(op, left, right):
                 final field = plan.field;
                 if (field == null) expr(value) else {
-                    // Swift wrapper types are structs: the representation-level
-                    // arithmetic is what the inlined wrapper operator body
-                    // carries, so both operands are read as the stored field and
-                    // the result is re-wrapped. Leaving an operand wrapped would
-                    // emit e.g. `Double + Ic` because the wrapper has no
-                    // implicit conversion to its representation.
+                    // Swift wrapper types are structs: the inlined wrapper
+                    // operator body performs the arithmetic on the stored
+                    // representation, so both operands are read as that field
+                    // and the result is wrapped again. Leaving an operand
+                    // wrapped would emit e.g. `Double + Ic` because the
+                    // wrapper has no implicit conversion to its representation.
                     // (ValueTypeArithmeticOperand)
                     final rendered = valueTypeOperand(left, locals, abs, true) + " " + opStr(op, isIntTyped(left) && isIntTyped(right)) + " "
                         + valueTypeOperand(right, locals, abs, true);
