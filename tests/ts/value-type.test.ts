@@ -260,7 +260,9 @@ const fieldAccessShape = `package mutation;
 
 @:valueType
 abstract FaceId(String) {
-  public static function of(value:String):FaceId return cast value;
+  public inline function new(value:String) this = value;
+
+  public static function of(value:String):FaceId return new FaceId(value);
 
   public var value(get, never):String;
 
@@ -298,8 +300,49 @@ test("reads an inline representation accessor as the stored field", () => {
     expect(generated).toContain("value class FaceId(val value: String)");
     expect(generated).toMatch(/consume\(id\.value\)/);
     expect(generated).toMatch(/consume\(id\.toString\(\)\)/);
+    // Swift stores the representation in the wrapper struct, so the same
+    // accessor casts out of the wrapper and must name the stored field.
+    const swift = mutationTargets.find(target => target.id === "swift")!;
+    const swiftHxml = path.join(sourceRoot, "swift.hxml");
+    fs.writeFileSync(swiftHxml, staticMemberHxml(sourceRoot, path.join(sourceRoot, "swift"), swift, "mutation.FaceIdConsumer"));
+    const swiftCompile = Bun.spawnSync(["haxe", swiftHxml], { cwd: root });
+    expect(swiftCompile.exitCode, swiftCompile.stdout.toString() + swiftCompile.stderr.toString()).toBe(0);
+    const swiftGenerated = fs.readFileSync(path.join(sourceRoot, "swift/mutation/FaceIdConsumer.swift"), "utf8");
+    expect(swiftGenerated).toMatch(/consume\(id\.value\)/);
+    expect(swiftGenerated).not.toMatch(/consume\(id,(?!\.value)/);
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }
 }, 120_000);
+
+  // A resident string slice inside an `@:extension` body renders a clamp whose
+  // `min` calls must be module-qualified: the Swift extension inherits
+  // `Sequence.min`, which wins over the global function inside the body.
+  test("qualifies the global min inside an extension slice", () => {
+    const sourceRoot = fs.mkdtempSync(path.join(root, ".value-type-mutation-slice-"));
+    try {
+      fs.mkdirSync(path.join(sourceRoot, "mutation"), { recursive: true });
+      fs.writeFileSync(path.join(sourceRoot, "mutation/SliceSupport.hx"), `package mutation;
+
+import std.ReadOnlyArray;
+
+class SliceSupport {
+  @:extension
+  public static function cut(values:ReadOnlyArray<Int>, text:String, start:Int, end:Int):String
+    return text.substring(start, end);
+}
+`);
+      const swift = mutationTargets.find(target => target.id === "swift")!;
+      const hxml = path.join(sourceRoot, "swift.hxml");
+      fs.writeFileSync(hxml, staticMemberHxml(sourceRoot, path.join(sourceRoot, "swift"), swift, "mutation.SliceSupport"));
+      const compile = Bun.spawnSync(["haxe", hxml], { cwd: root });
+      expect(compile.exitCode, compile.stdout.toString() + compile.stderr.toString()).toBe(0);
+      const generated = fs.readFileSync(path.join(sourceRoot, "swift/mutation/SliceSupport.swift"), "utf8");
+      expect(generated).toContain("extension ReadOnlyArray<Int32>");
+      expect(generated).toContain("Swift.min(");
+      expect(generated).not.toMatch(/[^.]\bmin\(/);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
