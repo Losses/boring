@@ -8,7 +8,7 @@ import registry.JsonException;
 /** Parses the project file without host I/O or reflection. */
 class Config {
     static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "sourceSets", "rootsFile", "haxeArgs", "bundles"];
-    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication"];
+    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication", "kmpPublication"];
     static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env", "cargoArgs"];
@@ -342,6 +342,16 @@ class Config {
                 hasComparison = requiredBool(field(values, "compare"), 'boring.json: bundle "$id": field "compare" must be a boolean');
                 if (hasComparison && !hasTests) fail('boring.json: bundle "$id": compare=true requires test=true');
             }
+            var kmpPublication = false;
+            if (has(values, "kmpPublication")) {
+                kmpPublication = requiredBool(field(values, "kmpPublication"), 'boring.json: bundle "$id": field "kmpPublication" must be a boolean');
+            }
+            if (has(values, "kmpPublication") && target != "kotlin") {
+                fail('boring.json: bundle "$id": field "kmpPublication" is only valid on the kotlin target');
+            }
+            if (kmpPublication && has(values, "mavenPublication")) {
+                fail('boring.json: bundle "$id": kmpPublication and mavenPublication are mutually exclusive');
+            }
             var packageName = "";
             var packageVersion = "";
             var packageLicense = "";
@@ -393,6 +403,7 @@ class Config {
                 run: runOverride,
                 afterGen: command(values, "afterGen", 'boring.json: bundle "$id"'),
                 mavenPublication: command(values, "mavenPublication", 'boring.json: bundle "$id"'),
+                kmpPublication: kmpPublication,
                 packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense
             };
             bundles.push(bundle);

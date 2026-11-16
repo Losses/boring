@@ -40,6 +40,14 @@
             import nixpkgs {
               inherit system;
               overlays = [ rust-overlay.overlays.default ];
+              # The Kotlin publication project (kotlin-publication/) builds an
+              # Android AAR, so the Android SDK's license has to be accepted for
+              # the devShell composition below. android-sdk-cmdline-tools is an
+              # unfree package, hence allowUnfree.
+              config = {
+                allowUnfree = true;
+                android_sdk.accept_license = true;
+              };
             }
           )
         );
@@ -191,8 +199,13 @@
               runHook preInstall
               mkdir -p "$out/bin" "$out/share/boring"
               cp out/driver/driver.js "$out/share/boring/driver.js"
+              # The Kotlin publication project ships with the driver: the
+              # driver's kmpPublication step runs it from this read-only store
+              # copy and redirects build and project-cache output elsewhere.
+              cp -a kotlin-publication "$out/share/boring/kotlin-publication"
               makeWrapper "${pkgs.bun}/bin/bun" "$out/bin/boring" \
-                --add-flags "$out/share/boring/driver.js"
+                --add-flags "$out/share/boring/driver.js" \
+                --set BORING_PUBLICATION_PROJECT "$out/share/boring/kotlin-publication"
               runHook postInstall
             '';
           };
@@ -228,6 +241,19 @@
           # to build and execute the Kotlin codec tree, and no Android SDK.
           # Swift and Dart compile and run their generated codec trees.
           rustToolchain = pkgs.rust-bin.stable.latest.default;
+          # The Kotlin publication project declares
+          # com.android.kotlin.multiplatform.library with compileSdk 36, so a
+          # Linux shell that runs it needs the platform and build-tools AGP
+          # compiles against. No NDK: the generated Kotlin tree carries no native
+          # code, and the NDK closure is 2.4G of unrelated build inputs.
+          androidComposition = pkgs.androidenv.composeAndroidPackages {
+            platformVersions = [ "36" ];
+            buildToolsVersions = [ "36.0.0" ];
+            includeEmulator = false;
+            includeSystemImages = false;
+            includeNDK = false;
+            includeSources = false;
+          };
           useLinuxSwift = pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64;
           useDarwinSwift = pkgs.stdenv.hostPlatform.isDarwin;
           linuxSwift = mkLinuxSwift pkgs;
@@ -241,6 +267,11 @@
         in
         {
           default = pkgs.mkShell {
+            # AGP resolves the Android platform and build-tools through
+            # ANDROID_HOME. Linux only: the darwin shells keep the 320M closure
+            # out of their environment until a darwin publication path exists.
+            ANDROID_HOME = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
+              "${androidComposition.androidsdk}/libexec/android-sdk";
             # darwin keeps clang from the system Xcode toolchain as well.
             # stdenv puts its own clang wrapper on PATH regardless of this
             # list, and that wrapper pins an apple-sdk too old for the
