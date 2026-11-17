@@ -149,15 +149,6 @@ Commits 1.0.0 through `bun run commit`; git hooks installed by
 `bun run install:hooks` enforce the documentation style and message
 checks. `AGENT.md` states the full rules.
 
-## Vector format
-
-`tests/vectors/roundtrip.bin` holds a magic marker `BRG1`, a big-endian `u32`
-record count, then that many 44-byte records. Each record holds a
-big-endian `u32` code point followed by five big-endian `f64` values:
-`advanceEm` and the four `bounds` fields `xMin`, `yMin`, `xMax`, `yMax`.
-Test values are dyadic rationals so every language writes the exact same
-bit pattern.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
