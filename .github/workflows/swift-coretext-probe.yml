@@ -1,0 +1,84 @@
+name: Swift Core Text probe
+
+# The probe of task t-mwl2ttvv-yaco: can the Haxe Swift target express a Core
+# Text call, and does the generated tree compile and run on macOS?
+#
+# It is a workflow of its own rather than a job in ci.yml because the ci.yml
+# matrix is thirteen target suites with 120-minute budgets, while this answers
+# one question in one macOS job. ci.yml also carries workflow_dispatch now, so
+# the whole matrix can still be started from a branch by hand.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - probe/swift-coretext
+
+concurrency:
+  group: swift-coretext-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: generate, compile and run on macOS
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - name: Swift toolchain version
+        run: swift --version
+      # The generation half needs the pinned Haxe (4.3.7) and the dev haxelib
+      # views of reflaxe and boring, which the repository's devShell sets up.
+      - name: Generate the probe tree with the Haxe Swift target
+        run: nix develop -c bash -c 'haxe tests/swift-coretext-probe/probe.hxml'
+      - name: Show the generated import block and Core Text calls
+        run: |
+          echo '--- out/coretext-probe/gen-tests/probe/CoreTextMetricsSupport.swift'
+          cat out/coretext-probe/gen-tests/probe/CoreTextMetricsSupport.swift
+          echo '--- the matching Haxe source'
+          sed -n '1,40p' tests/swift-coretext-probe/probe/CoreTextMetricsSupport.hx
+      # Every Haxe String lowers to [UInt16], so a CFString argument cannot be
+      # emitted from a String; the probe carries the one-line conversion as
+      # hand-written Swift and the generated Core Text call itself stays
+      # generated. -swift-version 5 matches the language mode the repository's
+      # own SwiftPM manifest pins for the generated tree.
+      - name: Compile the generated tree against the macOS SDK
+        run: |
+          mkdir -p out/coretext-probe/bin
+          swiftc -swift-version 5 -o out/coretext-probe/bin/probe \
+            out/coretext-probe/gen/Runtime.swift \
+            out/coretext-probe/gen/Test.swift \
+            out/coretext-probe/gen/std/*.swift \
+            out/coretext-probe/gen-tests/probe/*.swift \
+            out/coretext-probe/gen-tests/TestMain.swift \
+            tests/swift-coretext-probe/swift/CoreTextStringBridge.swift
+      - name: Run the probe
+        run: |
+          mkdir -p out/coretext-probe/run
+          cd out/coretext-probe/run
+          ../bin/probe
+          echo '--- measured Core Text metrics:'
+          cat out/coretext-probe/metrics.txt
+      # The negative control is recorded, not gated: it is expected to die on
+      # the [UInt16] -> CFString cast, and the point of running it on the real
+      # platform is to have the runtime's own words for that instead of an
+      # argument. A green step would mean the gap closed by itself, which the
+      # log then says out loud.
+      - name: Negative control (same call without the String bridge)
+        continue-on-error: true
+        run: |
+          nix develop -c bash -c 'haxe tests/swift-coretext-probe/probe-by-name.hxml'
+          echo '--- generated call without the bridge'
+          sed -n '/enum CoreTextByNameNegativeTests/,$p' out/coretext-probe-byname/gen-tests/probe/CoreTextByNameNegativeTests.swift
+          mkdir -p out/coretext-probe-byname/bin out/coretext-probe-byname/run
+          swiftc -swift-version 5 -o out/coretext-probe-byname/bin/probe \
+            out/coretext-probe-byname/gen/Runtime.swift \
+            out/coretext-probe-byname/gen/Test.swift \
+            out/coretext-probe-byname/gen/std/*.swift \
+            out/coretext-probe-byname/gen-tests/probe/*.swift \
+            out/coretext-probe-byname/gen-tests/TestMain.swift
+          cd out/coretext-probe-byname/run
+          set +e
+          ../bin/probe > ../negative.out 2>&1
+          echo "negative control exit: $?"
+          head -20 ../negative.out

@@ -48,6 +48,8 @@
     "gen:rust-f32": "haxe examples/rust-f32.hxml",
     "gen:swift": "haxe examples/swift.hxml",
     "gen:swift-f32": "haxe examples/swift-f32.hxml",
+    "gen:swift-coretext-probe": "haxe tests/swift-coretext-probe/probe.hxml",
+    "gen:swift-coretext-probe-negative": "haxe tests/swift-coretext-probe/probe-by-name.hxml",
     "gen:dart": "haxe examples/dart.hxml",
     "gp-diff": "haxe packages/driver/driver.hxml && bun out/driver/driver.js gp-diff",
     "gp-ablate": "haxe packages/driver/driver.hxml && bun out/driver/driver.js gp-ablate",

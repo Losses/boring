@@ -1,0 +1,19 @@
+# The negative control of the Core Text probe: the same Core Text call with no
+# String -> CFString bridge, which is what the emitter produces on its own.
+# Run from the repository root: haxe tests/swift-coretext-probe/probe-by-name.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-coretext-probe
+--macro Intercept.run(['tests/swift-coretext-probe'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=out/coretext-probe-byname/gen
+-D swift-test-output=out/coretext-probe-byname/gen-tests
+-D swift-test-runner=native
+-D swift-test-import=CoreText
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+probe.CoreTextByNameNegativeTests

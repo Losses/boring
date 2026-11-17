@@ -5,6 +5,12 @@ on:
     branches:
       - master
   pull_request:
+  # Manual runs from any branch. The macOS job only ran on push to master and
+  # on pull requests, so a probe branch could not reach it at all; a dispatch
+  # starts the whole matrix (120-minute budget per job), so the Core Text probe
+  # has its own single-job workflow beside this one
+  # (.github/workflows/swift-coretext-probe.yml).
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
