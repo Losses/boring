@@ -24,8 +24,8 @@ covers the compiler itself: it runs the semantic-policy check, the
 bun suites under `tests/`, which read the generated trees and therefore need
 `gen:all` to have produced them first; without it those suites fail with
 `ENOENT` under `reference/<target>/` and the failure says nothing about the
-code. `gen:all` runs the eight `examples/*.hxml` generators in sequence and
-takes a long time, so run it when the bun suites are what you need.
+code. `gen:all` runs every bundle's generation from `boring.json` in
+sequence and takes a long time, so run it when the bun suites are what you need.
 
 The root `package.json` is the bun workspace (member:
 `reference/ts`); the root `Cargo.toml` is the cargo workspace (members:
@@ -40,7 +40,7 @@ explicit `[[test]]` path into `tests/`.
 | `packages/compiler/` | the transpilation toolchain: the interception pass, the runtime-package configuration, and the reflaxe targets (`packages/compiler/reflaxe/ts/`, `packages/compiler/reflaxe/kotlin/`, `packages/compiler/reflaxe/rust/`); exposed as the `boring` haxelib package through `haxelib.json`, `extraParams.hxml`, and `defines.json` |
 | `packages/driver/` | the delivered project driver package; its `boring` command reads a consumer's `boring.json` and runs generation, tests, comparison, and packaging |
 | `samples/` | Haxe capability samples for the translatable subset, including the subset standard library `samples/std/` |
-| `examples/` | generation entries (`ts.hxml`, `kotlin.hxml`, `rust.hxml`) and the reflaxe smoke file; each entry demonstrates package consumption |
+| `examples/` | the reflaxe smoke file; the generation entries live in `boring.json` and demonstrate package consumption |
 | `reference/ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `reference/ts/gen/` is the gitignored reflaxe-generated tree |
 | `reference/rust/` | hand-written Rust reference translation; `reference/rust/gen/` holds the reflaxe-generated Rust crate (gitignored sources) |
 | `reference/kotlin/` | hand-written Kotlin reference translation; `reference/kotlin/gen/` is the gitignored reflaxe-generated tree |

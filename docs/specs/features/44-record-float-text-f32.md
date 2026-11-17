@@ -33,8 +33,8 @@ string conversions.
 3. The oracle runner defines both `boring_oracle` and `float-precision=f32`.
    Consumers may adopt the same defines independently.
 4. `std.FpText` is referenced only by the gated oracle branch. Generated target
-   compilations do not include it, and it is not registered in any
-   `examples/*.hxml` file. It is portable Haxe, but need not belong to the
+   compilations do not include it, and it is not registered in any source
+   set of `boring.json`. It is portable Haxe, but need not belong to the
    translatable subset.
 5. The same gate routes every `Float` operand printed by the stage-1 operand
    forms through `std.FpText.shortest(read)`: an array element of a record

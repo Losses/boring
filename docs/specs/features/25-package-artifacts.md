@@ -303,6 +303,6 @@ The registry generator packs from release checkouts.
   stop the compilation with their messages; a `package-tsc` and a
   `package-kotlinc` that exit nonzero forward the exit code and the
   command line into the compilation error.
-- The repository's `examples/*.hxml` keep artifacts off: reference
-  trees regenerate without release output, and the tests enable the
-  define in their rewritten hxmls.
+- The repository's bundles keep artifacts off: reference trees
+  regenerate without release output, and the tests enable the define in
+  the hxmls they build from `boring.json`.

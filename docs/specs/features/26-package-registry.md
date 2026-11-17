@@ -546,7 +546,7 @@ end-to-end five-ecosystem record-to-output pipeline without shell IO. The
 cross-target result streams are compared by `test:consistency`, which requires
 identical pass/fail identities across Haxe, TypeScript, Kotlin, Rust, Swift,
 and Dart.
-`examples/{ts,kotlin,kotlin-f32,rust,rust-f32,swift,swift-f32,dart}.hxml`
-entries include the core and `tests.*` suite, but not `registry.Main` or
-`registry.Platform`; browser-consumable runtime entry points do not import
+The `ts`, `kotlin`, `kotlin-f32`, `rust`, `rust-f32`, `swift`, `swift-f32`,
+and `dart` source sets of `boring.json` include the core and `tests.*` suite,
+but not `registry.Main` or `registry.Platform`; browser-consumable runtime entry points do not import
 this module.

@@ -12,6 +12,7 @@
 #   --macro rustcompiler.Compiler.use()
 #
 # Target compilers sit below `packages/compiler` at non-package-aligned depth and cannot ride
-# the package class path; add them per compilation, as examples/*.hxml do:
+# the package class path; add them per compilation, as the bundle arguments
+# in boring.json do:
 #   -cp <boring>/packages/compiler/reflaxe/<target>/std-shadow
 #   -cp <boring>/packages/compiler/reflaxe/<target>

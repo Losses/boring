@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { filesUnder, installCrate } from "../support/crate-install";
+import { projectRootsLines } from "../../tools/roots-guard/project-roots";
 
 /**
  * Feature spec 25: behind `package-artifacts=emit` the compiler packs
@@ -24,25 +25,28 @@ interface CompilerOutcome {
   stderr: string;
 }
 
-/** One package of the byte-identity check: its example, artifact path, and extra defines. */
+/** One package of the byte-identity check: its bundle, artifact path, and extra defines. */
 type PackageIdentity = {
-  hxml: string;
+  bundle: string;
   file: string;
   extra: string[];
 };
 
 /**
- * Rewrites one example hxml for an artifact generation: every
- * reference tree path moves under `root`, and the artifact define is
- * appended. `extra` lines run after the rewrite for scenario defines.
+ * Builds one artifact generation's hxml from boring.json, the project's only
+ * copy of the generation arguments: the repo-relative reference paths move
+ * under `root`, the rust runtime import becomes relative, and the artifact
+ * define is appended. `extra` lines run after the rewrite for scenario
+ * defines; `keepShellOptOut` keeps the repository's package-shell=none.
  */
-function rewriteHxml(name: string, root: string, extra: string[] = []): string {
-  const source = fs.readFileSync(path.join(REPO_ROOT, "examples", name), "utf8");
-  let out = source.replace(/reference\/[a-z0-9-]+(\/[a-z0-9-]+)*/g, (match) =>
+function generationHxml(bundle: string, root: string, extra: string[] = [], keepShellOptOut = false): string {
+  const lines = projectRootsLines(bundle).map((line) => line.split(REPO_ROOT + "/").join(""));
+  let out = lines.join("\n") + "\n";
+  out = out.replace(/reference\/[a-z0-9-]+(\/[a-z0-9-]+)*/g, (match) =>
     match.replace("reference", root),
   );
   out = out.replace("-D runtime-import=@boring/runtime", "-D runtime-import=./runtime");
-  out = out.replace("-D package-shell=none\n", "");
+  if(!keepShellOptOut) out = out.replace("-D package-shell=none\n", "");
   // The MathNaNTestSupport module imports the test runtime (runtime/test,
   // which pulls node:fs) and belongs to the test tree; the npm promotion
   // stage ships only business code, and the emitter's import-closure
@@ -128,7 +132,7 @@ describe("package artifact emission", () => {
   test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", async () => {
     const root = tempRoot("npm");
     try {
-      const hxml = rewriteHxml("ts.hxml", root, [`-D package-tsc=${TSC}`]);
+      const hxml = generationHxml("ts", root, [`-D package-tsc=${TSC}`]);
       const result = await runHaxe("package-artifacts-npm.hxml", hxml);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
@@ -213,7 +217,7 @@ describe("package artifact emission", () => {
     const rustRoot = tempRoot("rust");
     const dartRoot = tempRoot("dart");
     try {
-      const rustResult = await runHaxe("package-artifacts-rust.hxml", rewriteHxml("rust.hxml", rustRoot));
+      const rustResult = await runHaxe("package-artifacts-rust.hxml", generationHxml("rust", rustRoot));
       expect(rustResult.stderr).toBe("");
       expect(rustResult.exitCode).toBe(0);
       const crate = path.join(rustRoot, "rust", "boring-codec-gen-0.1.0.crate");
@@ -234,7 +238,7 @@ describe("package artifact emission", () => {
         expect(entry.startsWith("package/")).toBe(false);
       }
 
-      const dartResult = await runHaxe("package-artifacts-dart.hxml", rewriteHxml("dart.hxml", dartRoot));
+      const dartResult = await runHaxe("package-artifacts-dart.hxml", generationHxml("dart", dartRoot));
       expect(dartResult.stderr).toBe("");
       expect(dartResult.exitCode).toBe(0);
       const pubArchive = path.join(dartRoot, "dart", "generated-0.1.0.tar.gz");
@@ -258,11 +262,11 @@ describe("package artifact emission", () => {
   test("every packed crate installs with the cargo CLI from a local sparse registry", async () => {
     const root = tempRoot("crate-install");
     try {
-      const bundles = ["rust.hxml", "rust-f32.hxml"];
-      for(const hxml of bundles) {
-        const bundleRoot = path.join(root, hxml.replace(/[.]hxml$/, ""));
+      const bundles = ["rust", "rust-f32"];
+      for(const bundle of bundles) {
+        const bundleRoot = path.join(root, bundle);
         fs.mkdirSync(bundleRoot, { recursive: true });
-        const result = await runHaxe("package-artifacts-crate-" + hxml, rewriteHxml(hxml, bundleRoot));
+        const result = await runHaxe("package-artifacts-crate-" + bundle + ".hxml", generationHxml(bundle, bundleRoot));
         expect(result.stderr).toBe("");
         expect(result.exitCode).toBe(0);
       }
@@ -284,7 +288,7 @@ describe("package artifact emission", () => {
   test("the Swift zip carries the tree under one top-level directory", async () => {
     const root = tempRoot("swift");
     try {
-      const result = await runHaxe("package-artifacts-swift.hxml", rewriteHxml("swift.hxml", root));
+      const result = await runHaxe("package-artifacts-swift.hxml", generationHxml("swift", root));
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
       const archive = path.join(root, "swift", "generated-0.1.0.zip");
@@ -312,7 +316,7 @@ describe("package artifact emission", () => {
   test("the Kotlin target packs a Maven repository directory with a compiled jar", async () => {
     const root = tempRoot("kotlin");
     try {
-      const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=kotlinc", "-D package-group=dev.boring"]);
+      const hxml = generationHxml("kotlin", root, ["-D package-kotlinc=kotlinc", "-D package-group=dev.boring"]);
       const result = await runHaxe("package-artifacts-kotlin.hxml", hxml);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
@@ -363,17 +367,17 @@ describe("package artifact emission", () => {
     const second = tempRoot("identity-b");
     try {
       const packages: PackageIdentity[] = [
-        {hxml: "ts.hxml", file: "ts/generated-0.1.0.tgz", extra: [`-D package-tsc=${TSC}`]},
-        {hxml: "rust.hxml", file: "rust/boring-codec-gen-0.1.0.crate", extra: []},
-        {hxml: "swift.hxml", file: "swift/generated-0.1.0.zip", extra: []},
-        {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
-        {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
+        {bundle: "ts", file: "ts/generated-0.1.0.tgz", extra: [`-D package-tsc=${TSC}`]},
+        {bundle: "rust", file: "rust/boring-codec-gen-0.1.0.crate", extra: []},
+        {bundle: "swift", file: "swift/generated-0.1.0.zip", extra: []},
+        {bundle: "dart", file: "dart/generated-0.1.0.tar.gz", extra: []},
+        {bundle: "kotlin", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
       ];
       for(const pkg of packages) {
-        const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(pkg.hxml, first, pkg.extra));
+        const a = await runHaxe(`package-artifacts-id-a.hxml`, generationHxml(pkg.bundle, first, pkg.extra));
         expect(a.stderr).toBe("");
         expect(a.exitCode).toBe(0);
-        const b = await runHaxe(`package-artifacts-id-b.hxml`, rewriteHxml(pkg.hxml, second, pkg.extra));
+        const b = await runHaxe(`package-artifacts-id-b.hxml`, generationHxml(pkg.bundle, second, pkg.extra));
         expect(b.stderr).toBe("");
         expect(b.exitCode).toBe(0);
         expect(fs.readFileSync(path.join(second, pkg.file))).toEqual(fs.readFileSync(path.join(first, pkg.file)));
@@ -387,7 +391,7 @@ describe("package artifact emission", () => {
   test("an invalid package-artifacts value aborts the compile", async () => {
     const root = tempRoot("invalid");
     try {
-      const hxml = rewriteHxml("ts.hxml", root).replace("-D package-artifacts=emit\n", "-D package-artifacts=bogus\n");
+      const hxml = generationHxml("ts", root).replace("-D package-artifacts=emit\n", "-D package-artifacts=bogus\n");
       const result = await runHaxe("package-artifacts-invalid.hxml", hxml);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package-artifacts accepts emit or none");
@@ -399,12 +403,9 @@ describe("package artifact emission", () => {
   test("artifacts without the package shell abort the compile", async () => {
     const root = tempRoot("conflict");
     try {
-      // The repository's own ts.hxml carries the shell opt-out, so
-      // only the path rewrite applies: shell none meets artifacts emit.
-      const source = fs.readFileSync(path.join(REPO_ROOT, "examples", "ts.hxml"), "utf8");
-      const hxml = source.replace(/reference\/[a-z0-9-]+(\/[a-z0-9-]+)*/g, (match) =>
-        match.replace("reference", root),
-      ) + "-D package-artifacts=emit\n";
+      // The ts bundle carries the shell opt-out, so shell none meets
+      // artifacts emit.
+      const hxml = generationHxml("ts", root, [], true);
       const result = await runHaxe("package-artifacts-conflict.hxml", hxml);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package artifacts require the package shell");
@@ -416,7 +417,7 @@ describe("package artifact emission", () => {
   test("npm artifacts without package-tsc abort the compile", async () => {
     const root = tempRoot("no-tsc");
     try {
-      const result = await runHaxe("package-artifacts-no-tsc.hxml", rewriteHxml("ts.hxml", root));
+      const result = await runHaxe("package-artifacts-no-tsc.hxml", generationHxml("ts", root));
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package artifacts on the TypeScript target require the TypeScript compiler");
     } finally {
@@ -427,7 +428,7 @@ describe("package artifact emission", () => {
   test("kotlin artifacts without package-kotlinc abort the compile", async () => {
     const root = tempRoot("no-kotlinc");
     try {
-      const result = await runHaxe("package-artifacts-no-kotlinc.hxml", rewriteHxml("kotlin.hxml", root));
+      const result = await runHaxe("package-artifacts-no-kotlinc.hxml", generationHxml("kotlin", root));
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package artifacts on the Kotlin target require the Kotlin compiler");
     } finally {
@@ -438,7 +439,7 @@ describe("package artifact emission", () => {
   test("a failing package-tsc forwards the exit code and the tool output", async () => {
     const root = tempRoot("tsc-fail");
     try {
-      const hxml = rewriteHxml("ts.hxml", root, ["-D package-tsc=/bin/false"]);
+      const hxml = generationHxml("ts", root, ["-D package-tsc=/bin/false"]);
       const result = await runHaxe("package-artifacts-tsc-fail.hxml", hxml);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package-tsc failed with exit code 1");
@@ -451,7 +452,7 @@ describe("package artifact emission", () => {
   test("a failing package-kotlinc forwards the exit code and the tool output", async () => {
     const root = tempRoot("kotlinc-fail");
     try {
-      const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=/bin/false"]);
+      const hxml = generationHxml("kotlin", root, ["-D package-kotlinc=/bin/false"]);
       const result = await runHaxe("package-artifacts-kotlinc-fail.hxml", hxml);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package-kotlinc failed with exit code 1");

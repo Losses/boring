@@ -4,8 +4,8 @@ This specification records the name-resolution gaps closed across the five
 generated targets. Each class below names the Haxe shape that produced an
 unresolved reference in generated code, the mechanism behind the gap, and the
 rule that resolves it. Every class is anchored by a sample in `samples/boring`
-and a stage-1 test in `samples/tests`, registered in all five
-`examples/*.hxml` manifests so no target drifts from the others.
+and a stage-1 test in `samples/tests`, registered in all five base
+source sets of `boring.json` so no target drifts from the others.
 
 ## Scope
 
@@ -221,5 +221,6 @@ Each class has a named stage-1 test in `samples/tests`: the class-1 and -2
 cases live in `PosterShapeTests`/`ShapeTextTests` and `NoSuchElementTests`,
 class 3 in `NoSuchElementTests.messageRead`, class 4 in `StringToolsTests`,
 class 5 in `FontIdTests`, and class 6 in `GlyphClusterTests`. Every test module
-is registered in all five `examples/*.hxml` manifests; `test:consistency`
+is registered in all five base source sets of `boring.json`;
+`test:consistency`
 asserts all six targets agree on the full test id set.

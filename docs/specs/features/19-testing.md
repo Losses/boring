@@ -591,7 +591,7 @@ Rulings:
 
       haxe tests/timeout-probe/swift.hxml
 
-  The probe stays out of the eight generation entries under `examples/`
+  The probe stays out of the eight translated bundles in `boring.json`
   and out of the repository test run: it is slow and red by construction,
   and an ordinary run stays fast and green. Its test tree is named
   `gen-checks`, because the repository test command searches with the
