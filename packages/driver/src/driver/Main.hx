@@ -3,6 +3,7 @@ package driver;
 #if js
 import driver.ChildEvidence.ChildEnvironment;
 import driver.ChildEvidence.ChildEvidenceError;
+import js.Syntax;
 #end
 import driver.Host.HostResult;
 
@@ -369,15 +370,82 @@ class Main {
     }
 
     /**
+        How many times one kmpPublication step runs before its failure is final.
+        A release runner starts with an empty Gradle home, so the first
+        invocation resolves the Kotlin plugin and the Android Gradle plugin from
+        the network. Gradle reports a repository it could not reach with the
+        same "was not found in any of the following sources" text it uses for a
+        missing artifact, and that aborted a release whose staging run of the
+        identical project had passed on another runner minutes earlier.
+    **/
+    static final PUBLICATION_ATTEMPTS = 3;
+
+    /** Pause between two publication attempts, long enough for a transient
+        repository failure to clear before the same metadata is requested again. */
+    static final PUBLICATION_RETRY_DELAY_MS = 5000;
+
+    /** The Gradle output that names a repository resolution failure. Gradle
+        prints these strings for an unreachable, a forbidden and a missing
+        artifact alike, which is the only distinction the driver can make. */
+    static final REPOSITORY_FAILURE_MARKERS = [
+        "was not found in any of the following sources",
+        "Could not resolve plugin artifact",
+        "Could not resolve all dependencies",
+        "Could not resolve all files",
+        "Could not resolve all artifacts",
+        "Could not GET ",
+        "Could not HEAD "
+    ];
+
+    static function isRepositoryResolutionFailure(output:String):Bool {
+        for (marker in REPOSITORY_FAILURE_MARKERS) {
+            if (output.indexOf(marker) >= 0) return true;
+        }
+        return false;
+    }
+
+    /** A synchronous pause between attempts. The publication step runs on the
+        JavaScript driver, where Atomics.wait is the only blocking sleep. */
+    static function sleepMs(ms:Int):Void {
+        #if js
+        Syntax.code("Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, {0})", ms);
+        #end
+    }
+
+    /**
+        One publication attempt that returns the command result and leaves
+        failure reporting to publishKotlinBundle, which retries a repository
+        failure before it becomes the step's final outcome. Mirrors step()'s
+        child evidence path.
+    **/
+    static function runPublicationAttempt(bundle:BundleSpec, cmd:String, args:Array<String>, cwd:String):HostResult {
+        #if js
+        if (ChildEvidence.enabled()) {
+            try {
+                final execution = ChildEvidence.execute({bundle: bundle.id, action: "pack", step: "kmpPublication"}, cmd, args, cwd, ChildEnvironment.inherited());
+                return {code: execution.reportedCode(), output: execution.combinedText()};
+            } catch (problem:ChildEvidenceError) {
+                reportEvidenceFailure(problem);
+                return {code: 0, output: ""};
+            }
+        }
+        #end
+        return runCommand(cmd, args, cwd, []);
+    }
+
+    /**
         The built-in Kotlin Multiplatform publication of one pack run: the same
         <outRoot>/<id>/maven directory the bundled command used, filled by the
         publication project that ships with the driver (bundle driver spec 59).
+
+        Every attempt starts from a fresh copy of the installed project and an
+        empty bundle Maven directory, so a retried attempt cannot publish from
+        the previous attempt's half-written tree. A resolution failure keeps
+        the step's standard report only after the last attempt.
     **/
     static function publishKotlinBundle(project:Project, bundle:BundleSpec):Null<BundleStepFailure> {
         final bundleRoot = joinPath(resolveAgainst(project.root, project.outRoot), bundle.id);
         final mavenDir = joinPath(bundleRoot, "maven");
-        Host.deleteTree(mavenDir);
-        makeDirs(mavenDir);
         final projectDir = publicationProject();
         final sourceWrapper = joinPath(projectDir, "gradlew");
         if (!exists(sourceWrapper)) {
@@ -389,13 +457,9 @@ class Main {
         // record and is never written; every output lives under outRoot.
         final workDir = joinPath(bundleRoot, "gradle");
         final runDir = joinPath(workDir, "project");
-        Host.deleteTree(runDir);
-        Host.copyTree(projectDir, runDir);
         final wrapper = joinPath(runDir, "gradlew");
         final buildDir = joinPath(workDir, "build");
         final cacheDir = joinPath(workDir, "project-cache");
-        makeDirs(buildDir);
-        makeDirs(cacheDir);
         final args:Array<String> = [
             "-p", runDir,
             "publishToMavenLocal",
@@ -407,7 +471,30 @@ class Main {
             "--project-cache-dir=" + cacheDir,
             "--no-daemon"
         ];
-        return step(project, bundle, "pack", "kmpPublication", wrapper, args, [], workDir);
+        var attempt = 1;
+        while (true) {
+            Host.deleteTree(mavenDir);
+            makeDirs(mavenDir);
+            Host.deleteTree(runDir);
+            Host.copyTree(projectDir, runDir);
+            makeDirs(buildDir);
+            makeDirs(cacheDir);
+            print("  $ " + wrapper + " " + args.join(" "));
+            final result = runPublicationAttempt(bundle, wrapper, args, workDir);
+            if (result.code == 0) {
+                if (attempt > 1) print('[pack] ${bundle.id}: kmpPublication passed on attempt $attempt of $PUBLICATION_ATTEMPTS');
+                return null;
+            }
+            if (attempt < PUBLICATION_ATTEMPTS && isRepositoryResolutionFailure(result.output)) {
+                printErr('Warning: bundle "${bundle.id}": kmpPublication attempt $attempt of $PUBLICATION_ATTEMPTS could not resolve the build plugins or dependencies from its repositories; retrying in ${Std.int(PUBLICATION_RETRY_DELAY_MS / 1000)}s.');
+                sleepMs(PUBLICATION_RETRY_DELAY_MS);
+                attempt++;
+                continue;
+            }
+            reportStepFailure(bundle.id, "pack", "kmpPublication", wrapper, args, result.output, result.code);
+            return new BundleStepFailure(bundle.id, "pack", "kmpPublication", wrapper, args, result.output, result.code);
+        }
+        return null;
     }
 
     static function actionGen(project:Project, bundles:Array<BundleSpec>, pack:Bool):Void {

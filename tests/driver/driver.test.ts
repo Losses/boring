@@ -130,6 +130,55 @@ test("pack runs the maven publication command with the substituted output direct
   expect(readFileSync(join(mavenDir, "probe.txt"), "utf8")).toBe(mavenDir + "|1.0.0|1.0.0");
 });
 
+test("pack retries a kmp publication whose Gradle repository lookup fails, then publishes", () => {
+  const { dir, file } = fixture({ bundles: [
+    { id: "reference", target: "kotlin", package: { name: "engine", version: "1.0.0" }, kmpPublication: true },
+  ] });
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  const fakeHaxe = join(bin, "haxe");
+  writeFileSync(fakeHaxe, "#!/bin/sh\nexit 0\n");
+  chmodSync(fakeHaxe, 0o755);
+  const publication = join(dir, "publication");
+  mkdirSync(join(publication, "gradle", "wrapper"), { recursive: true });
+  writeFileSync(join(publication, "settings.gradle.kts"), "");
+  const attempts = join(dir, "attempts");
+  writeFileSync(join(publication, "gradlew"), `#!/bin/sh
+set -u
+n=$(cat "$ATTEMPTS_FILE" 2>/dev/null || echo 0)
+n=$((n+1))
+echo "$n" > "$ATTEMPTS_FILE"
+if [ "$n" -le "$FAIL_FIRST" ]; then
+  echo "Plugin [id: 'org.jetbrains.kotlin.multiplatform', version: '2.3.20', apply: false] was not found in any of the following sources:" >&2
+  echo "- Plugin Repositories (could not resolve plugin artifact 'org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:2.3.20')" >&2
+  exit 1
+fi
+for a in "$@"; do
+  case "$a" in
+    -PmavenDir=*) maven="\${a#-PmavenDir=}" ;;
+  esac
+done
+mkdir -p "$maven/org/example/engine/1.0.0"
+printf '<project/>' > "$maven/org/example/engine/1.0.0/engine-1.0.0.pom"
+`);
+  chmodSync(join(publication, "gradlew"), 0o755);
+  const env = { PATH: bin + ":" + process.env.PATH, BORING_PUBLICATION_PROJECT: publication, ATTEMPTS_FILE: attempts, FAIL_FIRST: "1" };
+  const retried = run(file, ["pack", "reference"], env);
+  expect(retried.code, retried.output).toBe(0);
+  expect(retried.output).toContain("could not resolve the build plugins or dependencies");
+  expect(retried.output).toContain("kmpPublication passed on attempt 2");
+  expect(readFileSync(attempts, "utf8").trim()).toBe("2");
+  const pom = join(dir, "out", "reference", "maven", "org", "example", "engine", "1.0.0", "engine-1.0.0.pom");
+  expect(readFileSync(pom, "utf8")).toBe("<project/>");
+  // A repository failure that does not clear keeps the step's standard report after the last attempt.
+  rmSync(attempts, { force: true });
+  const failed = run(file, ["pack", "reference"], { ...env, FAIL_FIRST: "99" });
+  expect(failed.code).toBe(1);
+  expect(failed.output).toContain('step "kmpPublication" failed with exit code 1');
+  expect(failed.output.split("could not resolve the build plugins").length - 1).toBe(2);
+  expect(readFileSync(attempts, "utf8").trim()).toBe("3");
+}, 30000);
+
 test("gen does not run the maven publication command", () => {
   const current = fixture({ bundles: [
     { id: "reference", target: "kotlin" },

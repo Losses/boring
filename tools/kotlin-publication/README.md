@@ -36,6 +36,15 @@ gradlew -p <per-run copy> publishToMavenLocal
   --no-daemon
 ```
 
+A driver run starts with an empty Gradle home, so the first invocation resolves the
+Kotlin and Android Gradle plugins over the network. Gradle reports a repository
+it could not reach with the same `was not found in any of the following sources`
+text it uses for a missing artifact, and one such failure aborted a release
+while the same project published on another runner minutes earlier. The driver
+therefore re-runs a failed invocation that names a repository resolution
+failure, at most three attempts with a five-second pause, and each attempt
+starts from a fresh copy and an emptied Maven directory.
+
 The installed project is read-only, and Gradle 9 refuses to configure a project
 whose root directory cannot be written (it writes `build/reports/problems`
 there: `Configuring project ':' without an existing directory is not allowed`).

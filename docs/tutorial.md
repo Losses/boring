@@ -973,7 +973,7 @@ Fields of a target configuration:
 | `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
 | `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, run from the project root after generation, including generation by `pack`; `command` is required. |
 | `mavenPublication` | no | `{ "command": "...", "args": [...], "env": {...} }`, run by `pack` from the project root after generation and after `afterGen`. The `kotlin` target only. Every `{maven}` in an argument or environment value is replaced by the absolute `<outRoot>/<id>/maven` directory, and `{version}` is replaced by `package.version`. The driver empties the directory before the run and collects every Maven file under it, so the command writes exactly this bundle's publication set. `command` is required. |
-| `kmpPublication` | no | `true` runs the built-in Kotlin Multiplatform publication on `pack`. The `kotlin` target only, and mutually exclusive with `mavenPublication`. The step uses the publication project installed with the driver (`BORING_PUBLICATION_PROJECT`, falling back to `$BORING_SOURCE/tools/kotlin-publication` and `<cwd>/.haxelib/boring/git/tools/kotlin-publication`), fills `<outRoot>/<id>/maven` with `package.version`, and runs Gradle from a copy under `<outRoot>/<id>/gradle/project` that is deleted and rebuilt on every pack run. A Kotlin bundle without the marker keeps the `package-kotlinc` path. |
+| `kmpPublication` | no | `true` runs the built-in Kotlin Multiplatform publication on `pack`. The `kotlin` target only, and mutually exclusive with `mavenPublication`. The step uses the publication project installed with the driver (`BORING_PUBLICATION_PROJECT`, falling back to `$BORING_SOURCE/tools/kotlin-publication` and `<cwd>/.haxelib/boring/git/tools/kotlin-publication`), fills `<outRoot>/<id>/maven` with `package.version`, and runs Gradle from a copy under `<outRoot>/<id>/gradle/project` that is deleted and rebuilt on every pack run. A Gradle failure that names a repository resolution failure re-runs the step up to three times from a fresh copy, because Gradle reports an unreachable repository with the same text it uses for a missing artifact. A Kotlin bundle without the marker keeps the `package-kotlinc` path. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
@@ -1138,7 +1138,9 @@ publication project installed with the driver through
 `-PpublicationVersion` carries `package.version`, and the driver passes its own
 `gen` and `gen-tests` directories. Gradle runs from a per-run copy under
 `<outRoot>/<id>/gradle`, because Gradle 9 refuses a read-only project
-directory.
+directory. A failed Gradle invocation that names a repository resolution
+failure re-runs from a fresh copy, at most three attempts with a five-second
+pause.
 
 Use `roots <sourceSet> --output <file>` to write the source set's package
 macros and module roots to an HXML include. This command does not run Haxe
