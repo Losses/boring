@@ -9,8 +9,6 @@ plugins {
 
 group = "org.tiqian"
 version = providers.gradleProperty("publicationVersion")
-    .orElse(providers.gradleProperty("tiqianVersion"))
-    .orElse(providers.environmentVariable("TIQIAN_VERSION"))
     .getOrElse("0.1.0-SNAPSHOT")
 
 // The driver packages this project into the nix store and runs it from there, so
