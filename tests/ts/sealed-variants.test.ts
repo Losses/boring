@@ -83,7 +83,7 @@ async function generateSelfConstruction(
     `--macro ${target.compiler}`,
     `-D ${target.define}=${output}`,
     // A consumer build that references the resident module needs the runtime
-    // package identity, exactly like examples/rust.hxml:19 supplies it.
+    // package identity, exactly like the rust bundle in boring.json supplies it.
     ...(target.id === "rust" ? ["-D runtime-import=crate::runtime"] : []),
     ...(target.id === "dart" ? [`-D dart-test-output=${output}-tests`] : []),
     "boring.NoneDrawKind",

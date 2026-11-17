@@ -417,7 +417,8 @@ consumer.
 11. **Written in boring, compiled by boring.** The generator source is
     Haxe in the translatable subset, under `tools/registry/src/`, and
     `tools/registry/compile.hxml` compiles it through boring's
-    TypeScript target the way `examples/ts.hxml` compiles the codec:
+    TypeScript target the way the `ts` bundle of `boring.json` compiles the
+    codec:
     the same reflaxe libraries, the same interception gate, an output
     define placing the generated tree under `tools/registry/gen/`
     (a gitignored generated tree, like `reference/ts/gen`), no plain

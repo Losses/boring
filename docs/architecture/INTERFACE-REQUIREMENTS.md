@@ -156,7 +156,7 @@ The outcome is that `runtime/mod.rs` declares a module that was never written (`
    uncoordinated write sites; **this itself is a finding that must be reported**, even if the code is syntactically correct.
 
 **Ablation measurement (supplement, `aceda352`)**: disable the entire write site at the end of `RustImports.requireType` on master
-and regenerate `examples/rust.hxml`.
+and regenerate with `boring gen rust --project boring.json`.
 
 | Observation | Result |
 |---|---|

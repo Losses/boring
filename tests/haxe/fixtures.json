@@ -19,12 +19,12 @@
     "reference/haxe-f32/gen",
     "reference/haxe-f32/gen-tests"
   ],
-  "prepareDirsReason": "The prelude entries and compile.hxml write with -js into these directories; a fresh checkout has none of them (all are gitignored), and the entries must not depend on the smoke creating them implicitly.",
-  "prelude": [
-    "tests/haxe/generate-main.hxml",
-    "tests/haxe/generate-main-f32.hxml"
+  "prepareDirsReason": "The generation step and compile.hxml write with -js into these directories; a fresh checkout has none of them (all are gitignored), and the entries must not depend on the smoke creating them implicitly.",
+  "generateBundles": [
+    "haxe",
+    "haxe-f32"
   ],
-  "preludeReason": "test-main.hxml/test-main-f32.hxml compile -main TestMain against reference/haxe[-f32]/gen-tests, which is gitignored and absent on a fresh checkout; these two generate it. They run first, sequentially, so the pool never races the tree they produce.",
+  "generateReason": "test-main.hxml/test-main-f32.hxml compile -main TestMain against reference/haxe[-f32]/gen-tests, which is gitignored and absent on a fresh checkout; the smoke generates both trees from boring.json (the haxe bundles) before the pool starts, so it never races the tree it needs.",
   "entries": [
     {
       "path": "tests/haxe/alias-transfer-boundary/gen/dart.hxml",
@@ -516,16 +516,6 @@
       "targets": [
         "ts"
       ]
-    },
-    {
-      "path": "tests/haxe/generate-main-f32.hxml",
-      "mode": "compile",
-      "targets": []
-    },
-    {
-      "path": "tests/haxe/generate-main.hxml",
-      "mode": "compile",
-      "targets": []
     },
     {
       "path": "tests/haxe/growth-cross/gen/rust.hxml",

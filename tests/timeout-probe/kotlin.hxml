@@ -1,6 +1,6 @@
 # Runner-timeout probe entry for the Kotlin target (feature spec 19).
 # Run from the repository root: haxe tests/timeout-probe/kotlin.hxml
-# The probe is kept out of examples/kotlin.hxml on purpose: it overruns the
+# The probe is kept out of the kotlin source set of boring.json on purpose: it overruns the
 # test budget, so an ordinary generation entry would carry a slow and red
 # test. This entry compiles the probe alone.
 -lib reflaxe

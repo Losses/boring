@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { genArgs } from "../support/project-args";
 import { installTargetTreeReport, withTargetTree, type TargetId } from "../support/target-trees";
 
 installTargetTreeReport(import.meta.path);
@@ -76,7 +77,7 @@ describe("StringTools conversions lowering", () => {
   });
 
   test("negative hex arguments report the named domain error", async () => {
-    const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StringConvProbes"], {
+    const proc = Bun.spawn(["haxe", ...genArgs("ts"), "tests.StringConvProbes"], {
       cwd: root,
       stdout: "pipe",
       stderr: "pipe",

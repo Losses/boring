@@ -89,17 +89,22 @@ source-set names, and discovery roots that are absolute or contain `..`.
 For a configuration, the driver first includes its `rootsFile`, or the
 project-wide `rootsFile` when there is no override. It then adds the selected
 source set's package macros and module roots. A configuration can use either
-mechanism alone or both together. Boring's own `boring.json` currently uses
-`rootsFile` and does not declare `sourceSets`.
+mechanism alone or both together. Boring's own `boring.json` selects a
+`sourceSet` for every bundle and declares no `rootsFile`; the arguments the
+driver cannot derive live in each bundle's `haxeArgs`. A project whose bundles
+select their roots through `sourceSets` declares target-only roots with
+`// @only-in: <scope> <module>` comment lines in the project file, and the
+roots guard and the `compare` action read the same lines there.
 
 ## What the driver derives
 
 - **Output directories.** One pattern for every translated target
   configuration: `<outRoot>/<id>/gen` and `<outRoot>/<id>/gen-tests`. A
   project file may not name them. The stock Haxe target is an exception:
-  its roots HXML owns the `-js` output path and any generated test paths.
-  Changing a Haxe configuration's `id` or `outRoot` requires updating that
-  HXML as well.
+  its generation arguments own the `-js` output path and any generated test
+  paths, because the driver derives no output directories for it. Changing a
+  Haxe configuration's `id` or `outRoot` requires updating those arguments
+  as well.
 - **Generation defines.** `<target>-output` and `<target>-test-output` from
   the two directories above for translated targets; `float-precision=f32` when `precision` is `f32`;
   the target's runtime defines at their documented defaults, overridable
@@ -225,7 +230,9 @@ URL without deriving it. `verify --with-pack` accepts the same options.
 package macros and module roots as an HXML include, replacing the requested
 file through a sibling temporary file. It does not add a configuration's
 `rootsFile` or run Haxe. The command is for direct HXML entry points that
-need the same source selection as `boring.json`.
+need the same source selection as `boring.json`. Boring's own `check:roots`
+target runs `tools/roots-guard/check-project-roots.sh`, which materializes one
+roots file per bundle from the project file before the roots guard reads it.
 
 Paths in the project file, `--output` and `--registry-out` resolve from the
 directory containing `boring.json`. The CLI defaults to `./boring.json` and

@@ -252,9 +252,10 @@ compile-time macro collects the `@:test` statics and generates the
 runner main that calls each through `Test.run` in declaration order,
 catching each failure and printing the canonical message, exiting
 nonzero when any test failed. The generated runner lives under
-`out/haxe/` as build output. `tests/haxe/generate-main.hxml` runs the
-collection macro and writes the runner; `tests/haxe/test-main.hxml`
-then builds the generated `TestMain` entry, while
+`out/haxe/` as build output. The `haxe` bundle of `boring.json` runs the
+collection macro and writes the runner (`boring gen haxe --project
+boring.json`); `tests/haxe/test-main.hxml` then builds the generated
+`TestMain` entry, while
 `tests/haxe/compile.hxml` stays on the typed entry `Main.hx`.
 Generation is a separate haxe invocation that precedes the compile:
 haxe caches classpath listings before macro callbacks fire, so one
@@ -596,8 +597,8 @@ Rulings:
   `gen-checks`, because the repository test command searches with the
   pattern `tests/` and a tree named `gen-tests` under `out/` would join
   every repository test run.
-- The Rust probe entry lists `runtime.TestCore`, exactly as
-  `examples/rust.hxml` does: the Rust target compiles a resident module
+- The Rust probe entry lists `runtime.TestCore`, exactly as the
+  `rust` source set of `boring.json` does: the Rust target compiles a resident module
   only when the entry names it, and the generated entry calls
   `crate::runtime::test_core`. The root `Cargo.toml` excludes `out`,
   which lets the probe crate stand as a crate of its own: a package under

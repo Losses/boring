@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { genArgs } from "../support/project-args";
 import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
 
 installTargetTreeReport(import.meta.path);
@@ -64,7 +65,7 @@ describe("static fields generated trees", () => {
 });
 
 test("static initializer mutation is rejected with the sanctioned error", async () => {
-	const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StaticStateInvalidProbe"], {
+	const proc = Bun.spawn(["haxe", ...genArgs("ts"), "tests.StaticStateInvalidProbe"], {
 		cwd: repoRoot,
 		stdout: "pipe",
 		stderr: "pipe",

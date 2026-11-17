@@ -6,8 +6,8 @@ This specification rules the shape of the subset's own standard library
 (`samples/std/`), the namespaces the toolchain reserves, and how every
 target references and materializes the runtime package that backs it.
 It governs `src/RuntimeConfig.hx`, the
-`runtime-import` and `runtime-emit` defines read from
-`examples/ts.hxml` and `examples/kotlin.hxml`, the import
+`runtime-import` and `runtime-emit` defines declared in each bundle's
+`haxeArgs` in `boring.json`, the import
 tables `src/reflaxe/ts/tscompiler/TsImports.hx` and
 `src/reflaxe/kotlin/kotlincompiler/KotlinImports.hx`, and the shim
 sources in `src/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx`.

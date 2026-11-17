@@ -90,6 +90,7 @@ class GpDiff {
     static function baselineScript():String {
         return 'set -u
 ROOT="$1" SHA="$2" CACHEDIR="$3"
+BORING_CLI="$${BORING_CLI:-boring}"
 shift 3
 SRC="$$CACHEDIR/.tmp/gp-base-src"
 rm -rf "$$SRC"
@@ -101,7 +102,7 @@ rm -rf "$$HB"
 cp -r "$$ROOT/.haxelib" "$$HB"
 printf "%s" "$$SRC" > "$$HB/boring/.dev"
 for T in "$$@"; do
-  ( START=$$(date +%s%3N); cd "$$SRC" && HAXELIB_PATH="$$HB" haxe "examples/$$T.hxml" >"$$CACHEDIR/.tmp/gp-base-$$T.log" 2>&1; RC=$$?; END=$$(date +%s%3N); echo "$$RC" > "$$CACHEDIR/.tmp/gp-base-$$T.rc"; echo "$$START $$END $$((END-START))" > "$$CACHEDIR/.tmp/gp-base-$$T.times" ) &
+  ( START=$$(date +%s%3N); cd "$$SRC" && HAXELIB_PATH="$$HB" "$$BORING_CLI" gen "$$T" --project boring.json >"$$CACHEDIR/.tmp/gp-base-$$T.log" 2>&1; RC=$$?; END=$$(date +%s%3N); echo "$$RC" > "$$CACHEDIR/.tmp/gp-base-$$T.rc"; echo "$$START $$END $$((END-START))" > "$$CACHEDIR/.tmp/gp-base-$$T.times" ) &
 done
 wait
 for T in "$$@"; do
@@ -149,9 +150,10 @@ done
     static function currentScript():String {
         return 'set -u
 ROOT="$$1"
+BORING_CLI="$${BORING_CLI:-boring}"
 shift
 for T in "$$@"; do
-  ( START=$$(date +%s%3N); cd "$$ROOT" && haxe "examples/$$T.hxml" >"$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.log" 2>&1; RC=$$?; END=$$(date +%s%3N); echo "$$RC" > "$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.rc"; echo "$$START $$END $$((END-START))" > "$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.times" ) &
+  ( START=$$(date +%s%3N); cd "$$ROOT" && "$$BORING_CLI" gen "$$T" --project boring.json >"$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.log" 2>&1; RC=$$?; END=$$(date +%s%3N); echo "$$RC" > "$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.rc"; echo "$$START $$END $$((END-START))" > "$$ROOT/out/.gp-cache/.tmp/gp-curr-$$T.times" ) &
 done
 wait
 exit 0

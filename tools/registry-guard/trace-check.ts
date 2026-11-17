@@ -26,11 +26,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
+import { projectRootsLines } from "../roots-guard/project-roots";
 
 const repoRoot = resolve(import.meta.dir, "..", "..");
 const traceRoot = join(repoRoot, "out", "shared-module-trace");
 const consumersPath = join(repoRoot, "out", "shared-module-consumers.json");
-const examplesRoot = join(repoRoot, "examples");
 
 const ALL_TARGETS = ["dart", "kotlin", "rust", "swift", "ts"] as const;
 type Target = (typeof ALL_TARGETS)[number];
@@ -96,20 +96,22 @@ function firstTargetCaller(callers: Set<string> | undefined, target: Target): st
 }
 
 /**
- * The trace test set is the target's own generation set. The one exclusion
- * is tests.DriverPlanTests: it pulls in driver.Config, whose StepOverride
- * object literal the dart and swift emitters reject on the current baseline,
- * so keeping it would make the settled targets and the unsettled ones
- * incomparable. The hxml is derived here at read time, so the
- * test set cannot drift from examples/<target>.hxml.
+ * The trace test set is the target's own generation set, derived from
+ * boring.json (the project's only copy): the sourceRoots classpaths, the
+ * bundle's haxeArgs, its source set's module roots, and the derived output
+ * defines. The one exclusion is tests.DriverPlanTests: it pulls in
+ * driver.Config, whose StepOverride object literal the dart and swift
+ * emitters reject on the current baseline, so keeping it would make the
+ * settled targets and the unsettled ones incomparable. Deriving the lines
+ * at read time keeps the test set from drifting from the generation entry.
  */
 function traceHxml(target: Target): string {
-    const source = readFileSync(join(examplesRoot, target + ".hxml"), "utf8");
-    const lines = source.split("\n").filter((line) => line.trim() !== "tests.DriverPlanTests");
+    const lines = projectRootsLines(target)
+        .filter((line) => line.trim() !== "tests.DriverPlanTests");
     const dir = join(traceRoot, target);
     mkdirSync(dir, { recursive: true });
     const path = join(dir, "trace.hxml");
-    writeFileSync(path, lines.join("\n"));
+    writeFileSync(path, lines.join(String.fromCharCode(10)));
     return path;
 }
 

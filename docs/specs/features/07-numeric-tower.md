@@ -220,8 +220,8 @@ the `Float` family (`Float.nan`, `Float.infinity`,
 `FloatingPoint` protocol both types implement, so they follow the type
 table with no separate dispatch. The `FPHelper` value-edge calls dispatch
 to the runtime wrappers `i64ToF32` and `f32ToI64` (feature spec 23,
-ruling 7). `examples/swift-f32.hxml` generates the f32 tree; the verify
-steps are `gen:swift-f32` and `test:swift-f32`.
+ruling 7). The `swift-f32` bundle of `boring.json` generates the f32 tree;
+the verify steps are `gen:swift-f32` and `test:swift-f32`.
 
 ### Dart target rulings
 

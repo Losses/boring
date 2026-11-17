@@ -115,29 +115,61 @@ class Compare {
     }
 
     /**
-        The target-only declarations of the project, derived from the
-        `# @only-in: <scope> <module>` markers in the roots files of every
-        bundle in `boring.json`. A marker names a dimension and a side --
-        `precision:binary64`, `precision:f32`, `target:<target>` -- and the
-        entry it produces lists every bundle whose target/precision is on
-        that side, so a test id may be a declared extra for exactly those
-        bundles. The roots guard verifies the same markers against the tree
-        (the module is rooted on the declared side and nowhere else), so a
-        marker is never a per-id allowlist: ids follow their module.
+        The target-only declarations of the project: the
+        `# @only-in: <scope> <module>` markers of the bundles' roots files and
+        the `// @only-in: <scope> <module>` markers of the project file itself.
+        A marker names a dimension and a side -- `precision:binary64`,
+        `precision:f32`, `target:<target>` -- and the entry it produces lists
+        every bundle whose target/precision is on that side, so a test id may
+        be a declared extra for exactly those bundles. The roots guard verifies
+        the same markers against the tree (the module is rooted on the declared
+        side and nowhere else), so a marker is never a per-id allowlist: ids
+        follow their module. A project whose bundles take their roots from
+        `sourceSets` declares its markers in the project file; a project whose
+        bundles name a roots file may keep them there, and boring's own driver
+        reads both places.
         A project without boring.json, or with a bundle whose roots file is
-        missing, contributes no declarations; the ids then fail as extras
-        exactly as they did before.
+        missing, contributes no declarations from that file; the ids then fail
+        as extras exactly as they did before.
     **/
+    static function trimLine(line:String):String {
+        return StringTools.trim(line);
+    }
+
+    /** The text after `prefix` on one line, or "" when the line lacks it. */
+    static function markerText(line:String, prefix:String):String {
+        final text = trimLine(line);
+        if (!StringTools.startsWith(text, prefix)) {
+            return "";
+        }
+        return StringTools.trim(text.substr(prefix.length));
+    }
+
+    /** The [scope, module] of an `@only-in:` marker; [] when malformed. */
+    static function onlyInMarker(marker:String):Array<String> {
+        final space = marker.indexOf(" ");
+        if (space < 1) {
+            return [];
+        }
+        final scope = marker.substr(0, space);
+        final moduleName = StringTools.trim(marker.substr(space + 1));
+        if (moduleName == "" || scope.indexOf(":") < 1) {
+            return [];
+        }
+        return [scope, moduleName];
+    }
+
     static function loadOnlyInDeclarations(projectPath:String):Array<ExtraEntry> {
         final entries:Array<ExtraEntry> = [];
         if (projectPath == "" || !exists(projectPath)) {
             return entries;
         }
         final projectDir = Path.dirname(projectPath);
-        // boring.json may carry // comment lines (JSONC); drop them before
-        // parsing, exactly as the roots guard does.
+        // boring.json may carry // comment lines (JSONC); drop them from the
+        // parsed document, and keep the raw lines for the // @only-in markers.
+        final rawLines = readText(projectPath).split("\n");
         final kept:Array<String> = [];
-        for (line in readText(projectPath).split("\n")) {
+        for (line in rawLines) {
             final text = StringTools.trim(line);
             final comment = text.length > 1 && StringTools.startsWith(text, "//");
             if (!comment) {
@@ -160,13 +192,11 @@ class Compare {
         final rootsFiles:Array<String> = [];
         for (bundle in bundles) {
             final id = Json.stringValue(Json.getField(bundle, "id"));
-            final roots = Json.stringValue(Json.getField(bundle, "rootsFile"));
-            if (id == null || roots == null) {
+            if (id == null) {
                 continue;
             }
             final idText:String = id == null ? "" : id;
-            final rootsText:String = roots == null ? "" : roots;
-            if (idText == "" || rootsText == "") {
+            if (idText == "") {
                 continue;
             }
             final targetValue = Json.stringValue(Json.getField(bundle, "target"));
@@ -174,13 +204,33 @@ class Compare {
             ids.push(idText);
             targets.push(targetValue == null ? "" : targetValue);
             precisions.push(precisionValue == null ? "binary64" : precisionValue);
-            rootsFiles.push(rootsText);
+            final roots = Json.stringValue(Json.getField(bundle, "rootsFile"));
+            final rootsText:String = roots == null ? "" : roots;
+            if (rootsText != "") {
+                rootsFiles.push(rootsText);
+            }
         }
-        for (index in 0...rootsFiles.length) {
-            final declaredIn = rootsFiles[index];
-            final rootsPath = StringTools.startsWith(declaredIn, "/")
-                ? declaredIn
-                : Path.join(projectDir, declaredIn);
+        // The project's own // @only-in markers first, then every roots file's.
+        final scopes:Array<String> = [];
+        final modules:Array<String> = [];
+        final declaredIn:Array<String> = [];
+        for (line in rawLines) {
+            final marker = markerText(line, "// @only-in:");
+            if (marker == "") {
+                continue;
+            }
+            final parsed = onlyInMarker(marker);
+            if (parsed.length != 2) {
+                continue;
+            }
+            scopes.push(parsed[0]);
+            modules.push(parsed[1]);
+            declaredIn.push("boring.json");
+        }
+        for (declaredFile in rootsFiles) {
+            final rootsPath = StringTools.startsWith(declaredFile, "/")
+                ? declaredFile
+                : Path.join(projectDir, declaredFile);
             if (!exists(rootsPath)) {
                 continue;
             }
@@ -191,44 +241,43 @@ class Compare {
                 continue;
             }
             for (line in rootsText.split("\n")) {
-                final text = StringTools.trim(line);
-                if (!StringTools.startsWith(text, "# @only-in:")) {
+                final marker = markerText(line, "# @only-in:");
+                if (marker == "") {
                     continue;
                 }
-                final rest = StringTools.trim(text.substr("# @only-in:".length));
-                final space = rest.indexOf(" ");
-                if (space < 1) {
+                final parsed = onlyInMarker(marker);
+                if (parsed.length != 2) {
                     continue;
                 }
-                final scope = rest.substr(0, space);
-                final moduleName = StringTools.trim(rest.substr(space + 1));
-                if (moduleName == "") {
-                    continue;
-                }
-                final colon = scope.indexOf(":");
-                if (colon < 1) {
-                    continue;
-                }
-                final dimension = scope.substr(0, colon);
-                final side = scope.substr(colon + 1);
-                final matching:Array<String> = [];
-                for (bundleIndex in 0...ids.length) {
-                    final onSide = dimension == "target"
-                        ? targets[bundleIndex] == side
-                        : dimension == "precision" && precisions[bundleIndex] == side;
-                    if (onSide) {
-                        matching.push(ids[bundleIndex]);
-                    }
-                }
-                if (matching.length == 0) {
-                    continue;
-                }
-                entries.push({
-                    module: moduleName,
-                    reason: '@only-in: $scope declared in $declaredIn',
-                    bundles: matching
-                });
+                scopes.push(parsed[0]);
+                modules.push(parsed[1]);
+                declaredIn.push(declaredFile);
             }
+        }
+        for (index in 0...modules.length) {
+            final scope = scopes[index];
+            final moduleName = modules[index];
+            final where = declaredIn[index];
+            final colon = scope.indexOf(":");
+            final dimension = scope.substr(0, colon);
+            final side = scope.substr(colon + 1);
+            final matching:Array<String> = [];
+            for (bundleIndex in 0...ids.length) {
+                final onSide = dimension == "target"
+                    ? targets[bundleIndex] == side
+                    : dimension == "precision" && precisions[bundleIndex] == side;
+                if (onSide) {
+                    matching.push(ids[bundleIndex]);
+                }
+            }
+            if (matching.length == 0) {
+                continue;
+            }
+            entries.push({
+                module: moduleName,
+                reason: '@only-in: $scope declared in $where',
+                bundles: matching
+            });
         }
         return entries;
     }

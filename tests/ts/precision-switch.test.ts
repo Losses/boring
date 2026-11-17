@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { genArgs } from "../support/project-args";
 import * as path from "node:path";
 
 /**
@@ -11,7 +12,7 @@ import * as path from "node:path";
 describe("float precision switch on the TypeScript target", () => {
   test("float-precision=f32 aborts the TS compile with the startup error", async () => {
     const repoRoot = path.resolve(__dirname, "../..");
-    const proc = Bun.spawn(["haxe", "examples/ts.hxml", "-D", "float-precision=f32"], {
+    const proc = Bun.spawn(["haxe", ...genArgs("ts"), "-D", "float-precision=f32"], {
       cwd: repoRoot,
       stdout: "pipe",
       stderr: "pipe",

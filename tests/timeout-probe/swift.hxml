@@ -1,6 +1,6 @@
 # Runner-timeout probe entry for the Swift target (feature spec 19).
 # Run from the repository root: haxe tests/timeout-probe/swift.hxml
-# The probe is kept out of examples/swift.hxml on purpose: it overruns the
+# The probe is kept out of the swift source set of boring.json on purpose: it overruns the
 # test budget, so an ordinary generation entry would carry a slow and red
 # test. This entry compiles the probe alone.
 #
@@ -28,5 +28,5 @@ probe.TimeoutProbeTests
 # runtime.TestCore holds the assertion checks and the canonical result line
 # the generated test entry calls; it is appended to the emitted Test.swift,
 # and the swift target compiles resident modules only when the entry lists
-# them (examples/swift.hxml does the same).
+# them (the swift source set of boring.json does the same).
 runtime.TestCore

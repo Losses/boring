@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { genArgs } from "./support/project-args";
 import { availableParallelism } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 
@@ -34,11 +35,11 @@ import { join, relative, resolve, sep } from "node:path";
  * smoke; it is not skipped silently, which is the same rule the
  * fixture-reachability guard uses for its count.
  *
- * Two entries (generate-main.hxml, generate-main-f32.hxml) run as a sequential
- * prelude: they generate reference/haxe[-f32]/gen-tests, which test-main.hxml and
- * test-main-f32.hxml compile against and which is gitignored, so a fresh checkout
- * has no tree for them. Running the prelude first keeps the parallel pool from
- * racing the tree it needs.
+ * The two Haxe in-source test entries (test-main.hxml, test-main-f32.hxml)
+ * compile against reference/haxe[-f32]/gen-tests, which is gitignored, so a
+ * fresh checkout has no tree for them. This smoke generates both trees first,
+ * with the arguments the haxe bundles carry in boring.json, so the pool never
+ * races the tree it needs.
  *
  * Entries compile in parallel (BORING_HAXE_SMOKE_JOBS, default min(cpus, 6));
  * the per-entry scratch directory under out/haxe-compile-smoke/ is what the
@@ -69,7 +70,7 @@ interface Entry {
 interface Manifest {
   defaults?: { treeOutputDefines?: boolean; outPlaceholder?: string; note?: string };
   prepareDirs?: string[];
-  prelude?: string[];
+  generateBundles?: string[];
   entries: Entry[];
 }
 
@@ -174,11 +175,6 @@ test(
     ).toEqual([]);
 
     const byPath = new Map(manifest.entries.map((entry) => [entry.path, entry]));
-    const preludePaths = manifest.prelude ?? [];
-    expect(
-      preludePaths.filter((path) => !byPath.has(path)),
-      "prelude paths must also be manifest entries",
-    ).toEqual([]);
 
     rmSync(SCRATCH, { recursive: true, force: true });
     mkdirSync(SCRATCH, { recursive: true });
@@ -186,12 +182,17 @@ test(
 
     const wallStart = Date.now();
     const observations: Observation[] = [];
-    for (const path of preludePaths) {
-      observations.push(await runEntry(manifest, byPath.get(path)!));
+    // The two Haxe bundles generate the trees the in-source test entries
+    // compile against; boring.json is the only copy of their arguments.
+    for(const id of manifest.generateBundles ?? []) {
+      const generation = Bun.spawn(["haxe", ...genArgs(id)], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+      const [code, stderr] = await Promise.all([generation.exited, new Response(generation.stderr).text()]);
+      if(code !== 0) {
+        throw new Error("haxe smoke: generation of " + id + " failed (exit " + code + "): " + tail(stderr));
+      }
     }
 
-    const preludeSet = new Set(preludePaths);
-    const pool = manifest.entries.filter((entry) => !preludeSet.has(entry.path));
+    const pool = manifest.entries;
     const jobs = Math.max(
       1,
       Math.min(Number(Bun.env.BORING_HAXE_SMOKE_JOBS ?? "") || availableParallelism(), MAX_JOBS),

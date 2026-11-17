@@ -174,9 +174,10 @@ losslessly before the bit conversion (`doubleToI64` dispatches to
 committed vector bytes are identical on every target and the shared test
 suites run unmodified.
 
-Generation entries: `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
-`examples/swift-f32.hxml`; verify steps `gen:rust-f32`, `gen:kotlin-f32`,
-`gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`.
+Generation bundles: `rust-f32`, `kotlin-f32`, `swift-f32` (run with
+`boring gen <id> --project boring.json`); verify steps `gen:rust-f32`,
+`gen:kotlin-f32`, `gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`,
+`test:swift-f32`.
 
 ### Wide integers (`stdlib/05`)
 
@@ -997,10 +998,9 @@ The `roots` command writes a source set to an HXML file for direct Haxe
 entry points; it does not include a configuration's `rootsFile`.
 
 These entries come from boring's current `boring.json`. The file has more
-configurations and does not declare `sourceSets`. Boring's `examples/*.hxml`
-entries retain explicit, target-specific root lists. A new project can use
-`sourceSets` where its source selection fits the package, type, or discovery
-rules:
+configurations, and every configuration selects its roots through a named
+`sourceSet`; the target arguments the driver cannot derive live in the
+bundle's `haxeArgs`. The excerpt below keeps the shape small:
 
     {
       // Where every generated tree goes: reference/haxe/gen,
@@ -1013,17 +1013,21 @@ rules:
       "baseline": "kotlin",
       // Passed as -cp to every configuration's generation compile.
       "sourceRoots": ["samples", "packages/registry/src", "packages/driver/src"],
+      "sourceSets": {
+        "ts": { "types": ["boring.Codec", "boring.VectorCodec"] },
+        "kotlin": { "types": ["boring.Codec", "boring.VectorCodec"] }
+      },
       "bundles": [
         {
           "id": "ts",
           "target": "ts",
-          "rootsFile": "examples/ts.hxml",
+          "sourceSet": "ts",
           "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         },
         {
           "id": "kotlin",
           "target": "kotlin",
-          "rootsFile": "examples/kotlin.hxml",
+          "sourceSet": "kotlin",
           "build": { "args": ["-Xallow-kotlin-package"] },
           "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         }

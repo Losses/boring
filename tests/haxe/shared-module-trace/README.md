@@ -42,13 +42,14 @@ them under `transitive-only` so a dead direct wrapper stays visible.
    available here: Haxe rejects a build macro on a type used from macro code
    ("You cannot use @:build inside a macro"), and every shared module is used by
    the target compiler macros.
-3. Add a test or an `examples/*.hxml` feature that reaches the module on the
-   targets the row expects. The trace only proves what the test set exercises.
+3. Add a test or a source-set root in `boring.json` that reaches the module
+   on the targets the row expects. The trace only proves what the test set
+   exercises.
 
 ## The trace test set
 
-The runner derives `out/shared-module-trace/<target>/trace.hxml` from
-`examples/<target>.hxml` and drops `tests.DriverPlanTests`. That test pulls in
+The runner derives `out/shared-module-trace/<target>/trace.hxml` from the
+target's bundle in `boring.json` and drops `tests.DriverPlanTests`. That test pulls in
 `driver.Config`, whose `StepOverride` object literal the dart and swift emitters
 reject on the current baseline (verified on unmodified compiler sources).
 Keeping it would make the settled targets and the unsettled ones incomparable.

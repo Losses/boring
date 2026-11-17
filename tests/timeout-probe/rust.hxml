@@ -3,7 +3,7 @@
 #   haxe tests/timeout-probe/rust.hxml
 #   BORING_TEST_RESULTS=$(pwd)/out/timeout-probe/rust/results.jsonl \
 #     cargo test --manifest-path out/timeout-probe/rust/gen/Cargo.toml
-# The probe is kept out of examples/rust.hxml on purpose: it overruns the
+# The probe is kept out of the rust source set of boring.json on purpose: it overruns the
 # test budget, so an ordinary generation entry would carry a slow and red
 # test. This entry compiles the probe alone.
 #
@@ -26,6 +26,6 @@
 probe.TimeoutProbeTests
 # runtime.TestCore holds the assertion checks and the canonical result
 # line the generated test entry calls; the rust target compiles resident
-# modules only when the entry lists them (examples/rust.hxml does the
-# same).
+# modules only when the entry lists them (the rust source set of
+# boring.json does the same).
 runtime.TestCore

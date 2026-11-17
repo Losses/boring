@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { genArgs } from "../support/project-args";
 import { availableTargets, installTargetTreeReport, targetTreeDir, withTargetTree } from "../support/target-trees";
 
 installTargetTreeReport(import.meta.path);
@@ -88,7 +89,7 @@ describe("Std.string lowering", () => {
   });
 
   test("unsupported operands report the named error", async () => {
-    const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StdStringProbes"], {
+    const proc = Bun.spawn(["haxe", ...genArgs("ts"), "tests.StdStringProbes"], {
       cwd: root,
       stdout: "pipe",
       stderr: "pipe",
@@ -102,7 +103,7 @@ describe("Std.string lowering", () => {
 
   test("nullable operands are rejected on every target", async () => {
     for (const target of ["ts", "kotlin", "swift", "dart", "rust"]) {
-      const proc = Bun.spawn(["haxe", `examples/${target}.hxml`, "tests.StdNullStringProbes"], {
+      const proc = Bun.spawn(["haxe", ...genArgs(target), "tests.StdNullStringProbes"], {
         cwd: root,
         stdout: "pipe",
         stderr: "pipe",

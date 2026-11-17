@@ -180,10 +180,10 @@ go under the gitignored `out/`.
 The warnstd regression samples are a set of minimal Haxe mechanisms under
 `samples/boring/` that reproduce warning-avoidance decisions the reflaxe
 emitters make. Each sample is a single class that exercises one emitter
-mechanism. The sample is wired into the per-target generation entries
-(`examples/ts.hxml`, `examples/kotlin.hxml`, `examples/swift.hxml`,
-`examples/dart.hxml`), and a bun test under `tests/ts/` reads the generated
-tree and asserts on the generated text.
+mechanism. The sample is wired into the per-target source sets of
+`boring.json` (the `ts`, `kotlin`, `swift`, and `dart` bundles), and a
+bun test under `tests/ts/` reads the generated tree and asserts on the
+generated text.
 
 ### Sample to test mapping
 
@@ -230,10 +230,10 @@ validation, so they do not prove a regression would be caught. The
 Generation runs inside the flake environment and writes the gitignored
 `reference/<target>/gen/` trees:
 
-    nix develop -c bash -c "haxe examples/ts.hxml"
-    nix develop -c bash -c "haxe examples/kotlin.hxml"
-    nix develop -c bash -c "haxe examples/swift.hxml"
-    nix develop -c bash -c "haxe examples/dart.hxml"
+    nix develop -c bash -c "boring gen ts --project boring.json"
+    nix develop -c bash -c "boring gen kotlin --project boring.json"
+    nix develop -c bash -c "boring gen swift --project boring.json"
+    nix develop -c bash -c "boring gen dart --project boring.json"
 
 The regression tests are bun tests and run after generation:
 

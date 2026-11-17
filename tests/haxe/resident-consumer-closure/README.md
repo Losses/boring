@@ -21,7 +21,7 @@ Same `Consumer.hx` in both; the only delta is the hxml root list.
 - **(b) explicit `runtime.*` roots**: `gen/<target>-b.hxml` roots `Consumer`
   plus `runtime.UString`, `runtime.GraphemeWalk`, `runtime.Graphemes`,
   `runtime.SortedTable`, `runtime.TestCore`, the same five the repo's own
-  `examples/*.hxml` list.
+  `boring.json` source sets list.
 
 Fixed inputs and hashes (`logs/input-hashes.txt`):
 

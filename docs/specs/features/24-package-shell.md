@@ -220,9 +220,8 @@ the shell.
   redundant (`unnecessary_non_null_assertion` on
   `default_args_ops.dart` and `pipeline_ops.dart`); modeling promotion
   in the generator is separate work.
-- `examples/rust.hxml` and `examples/rust-f32.hxml` carry the identity
-  and `package-test` defines; `examples/ts.hxml` keeps
-  `package-shell=none` because the repository resolves the runtime by
-  name through `tsconfig.json` paths, and `examples/kotlin.hxml`,
-  `examples/swift.hxml`, and `examples/dart.hxml` emit with the default
-  identity.
+- The `rust` and `rust-f32` bundles carry the identity and `package-test`
+  defines in their `haxeArgs`; the `ts`, `swift`, and `swift-f32`
+  bundles keep `package-shell=none` because the repository resolves the
+  runtime by name through `tsconfig.json` paths, and the `kotlin`,
+  `kotlin-f32`, and `dart` bundles emit with the default identity.

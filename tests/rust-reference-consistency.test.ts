@@ -26,7 +26,7 @@ import { join, resolve } from "node:path";
  * What this file asserts is deliberately narrow: that the on-disk reference
  * tree is CONSISTENT WITH ITS SOURCE for the symbols the Rust test suite
  * imports. It does not regenerate anything (that needs haxe and takes minutes);
- * it fails loudly so the fix is a known command, `haxe examples/rust.hxml`.
+ * it fails loudly so the fix is a known command, "boring gen rust --project boring.json".
  *
  * This is a consistency check: it reads the
  * tree the same way the consumer does, and it is cheap enough to run in the
@@ -54,8 +54,8 @@ function assertRepoRootLooksRight(): void {
       "depth in this file is wrong, so every path check below would pass vacuously",
   ).toBe(true);
   expect(
-    existsSync(join(REPO_ROOT, "examples", "rust.hxml")),
-    `REPO_ROOT ${REPO_ROOT} has no examples/rust.hxml`,
+    existsSync(join(REPO_ROOT, "boring.json")),
+    "REPO_ROOT has no boring.json: the Rust reference roots live there",
   ).toBe(true);
 }
 
@@ -68,7 +68,7 @@ function assertRepoRootLooksRight(): void {
 function assertReferenceTreePresent(): boolean {
   if (!existsSync(GEN)) {
     console.log(
-      "reference/rust/gen is absent: run `haxe examples/rust.hxml` before cargo test",
+      "reference/rust/gen is absent: run boring gen rust --project boring.json before cargo test",
     );
     return false;
   }
@@ -150,7 +150,7 @@ describe("rust reference tree consistency", () => {
     expect(
       problems,
       `reference/rust/gen is stale relative to tests/rust/vector_gen.rs: ${problems.join("; ")}. ` +
-        "Regenerate with `haxe examples/rust.hxml` (the tree is git-ignored, so nothing else will do it).",
+        "Regenerate with boring gen rust --project boring.json (the tree is git-ignored, so nothing else will do it).",
     ).toEqual([]);
   });
 
@@ -170,7 +170,7 @@ describe("rust reference tree consistency", () => {
     expect(
       existsSync(generated),
       "reference/rust/gen/boring/data_class_string_compare.rs must exist because " +
-        "tests/rust/vector_gen.rs imports it; regenerate with `haxe examples/rust.hxml`",
+        "tests/rust/vector_gen.rs imports it; regenerate with boring gen rust --project boring.json",
     ).toBe(true);
   });
 });

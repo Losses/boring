@@ -59,7 +59,7 @@ describe("node:fs extern fallibility", () => {
   test("the generated probe propagates instead of dropping the Result", () => {
     const gen = join(REPO_ROOT, "reference", "rust", "gen", "boring", "node_fs_borrow_ops.rs");
     if (!existsSync(gen)) {
-      console.log("reference/rust/gen is absent: run `haxe examples/rust.hxml` for the live reading");
+      console.log("reference/rust/gen is absent: run `boring gen rust --project boring.json` for the live reading");
       return;
     }
     const src = readFileSync(gen, "utf8");

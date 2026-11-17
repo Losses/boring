@@ -20,7 +20,7 @@ typechecks the store `haxe.io.Input`/`haxe.io.Output` against the shadowed
 `haxe.io.Bytes` and fails on all five targets with
 `haxe.io.Bytes has no field getData`. This was isolated by bisection: an
 empty `main` body generates (rc=0) and `trace(1)` inside `main` generates
-(rc=1) under the same hxml; the full `examples/*.hxml` trees only parse
+(rc=1) under the same hxml; the full `boring.json` source sets only parse
 (never typecheck) the store `haxe.io.Input`, which is why they do not hit it.
 
 The fixture therefore carries a fixture-local shadow, `shadow/haxe/Log.hx`

@@ -3,6 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { genArgs, withDefines } from "../support/project-args";
 import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
 
 installTargetTreeReport(import.meta.path);
@@ -33,35 +34,36 @@ interface CompilerOutcome {
 }
 
 /**
- * Rewrites examples/ts.hxml for one generation: output trees go to the
- * given directories, the runtime import and the shell define follow the
- * scenario. An undefined packageShell drops the repository's opt-out so
- * the default emission runs.
+ * The TypeScript bundle's generation arguments, redirected into the scenario's
+ * trees. boring.json is the project's only copy of these arguments; the
+ * scenario derives them from that file and rewrites no hand-written hxml. An
+ * undefined packageShell drops the project's opt-out so the default emission
+ * runs.
  */
-function rewriteHxml(source: string, opts: GenerationOptions): string {
-  let out = source
-    .replace("-D ts-test-output=reference/ts/gen-tests", `-D ts-test-output=${opts.testOutput}`)
-    .replace("-D ts-output=reference/ts/gen", `-D ts-output=${opts.tsOutput}`);
-  if(opts.runtimeImport !== undefined) {
-    // Rewrite whatever specifier the repository's hxml currently carries,
-    // so the scenario pins its own runtime import, leaving the repository
-    // state of that line out of the run.
-    out = out.replace(/^-D runtime-import=[^\s]+$/m, `-D runtime-import=${opts.runtimeImport}`);
-  }
-  if(opts.packageShell === undefined) {
-    out = out.replace("-D package-shell=none\n", "");
-  } else {
-    out = out.replace("-D package-shell=none", `-D package-shell=${opts.packageShell}`);
-  }
-  return out;
+function generationArgs(options: GenerationOptions): string[] {
+  return withDefines(genArgs("ts", { output: options.tsOutput, testOutput: options.testOutput }), {
+    "runtime-import": options.runtimeImport ?? "./runtime",
+    "package-shell": options.packageShell,
+  });
 }
 
-/** Runs one rewritten generation and reports the compiler outcome. */
-async function runHaxe(hxmlName: string, content: string): Promise<CompilerOutcome> {
-  const hxmlPath = path.join(REPO_ROOT, "out", hxmlName);
+/** Runs one fixture-owned hxml and reports the compiler outcome. */
+async function runHaxeFile(label: string, content: string): Promise<CompilerOutcome> {
+  const hxmlPath = path.join(REPO_ROOT, "out", label);
   fs.mkdirSync(path.dirname(hxmlPath), { recursive: true });
   fs.writeFileSync(hxmlPath, content);
   const proc = Bun.spawn(["haxe", path.relative(REPO_ROOT, hxmlPath)], {
+    cwd: REPO_ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+  return { exitCode, stderr };
+}
+
+/** Runs one generation and reports the compiler outcome. */
+async function runHaxe(args: string[]): Promise<CompilerOutcome> {
+  const proc = Bun.spawn(["haxe", ...args], {
     cwd: REPO_ROOT,
     stdout: "pipe",
     stderr: "pipe",
@@ -164,12 +166,12 @@ describe("package shell emission", () => {
   test("default emission writes package.json and the tree runs standalone", async () => {
     const tree = tempTree("default");
     try {
-      const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+      const args = generationArgs({
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-default-tests"),
         runtimeImport: "./runtime",
       });
-      const result = await runHaxe("package-shell-default.hxml", hxml);
+      const result = await runHaxe(args);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
 
@@ -226,16 +228,16 @@ describe("package shell emission", () => {
   test("identity defines flow into the manifest", async () => {
     const tree = tempTree("identity");
     try {
-      const base = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+      const args = withDefines(generationArgs({
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-identity-tests"),
         runtimeImport: "./runtime",
+      }), {
+        "package-name": "boring-demo",
+        "package-version": "9.9.9",
+        "package-license": "Apache-2.0",
       });
-      const hxml = base.replace(
-        "-D runtime-emit=.",
-        "-D runtime-emit=.\n-D package-name=boring-demo\n-D package-version=9.9.9\n-D package-license=Apache-2.0",
-      );
-      const result = await runHaxe("package-shell-identity.hxml", hxml);
+      const result = await runHaxe(args);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
       expect(fs.readFileSync(path.join(tree, "package.json"), "utf8")).toBe(IDENTITY_PACKAGE_JSON);
@@ -248,13 +250,13 @@ describe("package shell emission", () => {
   test("package-shell=none writes source only", async () => {
     const tree = tempTree("off");
     try {
-      const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+      const args = generationArgs({
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-off-tests"),
         runtimeImport: "./runtime",
         packageShell: "none",
       });
-      const result = await runHaxe("package-shell-off.hxml", hxml);
+      const result = await runHaxe(args);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
       expect(fs.existsSync(path.join(tree, "package.json"))).toBe(false);
@@ -268,13 +270,13 @@ describe("package shell emission", () => {
   test("an invalid package-shell value aborts the compile", async () => {
     const tree = tempTree("invalid");
     try {
-      const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+      const args = generationArgs({
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-invalid-tests"),
         runtimeImport: "./runtime",
         packageShell: "bogus",
       });
-      const result = await runHaxe("package-shell-invalid.hxml", hxml);
+      const result = await runHaxe(args);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package-shell accepts emit or none");
     } finally {
@@ -287,16 +289,16 @@ describe("package shell emission", () => {
     const tree = tempTree("byname");
     try {
       // The scenario pins its own by-name runtime import and drops the
-      // repository's opt-out, so it no longer depends on what specifier
-      // examples/ts.hxml currently carries (feature spec 24, Ruling 5:
+      // repository's opt-out, so it no longer depends on what runtime-import
+      // the project's TypeScript bundle carries (feature spec 24, Ruling 5:
       // a by-name import names a package coordinate the emitted
       // manifest cannot declare, so the combination stops the compile).
-      const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+      const args = generationArgs({
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-byname-tests"),
         runtimeImport: "@boring/runtime",
       });
-      const result = await runHaxe("package-shell-byname.hxml", hxml);
+      const result = await runHaxe(args);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("package shell requires a relative runtime import");
     } finally {
@@ -364,7 +366,7 @@ describe("package shell emission", () => {
       if(override === undefined) {
         const hxml = fs.readFileSync(path.join(REPO_ROOT, SWIFT_EMIT_HXML), "utf8")
           .replace("-D swift-output=out/swift-package-shell-emit", `-D swift-output=${tree}`);
-        const result = await runHaxe("swift-package-shell-emit.hxml", hxml);
+        const result = await runHaxeFile("swift-package-shell-emit.hxml", hxml);
         expect(result.stderr).toBe("");
         expect(result.exitCode).toBe(0);
       }

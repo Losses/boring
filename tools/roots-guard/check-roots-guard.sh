@@ -50,10 +50,10 @@
 #      module set through a non-include macro is therefore undetectable here
 #      by design; only the include('X') reject case of (iv) is modelled.)
 
-#  (2) DECLARED TARGET-ONLY ROOTS (there is no allowlist).  A roots file may
+#  (2) DECLARED TARGET-ONLY ROOTS (there is no allowlist).  A project may
 #      declare a root that legitimately exists on only one side of the
 #      precision switch, or on only some targets.  The declaration is a fixed
-#      comment line in the roots file of the bundle(s) it describes:
+#      comment line in the project file (a // marker) or in a bundle roots file:
 #
 #        # @only-in: precision:binary64 registry.Main
 #        # @only-in: target:rust tests.EscapingTraitIdentityTests
@@ -76,13 +76,17 @@
 #      line of that bundle's roots file, or through a TestCollector generate()
 #      scan directory that file declares -- and NO bundle outside the declared
 #      side may root it (a `precision:binary64` module rooted by an f32 bundle
-#      fails; a `target:rust` module rooted by kotlin fails).  A marker must
-#      sit in a bundle's own rootsFile, never in a file that rootsFile
-#      includes, so the guard and the consistency check read the same lines.
-#      Declarations are read from the `rootsFile` of every bundle in
-#      `boring.json`, so the guard and the bundle driver read the same files;
-#      a missing boring.json or bundle roots file is a FAIL, so no check is
-#      ever silently disabled.
+#      fails; a target:rust module rooted by kotlin fails).  A marker in a
+#      roots file must sit in that bundle's own rootsFile, never in a file it
+#      includes, so the guard and the consistency check read the same lines; a
+#      project whose bundles take their roots from sourceSets declares the
+#      markers in boring.json itself, next to them.
+#      Declarations are read from the project file's own // markers and from
+#      the rootsFile of every bundle in <repo>/boring.json, so the guard and
+#      the bundle driver read the same sources.  A missing project file is a
+#      FAIL, so no check is ever silently disabled; a bundle without a
+#      rootsFile is legal when the project selects its roots through sourceSets
+#      (check-project-roots.sh materializes one roots file per bundle first).
 #
 #      EFFECT ON (1) AND (4).  A base-only asymmetry is authorised only by a
 #      verified `precision:binary64` declaration (f32-only by
@@ -121,10 +125,11 @@
 #      fail-closed when the file is missing.
 #
 # REPORTED BUT NOT FATAL (use --strict-duplicates to fail on them):
-#   * duplicate root lines inside one pair.  The shipped hxml files currently
-#     contain 45 such lines; duplicates cannot change the module set, they are
-#     inert, and this guard does not modify examples/**.  They are printed with
-#     file:line and counted so they stop being invisible.
+#   * duplicate root lines inside one pair.  The guarded files are
+#     materialized from boring.json, whose source sets dedupe the roots, so a
+#     gate run reports none; the check stays for direct runs against HXML
+#     fixtures.  Duplicates cannot change the module set, and they are printed
+#     with file:line and counted so they stop being invisible.
 #
 # NOT COVERED (the header never claims these):
 #   * side effects of non-include `--macro` lines and of all other flag lines
@@ -146,7 +151,9 @@
 # Usage: check-roots-guard.sh [examples-dir] [--repo-root=PATH]
 #                       [--strict-duplicates] [--print-baseline]
 #
-#   examples-dir        default: <script>/../../examples
+#   examples-dir        default: <script>/../../examples.  Boring's own project
+#                       has no roots files: run check-project-roots.sh, which
+#                       materializes one per bundle from boring.json first.
 #   --repo-root=PATH    repository root used for module-source resolution
 #                       (also honoured: ROOTS_GUARD_REPO_ROOT).  If discovery
 #                       fails the guard FAILS.
@@ -156,9 +163,11 @@
 #                       sets) and exit; use it to refresh
 #                       roots-baseline.txt after a deliberate root change.
 #
-# The (2) declarations are read from the `rootsFile` of every bundle in
-# `<repo>/boring.json`; a missing project file or bundle roots file is a
-# FAIL, never a silently disabled check.
+# The (2) declarations are read from the // markers of <repo>/boring.json and
+# from the rootsFile of every bundle it declares; a missing project file is a
+# FAIL, never a silently disabled check.  check-project-roots.sh materializes
+# one roots file per bundle from the project's source sets before this guard
+# runs, so a project without rootsFile entries is still checked.
 #
 # Environment:
 #   ROOTS_GUARD_REPO_ROOT   repository root (same as --repo-root=PATH)
@@ -242,7 +251,7 @@ trap 'rm -rf "$tmpd"' EXIT
 # marker as a free pass.
 project="$repo/boring.json"
 if [ ! -f "$project" ]; then
-    echo "FAIL: bundle project file not found: $project; the target-only declarations are read from the rootsFile entries of its bundles"
+    echo "FAIL: bundle project file not found: $project; the target-only declarations are read from its // markers and the rootsFile entries of its bundles"
     echo "roots guard: FAILED"
     exit 1
 fi
@@ -264,10 +273,38 @@ for (const bundle of bundles) {
     const roots = typeof bundle.rootsFile === "string" ? bundle.rootsFile : "";
     const target = typeof bundle.target === "string" ? bundle.target : "";
     const precision = typeof bundle.precision === "string" ? bundle.precision : "binary64";
-    console.log([id, roots, target, precision].join("|"));
+    console.log(["B", id, roots, target, precision].join("|"));
 }
 ' "$project" > "$tmpd/bundles.txt"
 if [ $? -ne 0 ]; then
+    echo "roots guard: FAILED"
+    exit 1
+fi
+# The project file's own // @only-in and // @dormant markers.  A project whose
+# bundles take their roots from sourceSets declares them here, next to the
+# roots, because a second roots file would be a second copy.
+node -e '
+const fs = require("fs");
+const raw = fs.readFileSync(process.argv[1], "utf8");
+for (const line of raw.split("\n")) {
+    const text = line.trim();
+    if (!text.startsWith("//")) continue;
+    const inner = text.slice(2).trim();
+    let kind = "";
+    if (inner.startsWith("@only-in:")) kind = "only-in";
+    else if (inner.startsWith("@dormant:")) kind = "dormant";
+    else continue;
+    const rest = inner.slice(9).trim();
+    const space = rest.indexOf(" ");
+    if (space < 1) continue;
+    const scope = rest.slice(0, space);
+    const module = rest.slice(space + 1).trim();
+    if (module === "") continue;
+    console.log(["D", kind, scope, module].join("|"));
+}
+' "$project" >> "$tmpd/bundles.txt"
+if [ $? -ne 0 ]; then
+    echo "FAIL: could not read the declarations of $project"
     echo "roots guard: FAILED"
     exit 1
 fi
@@ -376,47 +413,79 @@ marker_collect() {
     done < "$f"
 }
 
-while IFS='|' read -r bid rfile btarget bprec; do
+# One declaration record, from a roots file or from the project file.  The
+# record names the module, the declared side and the file the marker appears
+# in; the verification below checks the claim against the tree.
+declare_declaration() {
+    local kind="$1" scope="$2" module="$3" where="$4"
+    if [ "$kind" = "only-in" ]; then
+        if [ -n "${OI_SCOPE[$module]:-}" ] && [ "${OI_SCOPE[$module]}" != "$scope" ]; then
+            echo "FAIL: conflicting @only-in declarations for $module: '${OI_SCOPE[$module]}' (${OI_AT[$module]}) and '$scope' ($where)"
+            fail=1
+        else
+            OI_SCOPE["$module"]="$scope"
+            OI_AT["$module"]="$where"
+        fi
+    else
+        if [ -n "${DORMANT[$module]:-}" ] && [ "${DORMANT[$module]}" != "$scope" ]; then
+            echo "FAIL: conflicting @dormant declarations for $module: '${DORMANT[$module]}' (${DORM_AT[$module]}) and '$scope' ($where)"
+            fail=1
+        else
+            DORMANT["$module"]="$scope"
+            DORM_AT["$module"]="$where"
+        fi
+    fi
+}
+
+while IFS='|' read -r record a b c d; do
+    [ -n "$record" ] || continue
+    case "$record" in
+        D)
+            declare_declaration "$a" "$b" "$c" "boring.json"
+            continue ;;
+        B) : ;;
+        *) continue ;;
+    esac
+    bid="$a"; rfile="$b"; btarget="$c"; bprec="$d"
     [ -n "$bid" ] || continue
     B_TARGET["$bid"]="$btarget"
     B_PRECISION["$bid"]="$bprec"
     if [ -z "$rfile" ]; then
-        echo "FAIL: boring.json bundle $bid declares no rootsFile; the target-only declarations cannot be located"
-        fail=1
-        continue
+        # A project that selects its roots through sourceSets names no roots
+        # file: check-project-roots.sh materializes one per bundle from
+        # boring.json and passes its directory as the examples dir.  A missing
+        # materialized file does not affect declarations; the bundle then
+        # roots nothing here.
+        if [ -f "$examples/$bid.hxml" ]; then
+            rfile="$examples/$bid.hxml"
+        else
+            echo "NOTE: bundle $bid declares no rootsFile and no materialized roots file exists; its roots are not read"
+            : > "$tmpd/bundle.$bid.roots"
+            : > "$tmpd/bundle.$bid.scan"
+            continue
+        fi
+    else
+        BUNDLE_ROOTS_FILE["$rfile"]=1
     fi
     B_ROOTS_FILE["$bid"]="$rfile"
-    BUNDLE_ROOTS_FILE["$rfile"]=1
     : > "$tmpd/bundle.$bid.roots"
     : > "$tmpd/bundle.$bid.scan"
     rf="$rfile"
     case "$rf" in /*) : ;; *) rf="$repo/$rfile" ;; esac
     stream="$tmpd/bundle.$bid.stream"
     marker_collect "$bid" "$rf" 0 > "$stream"
-    while IFS='|' read -r kind a b c; do
+    while IFS='|' read -r kind x y z; do
         case "$kind" in
             ROOT)
-                echo "$a" >> "$tmpd/bundle.$bid.roots" ;;
+                echo "$x" >> "$tmpd/bundle.$bid.roots" ;;
             SCAN)
-                echo "$a" >> "$tmpd/bundle.$bid.scan" ;;
+                echo "$x" >> "$tmpd/bundle.$bid.scan" ;;
             ONLYIN)
-                if [ -n "${OI_SCOPE[$a]:-}" ] && [ "${OI_SCOPE[$a]}" != "$b" ]; then
-                    echo "FAIL: conflicting @only-in declarations for $a: '${OI_SCOPE[$a]}' (${OI_AT[$a]}) and '$b' ($c)"
-                    fail=1
-                else
-                    OI_SCOPE["$a"]="$b"
-                    OI_AT["$a"]="$c"
-                fi ;;
+                declare_declaration "only-in" "$y" "$x" "$z" ;;
             DORMANT)
-                if [ -n "${DORMANT[$a]:-}" ] && [ "${DORMANT[$a]}" != "$b" ]; then
-                    echo "FAIL: conflicting @dormant declarations for $a: '${DORMANT[$a]}' (${DORM_AT[$a]}) and '$b' ($c)"
-                    fail=1
-                else
-                    DORMANT["$a"]="$b"
-                    DORM_AT["$a"]="$c"
-                fi ;;
+                declare_declaration "dormant" "$y" "$x" "$z" ;;
             ERR)
-                echo "FAIL: $a"
+                echo "FAIL: $x"
                 fail=1 ;;
         esac
     done < "$stream"
@@ -845,8 +914,8 @@ for mod in ${MARK_MODS[@]+"${MARK_MODS[@]}"}; do
         continue
     fi
     where="${OI_AT[$mod]:-${DORM_AT[$mod]:-}}"
-    if [ -z "${BUNDLE_ROOTS_FILE[$where]:-}" ]; then
-        echo "FAIL: $mod: the declaration in $where is not a bundle rootsFile; declare it in one of the rootsFile entries of boring.json so the guard and the consistency check read the same line"
+    if [ -z "${BUNDLE_ROOTS_FILE[$where]:-}" ] && [ "$where" != "boring.json" ]; then
+        echo "FAIL: $mod: the declaration in $where is neither a bundle rootsFile of boring.json nor a // marker in boring.json; declare it where the guard and the consistency check read it"
         fail=1
         continue
     fi

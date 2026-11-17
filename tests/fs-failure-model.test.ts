@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
+import { readProject } from "./support/project-args";
 import { join, resolve } from "node:path";
 
 /**
@@ -93,9 +94,10 @@ describe("std.Fs failure model", () => {
     // the Haxe-facing payload alone does not provide.
     expect(compiler).toContain('runtimePackage + "::fs::FsError> for "');
 
-    // The reference example set names the identity so the payload enum has a
-    // declaration site even when no example class catches it.
-    expect(read("examples/rust.hxml")).toContain("std.FsException");
+    // The rust source set in boring.json names the identity so the payload
+    // enum has a declaration site even when no example class catches it.
+    const project = readProject();
+    expect(project.sourceSets?.["rust"]?.types ?? []).toContain("std.FsException");
   });
 
   test("the spec names the identity on every affected layer", () => {

@@ -291,10 +291,10 @@ Fields could live in `Float32Array` so storage rounds to binary32.
 
 ## Test hooks
 
-- `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
-  `examples/swift-f32.hxml`: full-library generation under `-D
-  float-precision=f32` (verify steps `gen:rust-f32`, `gen:kotlin-f32`,
-  `gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`).
+- `rust-f32`, `kotlin-f32`, `swift-f32` (the same-named bundles of
+  `boring.json`): full-library generation under `-D float-precision=f32`
+  (verify steps `gen:rust-f32`, `gen:kotlin-f32`, `gen:swift-f32`,
+  `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`).
 - `tests/ts/precision-switch.test.ts` and
   `tests/dart/precision-switch.test.ts`: activate the TypeScript and
   Dart compilers under `float-precision=f32` and assert the startup
