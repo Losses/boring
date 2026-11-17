@@ -40,7 +40,7 @@
             import nixpkgs {
               inherit system;
               overlays = [ rust-overlay.overlays.default ];
-              # The Kotlin publication project (kotlin-publication/) builds an
+              # The Kotlin publication project (tools/kotlin-publication/) builds an
               # Android AAR, so the Android SDK's license has to be accepted for
               # the devShell composition below. android-sdk-cmdline-tools is an
               # unfree package, hence allowUnfree.
@@ -202,7 +202,7 @@
               # The Kotlin publication project ships with the driver: the
               # driver's kmpPublication step runs it from this read-only store
               # copy and redirects build and project-cache output elsewhere.
-              cp -a kotlin-publication "$out/share/boring/kotlin-publication"
+              cp -a tools/kotlin-publication "$out/share/boring/kotlin-publication"
               makeWrapper "${pkgs.bun}/bin/bun" "$out/bin/boring" \
                 --add-flags "$out/share/boring/driver.js" \
                 --set BORING_PUBLICATION_PROJECT "$out/share/boring/kotlin-publication"

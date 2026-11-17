@@ -359,12 +359,12 @@ class Main {
         }
         final source = Host.env("BORING_SOURCE");
         if (source != null) {
-            final fromSource = joinPath(source, "kotlin-publication");
+            final fromSource = joinPath(joinPath(source, "tools"), "kotlin-publication");
             if (isPublicationProject(fromSource)) return fromSource;
         }
-        final fromHaxelib = joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath("git", "kotlin-publication"));
+        final fromHaxelib = joinPath(joinPath(joinPath(Host.cwd(), ".haxelib"), "boring"), joinPath(joinPath("git", "tools"), "kotlin-publication"));
         if (isPublicationProject(fromHaxelib)) return fromHaxelib;
-        fail("bundle driver: kmpPublication found no publication project; tried BORING_PUBLICATION_PROJECT, $BORING_SOURCE/kotlin-publication and <cwd>/.haxelib/boring/git/kotlin-publication");
+        fail("bundle driver: kmpPublication found no publication project; tried BORING_PUBLICATION_PROJECT, $BORING_SOURCE/tools/kotlin-publication and <cwd>/.haxelib/boring/git/tools/kotlin-publication");
         return "";
     }
 

@@ -1,9 +1,7 @@
 # Kotlin publication project
 
 The nine Maven artifacts of the Kotlin tree the boring driver emits are produced
-by this Gradle project. The artifacts were produced by tiqian's own Gradle build
-before this project existed, which made tiqian the host of a publication whose
-input boring writes. The driver now runs the publication itself: a Kotlin bundle
+by this Gradle project. The driver runs the publication itself: a Kotlin bundle
 that declares `kmpPublication: true` publishes during `pack`, and the project
 file carries no command and no path.
 
@@ -11,21 +9,21 @@ file carries no command and no path.
 
 `engine/` declares the root `kotlinMultiplatform` publication and eight targets:
 `jvm`, `android`, `macosArm64`, `iosArm64`, `iosSimulatorArm64`, `linuxX64`,
-`linuxArm64`, `mingwX64`. The group is `org.tiqian`, the artifactIds are
-`tiqian-engine` and `tiqian-engine-<target>`, and the POM fields are the values
-tiqian's root build script set. The coordinates and the artifactIds are part of
-the published API and do not change when the publication host changes.
+`linuxArm64`, `mingwX64`. The group is `org.tiqian`; the artifactIds are
+`tiqian-engine` and `tiqian-engine-<target>`. These coordinates are the
+published API names. `build.gradle.kts` sets the POM fields: the publication
+name and description, the MPL-2.0 license, the developer entry, and the
+source-control links.
 
 ## How the driver runs it
 
 The flake installs this directory into the driver package and the `boring`
 wrapper exports its path as `BORING_PUBLICATION_PROJECT`. A driver started
-without its wrapper resolves, in order, `$BORING_SOURCE/kotlin-publication`
-(the flake source tree tiqian exports) and then
-`<cwd>/.haxelib/boring/git/kotlin-publication` (the checkout a tiqian devShell
-stages). None of these is a sibling checkout: a published driver always finds
-its own copy. On `pack`, a bundle with `kmpPublication: true` gets these
-arguments:
+without its wrapper resolves, in order, `$BORING_SOURCE/tools/kotlin-publication`
+(the source tree the flake exports) and then
+`<cwd>/.haxelib/boring/git/tools/kotlin-publication` (the haxelib checkout).
+None of these is a sibling checkout: a published driver always finds its own
+copy. On `pack`, a bundle with `kmpPublication: true` gets these arguments:
 
 ```
 gradlew -p <per-run copy> publishToMavenLocal
@@ -44,8 +42,8 @@ there: `Configuring project ':' without an existing directory is not allowed`).
 The driver therefore deletes `<outRoot>/<id>/gradle/project` and copies the
 installed project into it on every pack run, and never writes the installed
 tree. The source of record stays the copy that ships with the driver, so a flake
-pin change replaces it. The copy is 10 files and about 75 KB; the Gradle build
-and project cache beside it (`<outRoot>/<id>/gradle/build` and
+pin change installs a new copy. The copy is 10 files and about 75 KB; the
+Gradle build and project cache beside it (`<outRoot>/<id>/gradle/build` and
 `project-cache`) persist between pack runs on purpose so the second run
 reuses the compiled targets.
 
@@ -80,7 +78,7 @@ Publish into a scratch Maven directory:
 ```shell
 ./gradlew publishToMavenLocal \
   -PmavenDir=/tmp/boring-maven \
-  -PpublicationVersion=0.1.0-alpha08 \
+  -PpublicationVersion=1.2.3 \
   -PkotlinGenDir=/path/to/engine-haxe/out/kotlin-f32/gen \
   -PkotlinGenTestsDir=/path/to/engine-haxe/out/kotlin-f32/gen-tests
 ```
@@ -88,7 +86,7 @@ Publish into a scratch Maven directory:
 Run the generated test suite through the generated `TestMainKt`:
 
 ```shell
-./gradlew generatedTestSuite -PpublicationVersion=0.1.0-alpha08 \
+./gradlew generatedTestSuite -PpublicationVersion=1.2.3 \
   -PkotlinGenDir=/path/to/engine-haxe/out/kotlin-f32/gen \
   -PkotlinGenTestsDir=/path/to/engine-haxe/out/kotlin-f32/gen-tests
 ```

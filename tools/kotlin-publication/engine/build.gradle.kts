@@ -6,9 +6,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // The nine Maven publications of the generated Kotlin tree (bundle kotlin-f32).
 //
-// This module replaces tiqian/engine/build.gradle.kts: it compiles the tree the
-// boring driver generates and publishes the same artifacts under the same
-// coordinates. Nothing in here writes into the generated tree.
+// This module compiles the tree the boring driver generates and publishes the
+// nine artifacts under the coordinates below. Nothing in here writes into the
+// generated tree.
 plugins {
     kotlin("multiplatform")
     id("com.android.kotlin.multiplatform.library")
@@ -17,8 +17,8 @@ plugins {
 
 // The generated trees are driver outputs, not repository sources. The default
 // is this repository's own kotlin-f32 emission (bun run gen:kotlin-f32); a caller
-// that generates the tree somewhere else (tiqian's pack run writes it under its
-// own outRoot) overrides the two properties. A relative override resolves against
+// that generates the tree somewhere else (a pack run writes it under its own
+// outRoot) overrides the two properties. A relative override resolves against
 // this Gradle project root, an absolute one is used as is.
 fun generatedTree(property: String, default: File): File {
     val configured = providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() } ?: return default
@@ -27,9 +27,9 @@ fun generatedTree(property: String, default: File): File {
 }
 
 
-// The publication-name to artifactId suffix mapping tiqian's root build script
-// used: the kotlinMultiplatform publication is the root coordinate, jvm and
-// android keep their own suffix, every other target is its lowercase name.
+// The publication-name to artifactId suffix mapping: the kotlinMultiplatform
+// publication is the root coordinate, jvm and android keep their own suffix,
+// every other target is its lowercase name.
 fun publicationSuffix(publicationName: String): String = when (publicationName) {
     "kotlinMultiplatform" -> ""
     "jvm" -> "-jvm"
@@ -37,8 +37,8 @@ fun publicationSuffix(publicationName: String): String = when (publicationName) 
     else -> "-" + publicationName.lowercase()
 }
 
-val genDir = generatedTree("kotlinGenDir", rootProject.projectDir.parentFile.resolve("reference/kotlin-f32/gen"))
-val genTestsDir = generatedTree("kotlinGenTestsDir", rootProject.projectDir.parentFile.resolve("reference/kotlin-f32/gen-tests"))
+val genDir = generatedTree("kotlinGenDir", rootProject.projectDir.parentFile.parentFile.resolve("reference/kotlin-f32/gen"))
+val genTestsDir = generatedTree("kotlinGenTestsDir", rootProject.projectDir.parentFile.parentFile.resolve("reference/kotlin-f32/gen-tests"))
 
 kotlin {
     // The generated tree carries no expect/actual classes, but the compiler
@@ -71,18 +71,12 @@ kotlin {
 
 // The generated suite carries @boring.test.Test cases and is not a JUnit suite,
 // so it gets its own JVM compilation and runs through the generated TestMainKt.
-// The compilation lived in tiqian/engine/build.gradle.kts before this project
-// took the publication host over.
-//
-// No dependencies are declared for this compilation on purpose. tiqian's engine
-// build declared kotlin("test"), kotlinx-serialization-json:1.8.1 and the two
-// platform projects (":platforms:jvm:shaping", ":platforms:jvm:skia") on the
-// same compilation, and the generated suite uses none of them: its imports name
-// packages this tree emits (org.tiqian.*, std.UStringException) and
-// kotlin.math.pow, with no kotlinx, org.tiqian.platform, skiko or skia symbol
-// anywhere in the emitted gen and gen-tests trees. The runtime classpath below
-// carries the Kotlin standard library plus annotations. Check that observation
-// before adding a dependency here.
+// No dependencies are declared for this compilation on purpose. The generated
+// suite imports only packages this tree emits (org.tiqian.*, std.UStringException)
+// and kotlin.math.pow, with no kotlinx, platform, skiko or skia symbol anywhere
+// in the emitted gen and gen-tests trees. The runtime classpath below carries
+// the Kotlin standard library plus annotations. Check that observation before
+// adding a dependency here.
 val jvmGeneratedTestCompilation = kotlin.targets.getByName("jvm").compilations.create("generatedTest") {
     defaultSourceSet.dependsOn(kotlin.sourceSets.getByName("commonMain"))
 }
@@ -106,14 +100,13 @@ tasks.register<JavaExec>("generatedTestSuite") {
     )
     // The generated suite writes trace goldens at
     // <workingDir>/engine-haxe/out/kotlin-traces; the repository root is the
-    // working directory tiqian used and boring's .gitignore already excludes
-    // engine-haxe/, so the traces stay out of a commit.
-    workingDir = rootProject.projectDir.parentFile
+    // working directory the suite expects and boring's .gitignore already
+    // excludes engine-haxe/, so the traces stay out of a commit.
+    workingDir = rootProject.projectDir.parentFile.parentFile
 }
 
-// artifactId and POM used to be configured by tiqian's root build script through
-// its publishedModules map. They are reproduced here verbatim so that moving the
-// host does not move a coordinate or a POM field.
+// The artifactId and POM below are the published identity of these artifacts.
+// They do not change with the location of this project.
 afterEvaluate {
     extensions.configure<PublishingExtension>("publishing") {
         publications.withType(MavenPublication::class.java).configureEach {

@@ -1,8 +1,7 @@
 import java.io.File
 
 // Root build of boring's Kotlin publication project (see settings.gradle.kts).
-// The coordinates and POM below are the ones the tiqian-engine publications have
-// always carried; moving the publication host must not move them.
+// The coordinates and POM below are the published identity of these artifacts.
 plugins {
     kotlin("multiplatform") version "2.3.20" apply false
     id("com.android.kotlin.multiplatform.library") version "9.3.1" apply false
@@ -18,7 +17,7 @@ version = providers.gradleProperty("publicationVersion")
 // the project directory is read-only. mavenDir names the Maven repository the
 // publication must fill; Gradle resolves a local repository through the
 // maven.repo.local system property, so the project property is mapped onto it
-// before any publishing repository is created. buildRoot replaces every
+// before any publishing repository is created. buildRoot redirects every
 // project's build directory, which keeps the read-only tree untouched.
 providers.gradleProperty("mavenDir").orNull?.takeIf { it.isNotBlank() }?.let {
     System.setProperty("maven.repo.local", File(it).absolutePath)
