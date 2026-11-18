@@ -326,12 +326,6 @@ class SwiftInterop {
                         if (!cls.isExtern || !StaticFunctionMarkers.isMarked(field)) {
                             Context.error(NAME_META + " belongs on a @:topLevel or @:extension extern static", field.pos);
                         }
-                        final emitted = externalName(field);
-                        final emittedName = emitted == null ? field.name : emitted;
-                        if (isArcManagedRelease(emittedName)) {
-                            Context.error(emittedName
-                                + " is ARC-managed in Swift; remove the retain/release call and hold the class reference", field.pos);
-                        }
                         if (field.meta.has(LABELS_META)) {
                             final labels = labelNames(field);
                             final arity = switch (Context.follow(field.type)) {
