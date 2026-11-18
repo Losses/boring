@@ -906,6 +906,10 @@ class DartExpr {
                         // not promote a final local declared with an explicit
                         // nullable annotation, so a later use fails E_nullable.
                         // Declare the non-null element instead. (FinalLocalPromotion)
+                        // A read of a local the emitter already declared non-null
+                        // carries the same proof: `final dRef = maxStretch` must
+                        // not name a nullable type while `maxStretch` itself
+                        // renders non-null. (PromotedLocalInitializer)
                         DefaultArgExpander.withoutNull(v.t)
                     else
                         v.t;
