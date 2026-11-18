@@ -102,17 +102,47 @@
       mkSwiftSystem =
         pkgs:
         let
+          isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
           useLinuxSwift = pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64;
           swiftToolchain = if useLinuxSwift then mkLinuxSwift pkgs else pkgs.swift;
-          swiftCommand = if pkgs.stdenv.hostPlatform.isDarwin then "/usr/bin/swift" else "${swiftToolchain}/bin/swift";
-          swiftcCommand = if pkgs.stdenv.hostPlatform.isDarwin then "/usr/bin/swiftc" else "${swiftToolchain}/bin/swiftc";
-          librarySuffix = if pkgs.stdenv.hostPlatform.isDarwin then "dylib" else "so";
+          swiftCommand = if isDarwin then "/usr/bin/swift" else "${swiftToolchain}/bin/swift";
+          swiftcCommand = if isDarwin then "/usr/bin/swiftc" else "${swiftToolchain}/bin/swiftc";
+          librarySuffix = if isDarwin then "dylib" else "so";
+          # On Darwin the compiler is the host Xcode installation, outside the
+          # store, so its identity never reached the derivation hash. An Xcode
+          # upgrade kept the same store path, the CI closure cache (keyed by
+          # flake.lock) answered with the previous artifact, and the build that
+          # would have shown the Swift 6.4 swiftbuild layout never ran.
+          # BORING_DARWIN_SWIFT_STAMP makes the toolchain an evaluation input:
+          # export the first line of "swift --version" and evaluate with
+          # --impure, as the macos CI job does. The value enters the
+          # derivation environment, so a toolchain change changes $out and the
+          # cache cannot answer for it. Pure evaluation yields the
+          # host-unstamped sentinel: the build still runs, the output records
+          # the observed toolchain, and the devShell reports the difference.
+          #
+          # Replacing the host toolchain with nixpkgs Swift is not an option
+          # here: nixpkgs ships Swift 5.10.1 on Darwin, and a .swiftmodule
+          # built by 5.10 cannot be imported by the Xcode 6.4 compiler that
+          # compiles the generated Swift tree, so the module and its consumers
+          # have to come from one toolchain.
+          swiftToolchainStamp =
+            if !isDarwin then
+              "linux-swift-6.2.4"
+            else
+              let
+                stamp = builtins.getEnv "BORING_DARWIN_SWIFT_STAMP";
+              in
+              if stamp == "" then "host-unstamped" else stamp;
         in
         pkgs.stdenvNoCC.mkDerivation {
           pname = "boring-swift-system";
           version = "1.6.6";
           src = swift-system;
-          nativeBuildInputs = [ pkgs.clang ] ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ ] else [ swiftToolchain ]);
+          nativeBuildInputs = [ pkgs.clang ] ++ (if isDarwin then [ ] else [ swiftToolchain ]);
+          # The toolchain identity, in the derivation hash. See
+          # swiftToolchainStamp for why Darwin needs it.
+          BORING_SWIFT_TOOLCHAIN_STAMP = swiftToolchainStamp;
           dontConfigure = true;
           # SPM builds the Package.swift manifest in its own macOS sandbox, and the
           # Nix build sandbox refuses sandbox_apply ("sandbox-exec:
@@ -126,22 +156,25 @@
             runHook preBuild
             export HOME="$TMPDIR/home"
             mkdir -p "$HOME"
-            ${if pkgs.stdenv.hostPlatform.isDarwin then "unset DEVELOPER_DIR; export CC=/usr/bin/clang; export SDKROOT=$(/usr/bin/xcrun --sdk macosx --show-sdk-path)" else ""}
-            ${swiftCommand} build --package-path . --build-path "$TMPDIR/swift-system-build" --target SystemPackage${if pkgs.stdenv.hostPlatform.isDarwin then " --disable-sandbox" else ""}
+            ${if isDarwin then "unset DEVELOPER_DIR; export CC=/usr/bin/clang; export SDKROOT=$(/usr/bin/xcrun --sdk macosx --show-sdk-path)" else ""}
+            ${swiftCommand} --version > "$TMPDIR/swift-version.txt" 2>&1
+            cat "$TMPDIR/swift-version.txt"
+            # SwiftPM reports the build system this toolchain defaults to.
+            # The install phase accepts both layouts, and this line shows
+            # which one the build produced.
+            ${swiftCommand} build --help 2>&1 | grep -A 1 -- --build-system || true
+            ${swiftCommand} build --package-path . --build-path "$TMPDIR/swift-system-build" --target SystemPackage${if isDarwin then " --disable-sandbox" else ""}
             runHook postBuild
           '';
           installPhase = ''
             runHook preInstall
-            mkdir -p "$out"
-            cp -R Sources/CSystem/include/. "$out/"
-            module=$(find "$TMPDIR/swift-system-build" -name SystemPackage.swiftmodule -print -quit)
-            if [ -z "$module" ]; then
-              echo "swift-system: SystemPackage.swiftmodule was not built" >&2
-              exit 1
-            fi
-            cp "$module" "$out/SystemPackage.swiftmodule"
-            buildDir="$(dirname "$(dirname "$module")")"
-            ${swiftcCommand} -emit-library "$buildDir"/SystemPackage.build/*.o "$buildDir"/CSystem.build/*.o -o "$out/libSystemPackage.${librarySuffix}"
+            OUT="$out" \
+            BUILD_ROOT="$TMPDIR/swift-system-build" \
+            SWIFTC="${swiftcCommand}" \
+            LIBRARY_SUFFIX="${librarySuffix}" \
+            TOOLCHAIN_STAMP="$BORING_SWIFT_TOOLCHAIN_STAMP" \
+            TOOLCHAIN_VERSION_FILE="$TMPDIR/swift-version.txt" \
+            bash ${./tools/nix/swift-system-install.sh}
             runHook postInstall
           '';
         };
@@ -357,6 +390,21 @@
                   export CC=/usr/bin/clang
                   if [ -x /usr/bin/xcrun ]; then
                     export SDKROOT="$(/usr/bin/xcrun --sdk macosx --show-sdk-path)"
+                  fi
+                  # The swift-system derivation is built by the host toolchain
+                  # and carries its stamp in the store path. A shell evaluated
+                  # without the stamp can hold a package from another Xcode;
+                  # name the difference so the stale artifact cannot pass as
+                  # current.
+                  if [ -f "$BORING_SWIFT_SYSTEM_PACKAGE/swift-toolchain.txt" ]; then
+                    recorded_stamp="$(sed -n 's/^stamp=//p' "$BORING_SWIFT_SYSTEM_PACKAGE/swift-toolchain.txt")"
+                    host_stamp="$(/usr/bin/swift --version 2>&1 | head -n 1)"
+                    if [ "$recorded_stamp" != "$host_stamp" ]; then
+                      echo "boring devShell: the Swift system package was built by a different toolchain" >&2
+                      echo "  built by: $recorded_stamp" >&2
+                      echo "  host:     $host_stamp" >&2
+                      echo "  re-enter with BORING_DARWIN_SWIFT_STAMP set to the host value and --impure so the toolchain change reaches the derivation" >&2
+                    fi
                   fi
                 ''
                 else ''export BORING_SWIFT_LIBDISPATCH="${pkgs.swift-corelibs-libdispatch}/lib"''
