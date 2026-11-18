@@ -214,7 +214,17 @@ jobs:
       # bridge with lifetime brackets, C enum spelling) that the rest of the
       # matrix only proves by compiling generated text.
       - name: Swift C interop check (generated Core Text sample compiles and runs)
-        run: nix develop -c bash -c 'bash tests/swift-coretext-check/run.sh'
+        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-coretext-check/run.sh 2>&1 | tee out/swift-coretext-check-ci.log'
+      - name: Upload the Swift C interop log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-c-interop-log
+          if-no-files-found: warn
+          path: |
+            out/swift-coretext-check-ci.log
+            out/swift-coretext-check/run/compile.log
+            out/swift-coretext-check/run/run.log
       - name: Verify the distributed driver
         run: nix develop -c bash -c 'boring verify'
       - name: Check driver plans across targets

@@ -14,30 +14,61 @@ cd "$ROOT"
 OUT=${1:-out/swift-coretext-check/run}
 rm -rf "$OUT"
 mkdir -p "$OUT"
+# The test runs from a work directory under OUT, so every path reused after
+# that cd has to be absolute.
+OUT=$(cd "$OUT" && pwd)
 
+echo "--- haxe: $(haxe --version 2>&1 | head -1)"
+echo "--- swiftc: $(swiftc --version 2>&1 | head -1)"
+echo "--- generating the Core Text sample"
 haxe tests/swift-coretext-check/check.hxml \
   -D swift-output="$OUT/gen" \
   -D swift-test-output="$OUT/gen-tests"
 
-support=$(find "$OUT/gen" "$OUT/gen-tests" -name 'CoreTextMetricsSupport.swift' | head -1)
-echo "--- generated shapes ($support)"
-grep -q '^import CoreText$' "$support"
-grep -q 'String(decoding: name, as: UTF16.self) as CFString' "$support"
-grep -q 'withCString {' "$support"
-grep -q 'withUnsafeBufferPointer {' "$support"
-grep -q 'CTFontUIFontType.system' "$support"
-grep -q 'CFStringBuiltInEncodings.UTF8.rawValue' "$support"
-grep -q 'Int(Int32(units.count))' "$support"
+support=$(find "$OUT/gen" "$OUT/gen-tests" -name 'CoreTextMetricsSupport.swift' | sed -n '1p')
+if [ -z "$support" ]; then
+  echo "--- CoreTextMetricsSupport.swift was not generated" >&2
+  find "$OUT" -type f | head -40 >&2
+  exit 1
+fi
+echo "--- generated import and bridges ($support)"
+head -2 "$support"
+for shape in \
+  '^import CoreText$' \
+  'String(decoding: name, as: UTF16.self) as CFString' \
+  'withCString {' \
+  'withUnsafeBufferPointer {' \
+  'CTFontUIFontType.system' \
+  'CFStringBuiltInEncodings.UTF8.rawValue' \
+  'Int(Int32(units.count))'; do
+  if ! grep -q "$shape" "$support"; then
+    echo "--- missing generated shape: $shape" >&2
+    exit 1
+  fi
+done
 
-# One Swift module: every generated file plus the test tree, exactly as the
-# emitter lays it out.
+sources=()
+while IFS= read -r file; do
+  sources+=("$file")
+done < <(find "$OUT/gen" "$OUT/gen-tests" -name '*.swift' | sort)
+echo "--- swiftc sources (${#sources[@]} files)"
+printf '    %s\n' "${sources[@]}"
 mkdir -p "$OUT/bin"
-swiftc -swift-version 5 -o "$OUT/bin/coretext-check" \
-  $(find "$OUT/gen" "$OUT/gen-tests" -name '*.swift')
+if ! swiftc -swift-version 5 -o "$OUT/bin/coretext-check" "${sources[@]}" >"$OUT/compile.log" 2>&1; then
+  echo "--- swiftc failed; compiler output follows" >&2
+  cat "$OUT/compile.log" >&2
+  exit 1
+fi
+cat "$OUT/compile.log"
 
 mkdir -p "$OUT/work"
 cd "$OUT/work"
-"$OUT/bin/coretext-check"
+if ! "$OUT/bin/coretext-check" >"$OUT/run.log" 2>&1; then
+  echo "--- Core Text test failed; runner output follows" >&2
+  cat "$OUT/run.log" >&2
+  exit 1
+fi
+cat "$OUT/run.log"
 
 metrics="$OUT/work/out/swift-coretext-check/metrics.txt"
 echo "--- measured Core Text metrics"
