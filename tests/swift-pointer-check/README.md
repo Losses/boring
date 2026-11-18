@@ -32,6 +32,19 @@ to drive.
   `MallocScribble=1 MallocGuardEdges=1`) both mistakes exited 0. A missing
   free is a silent leak and a double free is silent undefined behavior, so
   block B cannot rely on a crash and has to detect the pairing statically.
+- Ownership on this SDK: `CGContextRelease` and `CGColorSpaceRelease` are
+  unavailable in Swift (Core Foundation objects are automatically memory
+  managed). Block B's rule must account for ARC-managed CF values and cannot
+  assume every Create/Copy needs an explicit release call.
+
+`@:swiftLabels` (declaration metadata)
+
+- A marked extern static may declare a `|`-separated label list, one entry
+  per argument. An empty entry keeps the argument unlabeled.
+- The call renders the labels in Swift form, which is how a Swift-imported
+  initializer is called: `CGContext(data: pixels, width: 64, ...)`.
+- C functions without labels keep the plain positional form; the metadata is
+  only for the imported shape.
 
 `swift.RawPointer` and `swift.Opaque.takeUnretained<T>` (package `swift`, std-shadow)
 

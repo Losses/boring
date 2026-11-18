@@ -4445,6 +4445,11 @@ class SwiftExpr {
                     if (StaticFunctionMarkers.isExtension(markedField)) {
                         return renderedArgs[0] + "." + nativeName + "(" + renderedArgs.slice(1).join(", ") + ")";
                     }
+                    final labels = SwiftInterop.labelNames(markedField);
+                    if (labels.length == renderedArgs.length) {
+                        final labeled = [for (i in 0...renderedArgs.length) (labels[i].length == 0 ? renderedArgs[i] : labels[i] + ": " + renderedArgs[i])];
+                        return nativeName + "(" + labeled.join(", ") + ")";
+                    }
                     return nativeName + "(" + rendered + ")";
                 }
                 if (module == "std.Console") {

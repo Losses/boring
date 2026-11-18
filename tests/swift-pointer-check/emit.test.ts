@@ -39,6 +39,17 @@ test("A1/A2 emit C pointer, out-parameter and buffer shapes", async () => {
   expect(source).toContain("CTRunGetGlyphs(run, CFRangeMake(Int(0), Int(0)), glyphs)");
   expect(source).toContain("glyphs[Int(0)]");
   expect(source).toContain("glyphs.deinitialize(count: Int(glyphCount)); glyphs.deallocate()");
+  // A3: a C string out buffer, compared as UTF-8 bytes.
+  expect(source).toContain("CFStringGetCString(String(decoding: Array(\"Helvetica\".utf16), as: UTF16.self) as CFString, cbuf");
+  expect(source).toContain("Int32(cbuf[Int(0)])");
+  // A4: a CGRect array written by the C API, then read through fields.
+  expect(source).toContain("UnsafeMutablePointer<CGRect>.allocate(capacity: Int(n))");
+  expect(source).toContain("CTFontGetBoundingRectsForGlyphs(font, CTFontOrientation.horizontal, hglyphs, rects, Int(n))");
+  expect(source).toContain("let w = rect.size.width");
+  // A5: a labeled Swift initializer plus the drawing call.
+  expect(source).toContain("CGContext(data: pixels, width: Int(width), height: Int(height), bitsPerComponent: Int(8), bytesPerRow: Int(width &* 4), space: space, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue))");
+  expect(source).toContain("CTFontDrawGlyphs(font, hglyphs, drawPositions, Int(n), ctx)");
+  expect(source).toContain("pixels[Int(i2)]");
 });
 
 test("A6 rejects an out parameter that is not an addressable local", () => {

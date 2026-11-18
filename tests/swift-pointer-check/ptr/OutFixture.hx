@@ -1,20 +1,26 @@
 package ptr;
 
 import ptr.Types.CFArray;
-import ptr.Types.CGPoint;
+import ptr.Types.CGColorSpace;
+import ptr.Types.CGContext;
 import ptr.Types.CGGlyph;
+import ptr.Types.CGPoint;
+import ptr.Types.CGRect;
+import ptr.Types.CGFloat;
+import ptr.Types.CChar;
 import ptr.Types.CFAttributedString;
 import ptr.Types.CFIndex;
-import ptr.Types.CGFloat;
 import ptr.Types.CTLine;
 import ptr.Types.CTRun;
+import ptr.Types.UInt8;
+import ptr.Types.UniChar;
 import std.Console;
 import swift.Buffer;
 import swift.Opaque;
 import swift.Out;
 import swift.RawPointer;
 
-@:swiftImport("CoreText", "CoreFoundation")
+@:swiftImport("CoreText", "CoreFoundation", "CoreGraphics")
 class OutFixture {
     static function show(value:Float):String {
         return Std.string(value);
@@ -22,6 +28,22 @@ class OutFixture {
 
     static function zeroGlyph():CGGlyph {
         return 0;
+    }
+
+    static function zeroCChar():CChar {
+        return 0;
+    }
+
+    static function zeroUni():UniChar {
+        return 0;
+    }
+
+    static function zeroRect():CGRect {
+        return CoreText.CGRectMake(0.0, 0.0, 0.0, 0.0);
+    }
+
+    static function whiteByte():UInt8 {
+        return 255;
     }
 
     public static function main():Void {
@@ -79,5 +101,82 @@ class OutFixture {
             + " ordered=" + Std.string(lastX >= firstX));
         glyphs.free(glyphCount);
         positions.free(glyphCount);
+
+        // A3: an out buffer written by CFStringGetCString round-trips the
+        // original UTF-8 bytes.
+        final cbuf:Buffer<CChar> = Buffer.alloc(16, zeroCChar());
+        final written = CoreText.CFStringGetCString("Helvetica", cbuf, CoreText.cfIndex(16), CoreText.kCFStringEncodingUTF8);
+        final expectedText = [72, 101, 108, 118, 101, 116, 105, 99, 97];
+        var same = 0;
+        for (i in 0...9) {
+            if (CoreText.charInt(cbuf.get(i)) == expectedText[i]) {
+                same++;
+            }
+        }
+        Console.log("a3 ok=" + Std.string(written) + " same=" + Std.string(same));
+        cbuf.free(16);
+
+        // A4: a const glyph buffer in, a CGRect array out, field reads.
+        final font = CoreText.CTFontCreateWithName("Helvetica", 48.0, null);
+        final n = 5;
+        final expectedHello = [72, 101, 108, 108, 111];
+        final chars:Buffer<UniChar> = Buffer.alloc(n, zeroUni());
+        for (i in 0...n) {
+            chars.set(i, CoreText.unicode(expectedHello[i]));
+        }
+        final hglyphs:Buffer<CGGlyph> = Buffer.alloc(n, zeroGlyph());
+        final mapped = CoreText.CTFontGetGlyphsForCharacters(font, chars, hglyphs, CoreText.cfIndex(n));
+        final rects:Buffer<CGRect> = Buffer.alloc(n, zeroRect());
+        CoreText.CTFontGetBoundingRectsForGlyphs(font, CoreText.kCTFontOrientationHorizontal, hglyphs, rects, CoreText.cfIndex(n));
+        var nonEmpty = 0;
+        var firstW = 0.0;
+        for (i in 0...n) {
+            final rect = rects.get(i);
+            final w = rect.size.width * 1.0;
+            final h = rect.size.height * 1.0;
+            if (i == 0) {
+                firstW = w;
+            }
+            if (w > 0.0 && h > 0.0) {
+                nonEmpty++;
+            }
+        }
+        Console.log("a4 mapped=" + Std.string(mapped) + " nonEmpty=" + Std.string(nonEmpty) + " firstW=" + show(firstW));
+        chars.free(n);
+        rects.free(n);
+
+        // A5: draw the mapped glyphs into a bitmap context and read the
+        // pixels back through the buffer we own.
+        final width = 64;
+        final height = 64;
+        final pixelCount = width * height * 4;
+        final pixels:Buffer<UInt8> = Buffer.alloc(pixelCount, whiteByte());
+        final space:Null<CGColorSpace> = CoreText.CGColorSpaceCreateDeviceRGB();
+        var changed = 0;
+        if (space != null) {
+            final ctx:Null<CGContext> = CoreText.CGContextCreate(
+                pixels,
+                CoreText.nativeInt(width),
+                CoreText.nativeInt(height),
+                CoreText.nativeInt(8),
+                CoreText.nativeInt(width * 4),
+                space,
+                CoreText.kCGBitmapAlphaPremultipliedLast);
+            if (ctx != null) {
+                final drawPositions:Buffer<CGPoint> = Buffer.alloc(n, CoreText.CGPointMake(10.0, 10.0));
+                CoreText.CTFontDrawGlyphs(font, hglyphs, drawPositions, CoreText.nativeInt(n), ctx);
+                for (i in 0...pixelCount) {
+                    if (CoreText.byteInt(pixels.get(i)) != 255) {
+                        changed++;
+                    }
+                }
+                drawPositions.free(n);
+            }
+            // CGContext and CGColorSpace are ARC-managed in Swift; the
+            // explicit Release calls are unavailable.
+        }
+        Console.log("a5 changed=" + Std.string(changed));
+        pixels.free(pixelCount);
+        hglyphs.free(n);
     }
 }

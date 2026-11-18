@@ -51,6 +51,7 @@ class SwiftInterop {
     public static final NATIVE_TYPE_META = ":swiftNativeType";
     public static final BRIDGE_META = ":swiftBridge";
     public static final NAME_META = ":swiftName";
+    public static final LABELS_META = ":swiftLabels";
 
     /** Target support types: out parameters, C buffers, and opaque pointers. */
     public static final OUT_MODULE = "swift.Out";
@@ -217,6 +218,22 @@ class SwiftInterop {
         return out;
     }
 
+    /**
+        The Swift argument labels a marked extern static declares, in
+        declaration order, from a `|`-separated spelling. An empty entry
+        keeps the argument unlabeled.
+    **/
+    public static function labelNames(field:ClassField):Array<String> {
+        final params = stringParams(field.meta, LABELS_META, field.pos);
+        if (params.length == 0) {
+            return [];
+        }
+        if (params.length != 1) {
+            Context.error(LABELS_META + " takes exactly one label list", field.pos);
+        }
+        return params[0].length == 0 ? [] : params[0].split("|");
+    }
+
     /** The Swift spelling a marked extern static declares, or null when it keeps its Haxe name. */
     public static function externalName(field:ClassField):Null<String> {
         final params = stringParams(field.meta, NAME_META, field.pos);
@@ -262,6 +279,16 @@ class SwiftInterop {
                             Context.error(NAME_META + " belongs on a @:topLevel or @:extension extern static", field.pos);
                         }
                         externalName(field);
+                        if (field.meta.has(LABELS_META)) {
+                            final labels = labelNames(field);
+                            final arity = switch (Context.follow(field.type)) {
+                                case TFun(args, _): args.length;
+                                case _: -1;
+                            };
+                            if (arity < 0 || labels.length != arity) {
+                                Context.error(LABELS_META + " must name one label per extern argument", field.pos);
+                            }
+                        }
                     }
                 case TAbstract(ref):
                     final abs = ref.get();
