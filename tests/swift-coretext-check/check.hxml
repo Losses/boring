@@ -1,0 +1,20 @@
+# The permanent Swift C interop check (task t-mwlbw8vp-frrq).
+# Run from the repository root:
+#   haxe tests/swift-coretext-check/check.hxml \
+#     -D swift-output=out/swift-coretext-check/gen \
+#     -D swift-test-output=out/swift-coretext-check/gen-tests
+# Gen only proves the emitted text; run.sh compiles and runs the tree on macOS.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-coretext-check
+--macro Intercept.run(['tests/swift-coretext-check'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+focus.CoreTextMetricsTests

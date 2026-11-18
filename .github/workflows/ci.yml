@@ -1,6 +1,10 @@
 name: CI
 
 on:
+  # A branch can be exercised by hand (`gh workflow run ci.yml --ref <branch>`)
+  # without merging it first; the macOS job below carries the Swift C interop
+  # check, which needs a real SDK.
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -204,6 +208,13 @@ jobs:
         run: nix develop -c bash -c 'bun run check:invariants'
       - name: Compile and test
         run: nix develop -c bash -c 'bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
+      # The permanent Core Text check: the generated Swift sample imports the
+      # real framework, compiles against the macOS SDK, and runs. It covers the
+      # three C interop mechanisms (declaration-scoped import, String -> CFString
+      # bridge with lifetime brackets, C enum spelling) that the rest of the
+      # matrix only proves by compiling generated text.
+      - name: Swift C interop check (generated Core Text sample compiles and runs)
+        run: nix develop -c bash -c 'bash tests/swift-coretext-check/run.sh'
       - name: Verify the distributed driver
         run: nix develop -c bash -c 'boring verify'
       - name: Check driver plans across targets
