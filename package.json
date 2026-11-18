@@ -60,7 +60,9 @@
     "gate": "bash tools/warning-gate/gate.sh",
     "check:roots": "bash tools/roots-guard/check-project-roots.sh",
     "gate:verify": "bun tools/gate-proof/verify-commit.ts",
-    "check:precision": "bun tools/precision-guard/check.ts"
+    "check:precision": "bun tools/precision-guard/check.ts",
+    "attribution": "bun tools/attribution/cli.ts",
+    "test:attribution": "bun test tools/attribution/"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
