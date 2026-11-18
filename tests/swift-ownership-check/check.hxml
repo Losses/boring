@@ -1,0 +1,15 @@
+# Block B ownership check (task t-mwll40b8-l2t0).
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-pointer-check
+-cp tests/swift-ownership-check
+--macro Intercept.run(['tests/swift-ownership-check'])
+--macro swiftcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+-main own.OwnershipFixture

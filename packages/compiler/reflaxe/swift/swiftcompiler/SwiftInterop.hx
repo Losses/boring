@@ -53,6 +53,26 @@ class SwiftInterop {
     public static final NAME_META = ":swiftName";
     public static final LABELS_META = ":swiftLabels";
 
+    /**
+        The C release family is unavailable in Swift: Core Foundation and
+        Core Graphics objects are automatically memory managed. A binding that
+        declares one of these symbols is rejected at generation time.
+    **/
+    /** Swift constants a constant bridge can name, collected from the source scope. */
+    static final declaredSwiftConstants:Map<String, Bool> = [];
+
+    static final ARC_MANAGED_RELEASE:Map<String, Bool> = [
+        "CFRelease" => true,
+        "CFRetain" => true,
+        "CGContextRelease" => true,
+        "CGColorSpaceRelease" => true,
+        "CGPathRelease" => true,
+    ];
+
+    public static function isArcManagedRelease(name:String):Bool {
+        return ARC_MANAGED_RELEASE.exists(name);
+    }
+
     /** Target support types: out parameters, C buffers, and opaque pointers. */
     public static final OUT_MODULE = "swift.Out";
     public static final BUFFER_MODULE = "swift.Buffer";
@@ -172,8 +192,14 @@ class SwiftInterop {
         final source = resolveSource(params[0], abs.pos);
         final scope = params.length >= 3 ? params[2] : null;
         final argument = params.length >= 4 ? params[3] : null;
-        if (!StringTools.contains(params[1], "$0")) {
-            Context.error(BRIDGE_META + " value expression must contain $0 for the converted value", abs.pos);
+        final valueTemplate = params[1];
+        final hasValue = StringTools.contains(valueTemplate, "$0");
+        final isIdentifier = ~/^[A-Za-z_][A-Za-z0-9_]*$/.match(valueTemplate);
+        if (!hasValue && !isIdentifier) {
+            Context.error("value template must reference $0 or be a declared Swift constant", abs.pos);
+        }
+        if (!hasValue && isIdentifier && !declaredSwiftConstants.exists(valueTemplate)) {
+            Context.error("no declaration for Swift constant " + valueTemplate, abs.pos);
         }
         if (scope != null && (!StringTools.contains(scope, "$body") || !StringTools.contains(scope, "$1"))) {
             Context.error(BRIDGE_META + " scope expression must contain $1 (bound value) and $body (enclosing expression)", abs.pos);
@@ -254,6 +280,28 @@ class SwiftInterop {
         belongs to a marked top-level static.
     **/
     public static function validate(mtypes:Array<ModuleType>):Void {
+        // Constants first: a bridge may name one, and the bridge is validated
+        // while the declarations are scanned.
+        declaredSwiftConstants.clear();
+        for (mt in mtypes) {
+            switch (mt) {
+                case TClassDecl(ref):
+                    final cls = ref.get();
+                    if (!PolicyQueries.inSourceScope(cls.pos)) {
+                        continue;
+                    }
+                    for (field in cls.fields.get().concat(cls.statics.get())) {
+                        final spelled = externalName(field);
+                        if (spelled != null) {
+                            declaredSwiftConstants.set(spelled, true);
+                        }
+                        if (cls.isExtern && StaticFunctionMarkers.isMarked(field)) {
+                            declaredSwiftConstants.set(field.name, true);
+                        }
+                    }
+                case _:
+            }
+        }
         for (mt in mtypes) {
             switch (mt) {
                 case TClassDecl(ref):
@@ -278,7 +326,6 @@ class SwiftInterop {
                         if (!cls.isExtern || !StaticFunctionMarkers.isMarked(field)) {
                             Context.error(NAME_META + " belongs on a @:topLevel or @:extension extern static", field.pos);
                         }
-                        externalName(field);
                         if (field.meta.has(LABELS_META)) {
                             final labels = labelNames(field);
                             final arity = switch (Context.follow(field.type)) {

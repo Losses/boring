@@ -242,6 +242,18 @@ jobs:
             out/swift-pointer-check/run/compile.log
             out/swift-pointer-check/run/run.log
             out/swift-pointer-lifetime-ci.log
+      - name: Swift ownership check (ARC-visible CF values and borrow adapters)
+        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-ownership-check/run.sh 2>&1 | tee out/swift-ownership-check-ci.log'
+      - name: Upload the Swift ownership log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-ownership-interop-log
+          if-no-files-found: warn
+          path: |
+            out/swift-ownership-check-ci.log
+            out/swift-ownership-check/run/compile.log
+            out/swift-ownership-check/run/run.log
       - name: Verify the distributed driver
         run: nix develop -c bash -c 'boring verify'
       - name: Check driver plans across targets
