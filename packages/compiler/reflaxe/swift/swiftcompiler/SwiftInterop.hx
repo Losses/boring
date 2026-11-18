@@ -319,19 +319,6 @@ class SwiftInterop {
                         Context.error(BRIDGE_META + " declares a representation conversion and belongs on an abstract that wraps a C boundary", cls.pos);
                     }
                     nativeTypeOfClass(cls);
-                    if (cls.isExtern) {
-                        for (field in cls.fields.get().concat(cls.statics.get())) {
-                            if (!StaticFunctionMarkers.isMarked(field)) {
-                                continue;
-                            }
-                            final emittedMarked = externalName(field);
-                            final emittedMarkedName = emittedMarked == null ? field.name : emittedMarked;
-                            if (isArcManagedRelease(emittedMarkedName)) {
-                                Context.error(emittedMarkedName
-                                    + " is ARC-managed in Swift; remove the retain/release call and hold the class reference", field.pos);
-                            }
-                        }
-                    }
                     for (field in cls.fields.get()) {
                         if (!field.meta.has(NAME_META)) {
                             continue;
