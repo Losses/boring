@@ -237,13 +237,6 @@
       ]
     },
     {
-      "path": "tests/haxe/dart-value-type-representation/gen/dart.hxml",
-      "mode": "compile",
-      "targets": [
-        "dart"
-      ]
-    },
-    {
       "path": "tests/haxe/dc-null-guard-fallthrough/gen/dart.hxml",
       "mode": "compile",
       "targets": [
