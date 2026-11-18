@@ -16,8 +16,11 @@ on:
     - cron: "0 6 * * 1"
 
 concurrency:
+  # Master runs queue instead of cancelling each other, so every merged
+  # commit gets a full verification pass. Branch and pull request runs keep
+  # cancelling the previous run for fast feedback.
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   linux:
