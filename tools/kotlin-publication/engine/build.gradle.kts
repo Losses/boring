@@ -77,9 +77,16 @@ kotlin {
 // in the emitted gen and gen-tests trees. The runtime classpath below carries
 // the Kotlin standard library plus annotations. Check that observation before
 // adding a dependency here.
-val jvmGeneratedTestCompilation = kotlin.targets.getByName("jvm").compilations.create("generatedTest") {
-    defaultSourceSet.dependsOn(kotlin.sourceSets.getByName("commonMain"))
-}
+//
+// The compilation sees the generated production tree through associateWith(jvm
+// main) below: that is the JVM compilation of commonMain, so it carries the
+// generated org.tiqian.* classes AND friend-module (internal) visibility. A
+// defaultSourceSet.dependsOn(commonMain) would be a cross-tree dependency (the
+// generatedTest source set lives in the jvm tree, commonMain in the common
+// tree), which Kotlin rejects with "Invalid Source Set Dependency Across Trees
+// ... 'jvmGeneratedTest' can't depend on 'commonMain'"; it is both invalid and
+// redundant with the associateWith edge, so it must not be added back.
+val jvmGeneratedTestCompilation = kotlin.targets.getByName("jvm").compilations.create("generatedTest")
 jvmGeneratedTestCompilation.associateWith(kotlin.targets.getByName("jvm").compilations.getByName("main"))
 jvmGeneratedTestCompilation.defaultSourceSet.kotlin.setSrcDirs(listOf(genTestsDir))
 

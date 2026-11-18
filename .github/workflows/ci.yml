@@ -1034,10 +1034,20 @@ jobs:
           exit "$compile_rc"
           CONSUMER_COMPILE
           chmod +x "$RUNNER_TEMP/consumer-compile.sh"
+      # Gradle refuses to configure a build when ANDROID_HOME and ANDROID_SDK_ROOT
+      # point at different SDKs: "Several environment variables and/or system
+      # properties contain different paths to the SDK". The tiqian devShell sets
+      # ANDROID_HOME to the pinned nix android-sdk (platform android-36), while
+      # GitHub's ubuntu runner exports ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+      # for the same purpose. Keep the devShell's ANDROID_HOME - it is the SDK the
+      # flake pins and every tiqian Android lane compiles against, so the exact
+      # toolchain cannot drift with the runner image - and drop the runner's
+      # ANDROID_SDK_ROOT (the deprecated of the two variables) before the shell
+      # starts.
       - name: Generate and compile every consumer bundle
         working-directory: tiqian
         run: |
           set -euo pipefail
           test -f "$RUNNER_TEMP/consumer-compile.sh"
-          nix develop --override-input boring "path:$GITHUB_WORKSPACE" -c bash "$RUNNER_TEMP/consumer-compile.sh"
+          env -u ANDROID_SDK_ROOT nix develop --override-input boring "path:$GITHUB_WORKSPACE" -c bash "$RUNNER_TEMP/consumer-compile.sh"
 
