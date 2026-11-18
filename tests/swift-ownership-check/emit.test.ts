@@ -60,3 +60,44 @@ test("B2 refuses takeRetainedValue by default", () => {
   expect(result.code, "the retained negative must fail generation").not.toBe(0);
   expect(text).toContain("takeRetainedValue is refused by default");
 });
+test("C builds CF containers from the constant bridge", async () => {
+  const generate = run([
+    "haxe", "tests/swift-ownership-check/check-c.hxml",
+    "-D", `swift-output=${out}/c-gen`,
+    "-D", `swift-test-output=${out}/c-tests`,
+  ]);
+  expect(generate.code, generate.stderr || generate.stdout).toBe(0);
+
+  const sources = (await Array.fromAsync(new Bun.Glob("**/*.swift").scan({ cwd: `${out}/c-gen` }))).sort();
+  const all = (await Promise.all(sources.map((path) => Bun.file(`${out}/c-gen/${path}`).text()))).join("\n");
+  for (const banned of ["CFRelease", "CFRetain", "CGContextRelease", "CGColorSpaceRelease", "CGPathRelease"])
+    expect(all, `generated tree must not call ${banned}`).not.toContain(banned);
+  expect(all).toContain("withUnsafePointer(to: kCFTypeDictionaryKeyCallBacks)");
+  expect(all).toContain("withUnsafePointer(to: kCFTypeDictionaryValueCallBacks)");
+  expect(all).toContain("withUnsafePointer(to: kCFTypeArrayCallBacks)");
+  expect(all).toContain("CFDictionaryCreate(");
+  expect(all).toContain("CFArrayCreate(");
+  expect(all).toContain("CFNumberCreate(");
+});
+
+test("a bridge value template with arbitrary code is rejected", () => {
+  const result = run([
+    "haxe", "tests/swift-ownership-check/check-bridge-code-negative.hxml",
+    "-D", `swift-output=${out}/bridge-code`,
+    "-D", `swift-test-output=${out}/bridge-code-tests`,
+  ]);
+  const text = result.stderr + result.stdout;
+  expect(result.code, "the arbitrary-code bridge must fail generation").not.toBe(0);
+  expect(text).toContain("value template must reference $0 or be a declared Swift constant");
+});
+
+test("a misspelled Swift constant is rejected at generation time", () => {
+  const result = run([
+    "haxe", "tests/swift-ownership-check/check-bridge-name-negative.hxml",
+    "-D", `swift-output=${out}/bridge-name`,
+    "-D", `swift-test-output=${out}/bridge-name-tests`,
+  ]);
+  const text = result.stderr + result.stdout;
+  expect(result.code, "the misspelled constant must fail generation").not.toBe(0);
+  expect(text).toContain("no declaration for Swift constant kCFTypeArrayCallBackz");
+});

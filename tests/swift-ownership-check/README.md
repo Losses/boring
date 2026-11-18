@@ -43,6 +43,38 @@ ownership transfer needs a proof, and the tree currently has none.
 retain/release call is written. The empty release family in the generated tree
 is the observable part.
 
+## C: CF container construction
+
+The kCFType callbacks are Swift `let` constants, so they cannot be passed by
+`&`. The callbacks enter an existing bridge scope instead:
+
+    @:swiftNativeType("UnsafePointer<CFDictionaryKeyCallBacks>")
+    @:swiftBridge("Int", "kCFTypeDictionaryKeyCallBacks",
+        "withUnsafePointer(to: $0) { $1 in $body }", "$1")
+
+The value template is either a `$0` expression or a bare Swift identifier.
+A bare identifier must name a declaration in the compilation unit: an extern
+constant or a `@:swiftName` constant. This is an explicit constant-bridge
+category; the validation stays strict. Two generation-time negatives pin it:
+
+- a template with arbitrary code fails with
+  `value template must reference $0 or be a declared Swift constant`;
+- a misspelled bare identifier fails with
+  `no declaration for Swift constant <name>`.
+
+The retaining constructors (`CFDictionaryCreateRetaining`,
+`CFArrayCreateRetaining`) name the C functions and wrap them in
+`withUnsafePointer(to: kCFType...CallBacks)`, so the container retains its
+keys and values. The constants are declared in `own/CF.hx`. No emitter node
+or type is added: the callback scope is the existing bridge form.
+
+Four execution fixtures cover the real binding path:
+
+    c1 family=true     # family attributes -> descriptor -> CTFontCopyFamilyName equals Helvetica
+    c2 font=true       # CFNumber weight + traits dictionary -> descriptor -> font
+    c3 font=true       # OpenType feature dictionary -> settings array -> descriptor -> font
+    c4 count=2 order=true  # CFArray of two CFStrings keeps its order
+
 ## Run it
 
 On macOS with the repository devShell and Xcode command line tools:
