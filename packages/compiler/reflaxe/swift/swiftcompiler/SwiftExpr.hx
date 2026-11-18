@@ -4347,7 +4347,16 @@ class SwiftExpr {
                     "({ () -> " + pointerType + " in let p = " + pointerType + ".allocate(capacity: " + count
                         + "); p.initialize(repeating: " + expr(args[1]) + ", count: " + count + "); return p })()";
                 } else if (cls.module == SwiftInterop.OPAQUE_MODULE && name == "takeUnretained") {
-                    "Unmanaged<" + types.of(e.t) + ">.fromOpaque(" + expr(args[0]) + "!).takeUnretainedValue()";
+                    final pointer = expr(args[0]);
+                    final unwrap = StringTools.endsWith(types.of(args[0].t), "?") && !isIfLetShadowed(stripWrap(args[0])) ? "!" : "";
+                    final managed = types.of(DefaultArgExpander.withoutNull(e.t));
+                    "Unmanaged<" + managed + ">.fromOpaque(" + pointer + unwrap + ").takeUnretainedValue()";
+                } else if (cls.module == SwiftInterop.OPAQUE_MODULE && name == "passUnretained") {
+                    final unwrap = StringTools.endsWith(types.of(args[0].t), "?") && !isIfLetShadowed(stripWrap(args[0])) ? "!" : "";
+                    "UnsafeRawPointer(Unmanaged.passUnretained(" + expr(args[0]) + unwrap + ").toOpaque())";
+                } else if (cls.module == SwiftInterop.OPAQUE_MODULE && name == "takeRetained") {
+                    Context.error("takeRetainedValue is refused by default: prove the ownership transfer before using it", e.pos);
+                    null;
                 } else {
                     null;
                 }
@@ -4442,6 +4451,10 @@ class SwiftExpr {
                 final markedField = findStaticField(cls, fName);
                 if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
                     final nativeName = staticRef(cls, fName);
+                    if (SwiftInterop.isArcManagedRelease(nativeName)) {
+                        Context.error(nativeName
+                            + " is ARC-managed in Swift; remove the retain/release call and hold the class reference", fn.pos);
+                    }
                     if (StaticFunctionMarkers.isExtension(markedField)) {
                         return renderedArgs[0] + "." + nativeName + "(" + renderedArgs.slice(1).join(", ") + ")";
                     }

@@ -53,6 +53,23 @@ class SwiftInterop {
     public static final NAME_META = ":swiftName";
     public static final LABELS_META = ":swiftLabels";
 
+    /**
+        The C release family is unavailable in Swift: Core Foundation and
+        Core Graphics objects are automatically memory managed. A binding that
+        declares one of these symbols is rejected at generation time.
+    **/
+    static final ARC_MANAGED_RELEASE:Map<String, Bool> = [
+        "CFRelease" => true,
+        "CFRetain" => true,
+        "CGContextRelease" => true,
+        "CGColorSpaceRelease" => true,
+        "CGPathRelease" => true,
+    ];
+
+    public static function isArcManagedRelease(name:String):Bool {
+        return ARC_MANAGED_RELEASE.exists(name);
+    }
+
     /** Target support types: out parameters, C buffers, and opaque pointers. */
     public static final OUT_MODULE = "swift.Out";
     public static final BUFFER_MODULE = "swift.Buffer";
@@ -271,6 +288,19 @@ class SwiftInterop {
                         Context.error(BRIDGE_META + " declares a representation conversion and belongs on an abstract that wraps a C boundary", cls.pos);
                     }
                     nativeTypeOfClass(cls);
+                    if (cls.isExtern) {
+                        for (field in cls.fields.get()) {
+                            if (!StaticFunctionMarkers.isMarked(field)) {
+                                continue;
+                            }
+                            final emittedMarked = externalName(field);
+                            final emittedMarkedName = emittedMarked == null ? field.name : emittedMarked;
+                            if (isArcManagedRelease(emittedMarkedName)) {
+                                Context.error(emittedMarkedName
+                                    + " is ARC-managed in Swift; remove the retain/release call and hold the class reference", field.pos);
+                            }
+                        }
+                    }
                     for (field in cls.fields.get()) {
                         if (!field.meta.has(NAME_META)) {
                             continue;
@@ -278,7 +308,12 @@ class SwiftInterop {
                         if (!cls.isExtern || !StaticFunctionMarkers.isMarked(field)) {
                             Context.error(NAME_META + " belongs on a @:topLevel or @:extension extern static", field.pos);
                         }
-                        externalName(field);
+                        final emitted = externalName(field);
+                        final emittedName = emitted == null ? field.name : emitted;
+                        if (isArcManagedRelease(emittedName)) {
+                            Context.error(emittedName
+                                + " is ARC-managed in Swift; remove the retain/release call and hold the class reference", field.pos);
+                        }
                         if (field.meta.has(LABELS_META)) {
                             final labels = labelNames(field);
                             final arity = switch (Context.follow(field.type)) {
