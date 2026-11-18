@@ -54,6 +54,19 @@ to drive.
 - Lifetime: the pointer is borrowed. The call performs no retain, so the
   owning C object must outlive the use.
 
+## Which declaration when
+
+| C shape at the call site | declaration | ownership |
+|---|---|---|
+| `T*` out parameter, caller reads the result | `swift.Out<T>` | the wrapper is a plain class; it holds no C ownership |
+| contiguous `T*` buffer (read, write, or both) | `swift.Buffer<T>` | allocated for the call; `free(count)` once |
+| `void*` or opaque pointer to a class object | `swift.RawPointer` + `swift.Opaque.takeUnretained<T>` | borrowed; the owner must outlive the use |
+| Swift-imported call that needs argument labels | `@:swiftLabels(...)` | none; the metadata only sets the call spelling |
+| platform scalar or struct spelling | `@:swiftNativeType(...)` | none; the type is rendered with that Swift name |
+| value returned by Create/Copy as a class reference | a typed extern class | ARC-managed; no release call |
+
+The four do not overlap: `Out` owns no storage, `Buffer` owns raw memory, `RawPointer` borrows an address, and `swiftLabels` only changes how the call is written. A labeled initializer can still take a `Buffer` or an `Out` argument.
+
 ## Run it
 
 On macOS with the repository devShell and Xcode command line tools:
