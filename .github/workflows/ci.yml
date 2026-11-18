@@ -227,6 +227,10 @@ jobs:
             out/swift-coretext-check/run/run.log
       - name: Swift pointer interop check (out params, T** and C buffers)
         run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/run.sh 2>&1 | tee out/swift-pointer-check-ci.log'
+      # Expected to exit 0 even on a double free (the runtime is silent); the
+      # log is the record block B's ownership rule is based on.
+      - name: Record the Swift pointer lifetime probe
+        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/lifetime.sh 2>&1 | tee out/swift-pointer-lifetime-ci.log || echo "lifetime probe recorded a non-zero exit"'
       - name: Upload the Swift pointer interop log on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -237,6 +241,7 @@ jobs:
             out/swift-pointer-check-ci.log
             out/swift-pointer-check/run/compile.log
             out/swift-pointer-check/run/run.log
+            out/swift-pointer-lifetime-ci.log
       - name: Verify the distributed driver
         run: nix develop -c bash -c 'boring verify'
       - name: Check driver plans across targets

@@ -1,0 +1,15 @@
+# The Buffer<T> lifetime probe: missing free and double free, recorded rather
+# than gated because a double free is expected to die.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-pointer-check
+--macro Intercept.run(['tests/swift-pointer-check'])
+--macro swiftcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+-main ptr.BufferLifetime
