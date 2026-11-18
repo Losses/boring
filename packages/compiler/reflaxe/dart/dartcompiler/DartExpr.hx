@@ -1750,7 +1750,7 @@ class DartExpr {
         (argument, return, initializer, assignment): a cast out of a marked
         wrapper to its representation reads the stored field there.
         Operator operands keep the wrapper and render through
-        valueTypeOperand; this rule lists the positions that unbox.
+        valueTypeOperand, so this rule lists the positions that unbox.
         (ValueTypeCastUnboxAtPosition)
     **/
     function representationText(e:TypedExpr):String {

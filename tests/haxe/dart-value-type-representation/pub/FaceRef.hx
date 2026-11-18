@@ -3,7 +3,7 @@ package pub;
 /**
 	Marked value type whose `value` accessor is inline: Haxe inlines
 	`id.value` into the representation, so a read in a representation
-	position names the extension type's representation field.
+	position must name the extension type's representation field.
 **/
 @:valueType
 abstract FaceRef(String) {
