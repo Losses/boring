@@ -68,7 +68,13 @@ class SwiftType {
         return switch (t) {
             case TAbstract(a, params):
                 final abs = a.get();
-                if (ValueTypeSupport.isMarkedAbstract(abs)) {
+                // A native-type abstract wraps a Haxe representation for a C
+                // boundary (C interop): Haxe sees the underlying value while
+                // the emitted Swift names the platform type.
+                final native = SwiftInterop.nativeTypeName(abs);
+                if (native != null) {
+                    native;
+                } else if (ValueTypeSupport.isMarkedAbstract(abs)) {
                     abs.name;
                 } else switch (pathOf(abs.pack, abs.name)) {
                     case "Int": "Int32";
@@ -182,6 +188,10 @@ class SwiftType {
                     if (params[i].name == abs.name) {
                         return of(args[i]);
                     }
+                }
+                final native = SwiftInterop.nativeTypeName(abs);
+                if (native != null) {
+                    return native;
                 }
                 switch (pathOf(abs.pack, abs.name)) {
                     case "Int": "Int32";

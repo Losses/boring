@@ -116,6 +116,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function preScan(mtypes:Array<ModuleType>):Void {
+        SwiftInterop.validate(mtypes);
         SwiftFallibility.collect(mtypes);
         CompilationUnits.registerFromModuleTypes(mtypes, false);
         SwiftInoutParams.collect(mtypes);
@@ -215,6 +216,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
             testModules.set(classType.module, true);
             final decl = contextFor(classType.module);
+            // Test classes lower here; classDecl never runs for them, so their
+            // declaration-scoped platform imports are collected here.
+            decl.collectInteropImports(classType);
             final body:Array<String> = [];
 
             for (f in sortedFuncs) {
@@ -498,6 +502,13 @@ class Compiler extends PluginCompiler<Compiler> {
         final testImport = Context.definedValue("swift-test-import");
         if (CompilationUnits.isTestModule(module) && testImport != null) {
             header.push("import " + testImport);
+        }
+        // Declaration-scoped framework imports (C interop). The target emits
+        // one Swift module, so an ordinary cross-module reference needs no
+        // header line; a platform framework does, and only the file whose
+        // declarations asked for it carries the line.
+        for (name in decl.importedModuleNames()) {
+            header.push("import " + name);
         }
         if (decl.usesFoundation()) {
             header.push("import Foundation");

@@ -43,6 +43,13 @@ class SwiftDecl {
         this.expr = new SwiftExpr(imports, types);
     }
 
+    /** Records the platform modules this declaration's generated file imports. */
+    public function collectInteropImports(cls:ClassType):Void {
+        for (name in SwiftInterop.moduleImports(cls)) {
+            imports.importModule(name);
+        }
+    }
+
     /** Whether this module references any runtime-package symbol. */
     public function usesRuntime():Bool {
         return imports.usesRuntime();
@@ -66,6 +73,11 @@ class SwiftDecl {
     /** Host-edge helper keys this module references (stdlib/17). */
     public function hostEdgeKeys():Array<String> {
         return imports.hostEdgeNames();
+    }
+
+    /** Platform modules this generated file imports (C interop). */
+    public function importedModuleNames():Array<String> {
+        return imports.importedModuleNames();
     }
 
     public function topLevelStatements(e:TypedExpr):String {
@@ -110,6 +122,7 @@ class SwiftDecl {
     }
 
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        collectInteropImports(cls);
         if (cls.isInterface) {
             // An interface lowers to a protocol; the implementing class
             // names it in its conformance clause.
@@ -299,6 +312,7 @@ class SwiftDecl {
 
     /** Emits a marked abstract as a value-semantic Swift struct. */
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        collectInteropImports(cls);
         final abs = info.abstractType;
         final ctor = ValueTypeSupport.constructorField(abs);
         final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
@@ -719,7 +733,12 @@ class SwiftDecl {
         }
         // @:allow members use Swift public visibility so allowed cross-module references compile.
         final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
-        return vis + "let " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " = " + constValFloatInit(init, field.type);
+        // A C enum member spelled differently from its C name renders its
+        // declared Swift spelling here too, so the declaration and every
+        // reference agree.
+        final external = SwiftInterop.externalName(field);
+        final name = external == null ? SwiftNameEscape.escape(field.name) : external;
+        return vis + "let " + name + ": " + types.of(field.type) + " = " + constValFloatInit(init, field.type);
     }
 
     function varDecl(cls:ClassType, module:String, v:ClassVarData):Array<String> {
@@ -1030,7 +1049,9 @@ class SwiftDecl {
         final vis = grantedVis(f.field.isPublic, f.field.meta, cls, f.field.type);
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
         final methodIndent = isExtension ? "    " : "";
-        final head = methodIndent + vis + "func " + SwiftNameEscape.escape(f.field.name) + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret
+        final external = SwiftInterop.externalName(f.field);
+        final renderedName = external == null ? SwiftNameEscape.escape(f.field.name) : external;
+        final head = methodIndent + vis + "func " + renderedName + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret
             + " {";
         if (isExtension && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, "self");

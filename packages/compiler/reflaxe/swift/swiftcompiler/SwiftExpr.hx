@@ -210,6 +210,18 @@ class SwiftExpr {
     var inoutTempCounter:Int = 0;
 
     /**
+        Lifetime brackets collected while the current call renders. A bridged
+        C argument whose conversion needs a scope (a C string or a buffer
+        pointer) renders as the bound name inside the call; the whole call text
+        is wrapped once the argument list is complete, because the bracket has
+        to enclose the call that consumes the pointer.
+    **/
+    var scopedBridges:Array<{value:String, scope:String, bound:String}> = [];
+
+    /** Fresh names for the values a lifetime bracket binds. */
+    var scopedBridgeCounter:Int = 0;
+
+    /**
         Locals initialized from a SortedMap/SortedSet builder's `get`:
         Haxe treats the retrieved value as a reference into the builder, so a
         later mutation of the local must be written back to the builder.
@@ -3564,7 +3576,10 @@ class SwiftExpr {
             if (markedField.isPublic) {
                 imports.value(cls.module, name);
             }
-            return SwiftNameEscape.escape(name);
+            // A C enum member or an initializer-shaped seam may need a Swift
+            // spelling the C name cannot express; the declaration carries it.
+            final external = SwiftInterop.externalName(markedField);
+            return external != null ? external : SwiftNameEscape.escape(name);
         }
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         final module = cls.module != "" ? cls.module : path;
@@ -3782,6 +3797,30 @@ class SwiftExpr {
                         { type: pt, admitsAbsence: !demandsValue, role: Argument(""), errorSlot: null });
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                final bridge = SwiftInterop.bridgeOf(pt);
+                if (bridge != null
+                    && types.of(DefaultArgExpander.withoutNull(pt)) == bridge.native
+                    && types.of(DefaultArgExpander.withoutNull(a.t)) != bridge.native
+                    && Context.unify(DefaultArgExpander.withoutNull(a.t), bridge.source)) {
+                    // The value template converts the argument; a bridged
+                    // argument that may be absent would need a nil-conditional
+                    // conversion, which the bridge declaration cannot express,
+                    // so the source has to bind it first.
+                    if (swiftPresence(a) != Present) {
+                        Context.error("a bridged C argument must be provably present; bind it to a local first", a.pos);
+                    }
+                    final valueText = SwiftInterop.applyValue(bridge, t);
+                    final scopeText = bridge.scope;
+                    if (scopeText == null) {
+                        t = valueText;
+                    } else {
+                        scopedBridgeCounter += 1;
+                        final bound = "swiftBridge" + scopedBridgeCounter;
+                        reserveName(bound);
+                        scopedBridges.push({value: valueText, scope: scopeText, bound: bound});
+                        t = SwiftInterop.applyArgument(bridge, bound);
+                    }
+                }
                 t;
             }
         ];
@@ -4231,23 +4270,45 @@ class SwiftExpr {
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
         final savedTemps = inoutTemps;
         inoutTemps = [];
+        final savedBridges = scopedBridges;
+        scopedBridges = [];
         final text = callText(fn, args);
+        final bridges = scopedBridges;
+        scopedBridges = savedBridges;
         final temps = inoutTemps;
         inoutTemps = savedTemps;
+        var emitted = text;
+        if (bridges.length > 0) {
+            // The bracket's closure is non-throwing (withCString /
+            // withUnsafeBufferPointer are rethrowing only for a throwing
+            // body); a throwing call would need a try marker inside the
+            // bracket and a second one outside, which no current lowering
+            // composes, so refuse it: an emitted call that cannot compile is worse.
+            // compile.
+            if (containsThrowingCall({expr: TCall(fn, args), pos: fn.pos, t: fn.t})) {
+                Context.error("a C lifetime bracket cannot enclose a throwing call; split the call", fn.pos);
+            }
+            var i = bridges.length;
+            while (i > 0) {
+                i -= 1;
+                final bridge = bridges[i];
+                emitted = SwiftInterop.wrapScope(bridge.scope, bridge.value, bridge.bound, emitted);
+            }
+        }
         if (temps.length == 0)
-            return text;
+            return emitted;
         final decls = temps.join("; ");
         if (!containsThrowingCall({expr: TCall(fn, args), pos: fn.pos, t: fn.t}))
-            return "{ " + decls + "; return " + text + " }()";
+            return "{ " + decls + "; return " + emitted + " }()";
         // A throwing call inside the closure needs its own try marker there
         // (an enclosing statement's marker does not reach into the closure
-        // body), and the closure invocation is itself a throwing call, so
-        // it declares its return type and carries try at the call.
+        // body), and the closure invocation is itself a throwing call, so it
+        // declares its return type and carries try at the call.
         final ret = switch (Context.follow(fn.t)) {
             case TFun(_, r): isVoidReturnType(r) ? "Void" : types.of(r);
             case _: "Void";
         };
-        return "try { () throws -> " + ret + " in " + decls + "; return try " + text + " }()";
+        return "try { () throws -> " + ret + " in " + decls + "; return try " + emitted + " }()";
     }
 
     function callText(fn:TypedExpr, args:Array<TypedExpr>):String {

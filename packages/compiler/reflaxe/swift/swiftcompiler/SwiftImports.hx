@@ -22,6 +22,9 @@ class SwiftImports {
     /** Host-edge helpers this module references (stdlib/17). */
     final hostEdges:Map<String, Bool> = [];
 
+    /** Platform framework modules this generated file imports (C interop). */
+    final modules:Map<String, Bool> = [];
+
     /** Modules whose declarations are synthesized as target support. */
     static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
         "std.UStringException" => true,
@@ -69,6 +72,25 @@ class SwiftImports {
 
     public function usesSystemPackage():Bool {
         return needsSystemPackage;
+    }
+
+    /**
+        Records a platform module the generated file imports. C interop
+        declares its framework per source declaration (swiftImport), so the
+        header carries exactly the modules the file's own declarations ask
+        for; the whole-tree import table stays untouched.
+    **/
+    public function importModule(name:String):Void {
+        modules.set(name, true);
+    }
+
+    /** The platform modules this file imports, sorted for stable output. */
+    public function importedModuleNames():Array<String> {
+        final out = [];
+        for (name in modules.keys())
+            out.push(name);
+        out.sort(Reflect.compare);
+        return out;
     }
 
     /** Records a reference to one stdlib/17 host-edge helper. */
