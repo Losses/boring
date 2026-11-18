@@ -9,6 +9,11 @@ on:
     branches:
       - master
   pull_request:
+  # The weekly run repeats the macOS job without the restored closure cache,
+  # so the swift-system derivation is built by the runner's Xcode toolchain
+  # and an older closure cannot answer for it.
+  schedule:
+    - cron: "0 6 * * 1"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -16,6 +21,7 @@ concurrency:
 
 jobs:
   linux:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -35,6 +41,13 @@ jobs:
       - name: Import nix closure
         if: hashFiles('nix-closure.nar') != ''
         run: sudo nix-store --import < nix-closure.nar || true
+      # The swift-system install phase accepts both SwiftPM layouts: the
+      # native <Target>.build directories and the swiftbuild out/Products
+      # directories that Swift 6.4 made the default. The fixture test compiles
+      # real object files in both, and checks that an object list the install
+      # phase cannot fill stops with its own diagnostic.
+      - name: Swift system install layout check
+        run: nix develop -c bash -c 'bash tools/nix/test-swift-system-install.sh'
       # Roots guard (tools/roots-guard/, hardened at 8b32f8a0): the base and
       # f32 bundles of each guarded target (kotlin/rust/swift) must declare
       # the same root-module set, every root must resolve on the classpath its
@@ -170,25 +183,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      # The Xcode toolchain is the swift-system compiler on Darwin, and it
+      # lives outside the Nix store: BORING_DARWIN_SWIFT_STAMP carries its
+      # identity into the derivation, so every nix call below runs with
+      # --impure and the closure cache key includes the value.
+      - name: Swift toolchain stamp
+        id: swift
+        run: |
+          swift --version
+          echo '--- default build system ---'
+          swift build --help | grep -A 1 -- --build-system || true
+          stamp="$(swift --version 2>&1 | head -n 1)"
+          echo "BORING_DARWIN_SWIFT_STAMP=$stamp" >> "$GITHUB_ENV"
+          slug="$(printf '%s' "$stamp" | tr -c 'A-Za-z0-9._-' '-')"
+          echo "stamp=$slug" >> "$GITHUB_OUTPUT"
       - name: Restore nix closure
+        # The scheduled run skips the restored closure, so the derivation is
+        # built by the runner's Xcode even when an earlier closure would
+        # satisfy flake.lock.
+        if: github.event_name != 'schedule'
         uses: actions/cache@v4
         with:
           path: nix-closure.nar
-          key: nix-closure-macos-${{ hashFiles('flake.lock') }}
+          key: nix-closure-macos-${{ hashFiles('flake.lock') }}-${{ steps.swift.outputs.stamp }}
           restore-keys: nix-closure-macos-
       - name: Import nix closure
         if: hashFiles('nix-closure.nar') != ''
         run: sudo nix-store --import < nix-closure.nar || true
-      - name: Swift toolchain version
-        run: swift --version
+      # Keep the derivation log in the job: it prints the toolchain version,
+      # the build system this SwiftPM defaults to, and the layout the install
+      # phase selected.
+      - name: Build the Swift system package
+        run: nix build --impure --print-build-logs --no-link .#packages.aarch64-darwin.swift-system
+      # Same layout check as the linux job.
+      - name: Swift system install layout check
+        run: nix develop --impure -c bash -c 'bash tools/nix/test-swift-system-install.sh'
       # Same guard as the linux job (see the comment there): static
       # root-set parity check, fail-fast before the generation chain.
       - name: Roots guard (base/f32 root-set parity)
-        run: nix develop -c bash -c 'bun run check:roots'
+        run: nix develop --impure -c bash -c 'bun run check:roots'
       # Same gate-guard as the linux job (see the comment there): static
       # script-target existence check, fail-fast before the generation chain.
       - name: Script-target existence check
-        run: nix develop -c bash -c 'bun tools/check-script-targets.ts'
+        run: nix develop --impure -c bash -c 'bun tools/check-script-targets.ts'
       # Documentation style, as its own step before the generation chain.
       # 74c2c790 made the git pre-commit hook zero-tolerance, but delivery runs
       # through jj and jj has no hooks, so the local gate never fired; the CI
@@ -199,22 +236,22 @@ jobs:
       # is static (bun plus git ls-files, no node_modules and no generation),
       # so it fails fast and no later step can skip it.
       - name: Documentation style check (independent of the generation chain)
-        run: nix develop -c bash -c 'bun run check:docs'
+        run: nix develop --impure -c bash -c 'bun run check:docs'
       - name: Generate all targets
         # Echo the toolchain variables the darwin shellHook pins so the
         # log shows what SwiftPM actually saw if the manifest build fails.
-        run: nix develop -c bash -c 'echo "SDKROOT=$SDKROOT CC=$CC DEVELOPER_DIR=$DEVELOPER_DIR" && bun install && bun run gen:all'
+        run: nix develop --impure -c bash -c 'echo "SDKROOT=$SDKROOT CC=$CC DEVELOPER_DIR=$DEVELOPER_DIR" && bun install && bun run gen:all'
       - name: Emit invariants
-        run: nix develop -c bash -c 'bun run check:invariants'
+        run: nix develop --impure -c bash -c 'bun run check:invariants'
       - name: Compile and test
-        run: nix develop -c bash -c 'bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
+        run: nix develop --impure -c bash -c 'bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
       # The permanent Core Text check: the generated Swift sample imports the
       # real framework, compiles against the macOS SDK, and runs. It covers the
       # three C interop mechanisms (declaration-scoped import, String -> CFString
       # bridge with lifetime brackets, C enum spelling) that the rest of the
       # matrix only proves by compiling generated text.
       - name: Swift C interop check (generated Core Text sample compiles and runs)
-        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-coretext-check/run.sh 2>&1 | tee out/swift-coretext-check-ci.log'
+        run: nix develop --impure -c bash -c 'set -o pipefail; bash tests/swift-coretext-check/run.sh 2>&1 | tee out/swift-coretext-check-ci.log'
       - name: Upload the Swift C interop log on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -226,11 +263,11 @@ jobs:
             out/swift-coretext-check/run/compile.log
             out/swift-coretext-check/run/run.log
       - name: Swift pointer interop check (out params, T** and C buffers)
-        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/run.sh 2>&1 | tee out/swift-pointer-check-ci.log'
+        run: nix develop --impure -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/run.sh 2>&1 | tee out/swift-pointer-check-ci.log'
       # Expected to exit 0 even on a double free (the runtime is silent); the
       # log is the record block B's ownership rule is based on.
       - name: Record the Swift pointer lifetime probe
-        run: nix develop -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/lifetime.sh 2>&1 | tee out/swift-pointer-lifetime-ci.log || echo "lifetime probe recorded a non-zero exit"'
+        run: nix develop --impure -c bash -c 'set -o pipefail; bash tests/swift-pointer-check/lifetime.sh 2>&1 | tee out/swift-pointer-lifetime-ci.log || echo "lifetime probe recorded a non-zero exit"'
       - name: Upload the Swift pointer interop log on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -255,11 +292,11 @@ jobs:
             out/swift-ownership-check/run/compile.log
             out/swift-ownership-check/run/run.log
       - name: Verify the distributed driver
-        run: nix develop -c bash -c 'boring verify'
+        run: nix develop --impure -c bash -c 'boring verify'
       - name: Check driver plans across targets
-        run: nix develop -c bash -c 'bun run test:driver:cross-target'
+        run: nix develop --impure -c bash -c 'bun run test:driver:cross-target'
       - name: Check delivered driver commands across targets
-        run: nix develop -c bash -c 'bun run test:driver:cli-cross-target'
+        run: nix develop --impure -c bash -c 'bun run test:driver:cli-cross-target'
       # BoringSwiftTests reports failed tests through its exit code while
       # the jsonl redirect hides the details, so dump the nonpassing
       # records the same way the windows job does.
@@ -271,9 +308,10 @@ jobs:
           grep -v '"verdict":"pass"' out/test-results/swift.jsonl 2>/dev/null | tail -40 || echo '(all records pass)'
       - name: Export nix closure
         if: always()
-        run: nix-store --export $(nix-store -qR $(nix build .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
+        run: nix-store --export $(nix-store -qR $(nix build --impure .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
 
   windows:
+    if: github.event_name != 'schedule'
     runs-on: windows-latest
     timeout-minutes: 120
     defaults:
@@ -453,6 +491,7 @@ jobs:
   # (see "Generate the trees the collected suite reads").
   collected-suite:
     name: collected suite (bun run test)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -883,6 +922,7 @@ jobs:
   # Bump it in its own commit when the consumer expects a newer driver API.
   consumer-compile:
     name: consumer compile (tiqian, every bundle)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     # 13 bundles: generation plus one target compiler invocation per bundle,
     # including cargo build --release and a KMP publication. tiqian's own
