@@ -261,6 +261,20 @@ export function createGhCiBackend(options: CiProbeOptions): CiBackend {
   }
 
   async function log(runId: string, jobId: string): Promise<string> {
+    try {
+      const failed = await withRateLimitRetry("gh run view --log-failed", async () =>
+        ghText(
+          options,
+          ["run", "view", runId, "--job", jobId, "--log-failed"],
+          32 * 1024 * 1024,
+          "tail",
+        ),
+      );
+      if (failed.trim().length > 0) return failed;
+    } catch {
+      // Fall back to the complete job log when the failed-step view is
+      // unavailable for this run.
+    }
     return withRateLimitRetry("gh run view --log", async () =>
       ghText(
         options,

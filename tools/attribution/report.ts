@@ -133,7 +133,9 @@ export function buildReport(input: ReportInput): AttributionReport {
     );
   }
   if (input.options.mode === "local") {
-    notes.push("each candidate was checked out under a temporary directory and removed after the probe");
+    notes.push(input.options.keepCheckout
+      ? "each candidate is checked out under a temporary directory; the checkouts are retained"
+      : "each candidate was checked out under a temporary directory and removed after the probe");
   }
   if (input.options.mode === "local" && input.options.materialize === "export") {
     notes.push("export materialization reads the commit through git ls-tree and git cat-file");
