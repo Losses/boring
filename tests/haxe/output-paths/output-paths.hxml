@@ -1,0 +1,4 @@
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/output-paths
+-main OutputPathsSmoke
+--interp
