@@ -3,7 +3,7 @@ name: CI
 on:
   # A branch can be exercised by hand (`gh workflow run ci.yml --ref <branch>`)
   # without merging it first; the macOS job below carries the Swift C interop
-  # check, which needs a real SDK.
+  # and pointer interop checks, which need a real SDK.
   workflow_dispatch:
   push:
     branches:
@@ -299,6 +299,9 @@ jobs:
           swift-version: swift-6.1.2-release
           swift-build: 6.1.2-RELEASE
           cache: true
+      # The driver needs haxe, the "boring" dev haxelib (classPath
+      # packages/compiler), reflaxe and format; flake.nix:150-211 builds the
+      # same bundle from the same two libraries inside the nix derivation.
       - name: Install reflaxe and format
         run: |
           git clone https://github.com/SomeRanDev/reflaxe.git .reflaxe
@@ -306,6 +309,52 @@ jobs:
           haxelib dev reflaxe "$PWD/.reflaxe"
           haxelib dev boring "$PWD"
           haxelib install format 3.8.0
+      # Since 52aef3289 the gen scripts call the `boring` executable
+      # (`gen:swift` is `boring gen swift --project boring.json`; before it
+      # was `haxe examples/swift.hxml`). That executable is the flake's
+      # driver derivation (flake.nix packages.driver, whose bin/boring wraps
+      # `bun $out/share/boring/driver.js`), so it exists only inside the nix
+      # devShell; package.json has no bin entry and no step above installs
+      # one. That is why this job - green at 8366830d2a (run 44135072552)
+      # while the scripts were haxe invocations - stops at "Run Swift
+      # generation and tests" on master after the refactor (run
+      # 44209542672 at fa4e4af1); locally the same script in a shell
+      # without the driver exits 127 with `boring: command not found`.
+      #
+      # Build the same platform-independent Haxe->JS bundle from this
+      # checkout instead of downloading a published artifact: the driver is
+      # then exactly the commit under test, so there is no version or
+      # checksum to pin, and it compiles against the Haxe 4.3.7 /
+      # reflaxe 9fa459a0 / format 3.8.0 installed above. flake.nix:194-195
+      # is the same compile inside the nix derivation.
+      - name: Build the boring driver
+        run: |
+          mkdir -p out/driver
+          haxe packages/driver/driver.hxml
+          test -s out/driver/driver.js
+      # Install the built bundle as the `boring` command the package scripts
+      # call. On Windows the package-script shell resolves command names
+      # through PATHEXT: the green run 44135072552 executed
+      # ./.build/debug/BoringSwiftTests (no .exe suffix) from
+      # `bun run test:swift`, so extensionless lookup does apply and a .cmd
+      # forwarder on PATH is what `bun run gen:swift` finds. The forwarder
+      # passes argv verbatim, which keeps package.json the single definition
+      # of the generation command instead of a second copy of its arguments
+      # in this file.
+      - name: Install the driver as the boring command
+        run: |
+          shim=out/driver-bin
+          mkdir -p "$shim"
+          cat > "$shim/boring.cmd" <<'CMD'
+          @echo off
+          bun "%~dp0..\driver\driver.js" %*
+          CMD
+          awk '{ printf "%s\r\n", $0 }' "$shim/boring.cmd" > "$shim/boring.cmd.crlf"
+          mv "$shim/boring.cmd.crlf" "$shim/boring.cmd"
+          cat "$shim/boring.cmd"
+          shim_win="$(cygpath -w "$PWD")\out\driver-bin"
+          echo "boring shim dir: $shim_win"
+          echo "$shim_win" >> "$GITHUB_PATH"
       # The root Package.swift declares the CodecF32 target at
       # reference/swift-f32/gen, and swift build validates every declared
       # target path when loading the manifest, so the f32 tree must be
@@ -672,9 +721,9 @@ jobs:
             echo '| class | count | what it means |'
             echo '|---|---:|---|'
             echo "| real assertion failure | $ATTR_ASSERT_N | a test ran and its expectation failed - product or spec |"
-            echo "| environment / timeout | $ATTR_TIMEOUT_N | carries \`this test timed out after Nms\` - a machine result, from contention |"
+            echo "| environment / timeout | $ATTR_TIMEOUT_N | carries `this test timed out after Nms` - a machine result, from contention |"
             echo "| npm-artifact non-determinism | $ATTR_FLAKE_N | the byte-identity test's Buffer diff - known unrelated to the change under review |"
-            echo "| timeout cascade | $ATTR_CASC_T_N | \`Unhandled error between tests\` after a kill in the same file - the timeout's debris |"
+            echo "| timeout cascade | $ATTR_CASC_T_N | `Unhandled error between tests` after a kill in the same file - the timeout's debris |"
             echo "| unattributed error | $ATTR_CASC_U_N | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |"
             echo
             echo 'Attribution is not waiver: every class above is still a failing test and this job is still red on'
@@ -705,8 +754,8 @@ jobs:
               grep '^flake-npm-artifact' "$ATTR_TSV" | cut -f2- | head -"$ATTR_SAMPLE"
               echo '```'
               echo
-              echo "Matched on test identity \`$ATTR_FLAKE_ID\` **and** the binary-diff shape"
-              echo "(\`expect(received).toEqual(expected)\` over \`\"type\": \"Buffer\"\` at \`$ATTR_FLAKE_FILE\`)."
+              echo "Matched on test identity `$ATTR_FLAKE_ID` **and** the binary-diff shape"
+              echo "(`expect(received).toEqual(expected)` over `\"type\": \"Buffer\"` at `$ATTR_FLAKE_FILE`)."
               echo "Rendered diff lines: $ATTR_FLAKE_DIFF"
               echo
               echo 'This is the pre-existing npm-artifact non-determinism the round-5 ruling names'
@@ -741,7 +790,7 @@ jobs:
             fi
             if [ -n "$ATTR_SUMMARY_FAIL" ]; then
               echo "Reconciliation: $ATTR_ATTRIBUTED failed test(s) attributed against the summary line's"
-              echo "\`$ATTR_SUMMARY_FAIL fail\`; residual $ATTR_RESIDUAL. A non-zero residual means the log's"
+              echo "`$ATTR_SUMMARY_FAIL fail`; residual $ATTR_RESIDUAL. A non-zero residual means the log's"
               echo 'failure text is not fully classified by these rules - say so, never round it away.'
             else
               echo "Reconciliation: $ATTR_ATTRIBUTED failed test(s) attributed, but this log carries no"

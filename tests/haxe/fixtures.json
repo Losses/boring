@@ -700,6 +700,12 @@
       ]
     },
     {
+      "path": "tests/haxe/output-paths/output-paths.hxml",
+      "mode": "compile",
+      "targets": [],
+      "reason": "Interprets the Swift emitter's output-tree relativization with the Windows define form (backslashes plus drive prefix) and the POSIX form; regression for the windows CI job's mkdir D: crash (task t-mwlffeyx-sqcu)."
+    },
+    {
       "path": "tests/haxe/payload-key/gen/rust-faultnames.hxml",
       "mode": "compile",
       "targets": [

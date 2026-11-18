@@ -369,7 +369,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final body = parts.get(module).join("\n\n");
             final content = fileContent(module, body);
             if (CompilationUnits.isTestModule(module)) {
-                final testFileRel = relativeFromTo(swiftOutput, testOutput) + "/" + modulePath(module);
+                final testFileRel = OutputPaths.relativeFromTo(swiftOutput, testOutput) + "/" + modulePath(module);
                 PackageArtifacts.saveTreeFile(output, testFileRel, content);
                 writeOriginSidecar(testFileRel, content);
             } else {
@@ -423,7 +423,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
 
         if (testEntries.length > 0) {
-            final testRoot = relativeFromTo(swiftOutput, testOutput);
+            final testRoot = OutputPaths.relativeFromTo(swiftOutput, testOutput);
             PackageArtifacts.saveTreeFile(output, testRoot + "/TestMain.swift", testImportPrefix() + SwiftTestHelper.testMainSource(testEntries));
             if (SwiftTestTypes.registered.length > 0) {
                 PackageArtifacts.saveTreeFile(output, testRoot + "/TestHelper.swift", testImportPrefix() + SwiftTestHelper.testHelperSource());
@@ -649,24 +649,6 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function modulePath(module:String):String {
         return module.split(".").join("/") + ".swift";
-    }
-
-    /** The path from one directory to another location, both output-root relative. */
-    static function relativeFromTo(fromDir:String, toPath:String):String {
-        final fromParts = fromDir == "." ? [] : fromDir.split("/");
-        final toParts = toPath == "." ? [] : toPath.split("/");
-        var shared = 0;
-        while (shared < fromParts.length && shared < toParts.length && fromParts[shared] == toParts[shared]) {
-            shared += 1;
-        }
-        final out:Array<String> = [];
-        for (_ in shared...fromParts.length) {
-            out.push("..");
-        }
-        for (i in shared...toParts.length) {
-            out.push(toParts[i]);
-        }
-        return out.join("/");
     }
 
     /** Writes the emit-origin sidecar for a saved module when the define is active. */
