@@ -23,8 +23,8 @@ class OutputPathsSmoke {
         expect("/w/gen", "/w/gen", "", "same directory");
         expect("/w/gen/sub", "/w/gen", "..", "parent");
         expect("reference/swift/gen", "reference/swift/gen-tests", "../gen-tests", "root relative");
-        // Two different drives have no relative path: reject instead of
-        // writing a "C:" component into the output tree.
+        // Two different drives have no relative path. Fail here: writing a
+        // "C:" component into the output tree corrupts it.
         var rejected = false;
         try {
             OutputPaths.relativeFromTo("D:\\w\\gen", "C:\\w\\gen-tests");
