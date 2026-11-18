@@ -96,6 +96,13 @@ class SwiftType {
                 }
             case TInst(c, params):
                 final cls = c.get();
+                // A native spelling declared on the class covers opaque C values and
+                // the target's C buffer types; the Swift text replaces the
+                // element placeholder with the applied argument.
+                final nativeClass = SwiftInterop.nativeTypeOfClass(cls);
+                if (nativeClass != null) {
+                    return SwiftInterop.applyNativeType(nativeClass, params, t -> of(t));
+                }
                 switch (pathOf(cls.pack, cls.name)) {
                     // The shared exception base maps to the runtime class the
                     // generated exception subclasses extend (features/06).
@@ -207,6 +214,10 @@ class SwiftType {
                 }
             case TInst(c, params2):
                 final cls = c.get();
+                final nativeClass = SwiftInterop.nativeTypeOfClass(cls);
+                if (nativeClass != null) {
+                    return SwiftInterop.applyNativeType(nativeClass, params2, t -> ofSubstituted(t, params, args));
+                }
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String": "[UInt16]";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";

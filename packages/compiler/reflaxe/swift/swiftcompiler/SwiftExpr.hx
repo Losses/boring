@@ -2248,9 +2248,11 @@ class SwiftExpr {
                 final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
                 return arrayRuntimeText(elemType == null ? SwiftRuntime.ARRAY_CLASS + "(" + body + ")" : SwiftRuntime.ARRAY_CLASS + "<" + types.of(elemType) + ">(" + body + ")");
             case TCall(fn, args):
-                return call(fn, args);
+                final interop = swiftInteropCall(e, fn, args);
+                return interop != null ? interop : call(fn, args);
             case TNew(c, params, args):
-                return newExpr(c, params, args);
+                final interopNew = swiftInteropNew(e, c.get(), args);
+                return interopNew != null ? interopNew : newExpr(c, params, args);
             case TMeta(_, inner):
                 return expr(inner);
             case TCast(inner, _):
@@ -3797,6 +3799,22 @@ class SwiftExpr {
                         { type: pt, admitsAbsence: !demandsValue, role: Argument(""), errorSlot: null });
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                if (pt != null && SwiftInterop.isOutParam(pt)) {
+                    // A C out parameter needs an addressable local: the
+                    // wrapper's field is the storage the callee writes.
+                    if (isNullLiteral(a)) {
+                        t = "nil";
+                    } else {
+                        if (!SwiftInterop.isStableLValue(stripWrap(a))) {
+                            Context.error("an out parameter needs a plain local or field", a.pos);
+                        }
+                        t = "&" + expr(a) + ".value";
+                    }
+                } else if (pt != null && SwiftInterop.isMutableBuffer(pt)) {
+                    t = expr(a);
+                } else if (pt != null && SwiftInterop.isConstBuffer(pt)) {
+                    t = expr(a);
+                } else {
                 final bridge = SwiftInterop.bridgeOf(pt);
                 if (bridge != null
                     && types.of(DefaultArgExpander.withoutNull(pt)) == bridge.native
@@ -3820,6 +3838,7 @@ class SwiftExpr {
                         scopedBridges.push({value: valueText, scope: scopeText, bound: bound});
                         t = SwiftInterop.applyArgument(bridge, bound);
                     }
+                }
                 }
                 t;
             }
@@ -4309,6 +4328,45 @@ class SwiftExpr {
             case _: "Void";
         };
         return "try { () throws -> " + ret + " in " + decls + "; return try " + emitted + " }()";
+    }
+
+    /**
+        C interop call shapes that are not ordinary Swift calls: the buffer
+        allocation and subscript, and the opaque-pointer unwrap. Their text
+        depends on the call's result type, which the generic call path does not
+        carry.
+    **/
+    function swiftInteropCall(e:TypedExpr, fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+        return switch (stripWrap(fn).expr) {
+            case TField(_, FStatic(c, cf)):
+                final cls = c.get();
+                final name = cf.get().name;
+                if ((cls.module == SwiftInterop.BUFFER_MODULE || cls.module == SwiftInterop.CONST_BUFFER_MODULE) && name == "alloc") {
+                    final pointerType = types.of(e.t);
+                    final count = "Int(" + expr(args[0]) + ")";
+                    "({ () -> " + pointerType + " in let p = " + pointerType + ".allocate(capacity: " + count
+                        + "); p.initialize(repeating: " + expr(args[1]) + ", count: " + count + "); return p })()";
+                } else if (cls.module == SwiftInterop.OPAQUE_MODULE && name == "takeUnretained") {
+                    "Unmanaged<" + types.of(e.t) + ">.fromOpaque(" + expr(args[0]) + "!).takeUnretainedValue()";
+                } else {
+                    null;
+                }
+            case TField(subj, FInstance(c, _, cf)):
+                final cls = c.get();
+                final name = cf.get().name;
+                if ((cls.module == SwiftInterop.BUFFER_MODULE || cls.module == SwiftInterop.CONST_BUFFER_MODULE) && name == "get") {
+                    expr(subj) + "[Int(" + expr(args[0]) + ")]";
+                } else if (cls.module == SwiftInterop.BUFFER_MODULE && name == "set") {
+                    expr(subj) + "[Int(" + expr(args[0]) + ")] = " + expr(args[1]);
+                } else if (cls.module == SwiftInterop.BUFFER_MODULE && name == "free") {
+                    final count = "Int(" + expr(args[0]) + ")";
+                    expr(subj) + ".deinitialize(count: " + count + "); " + expr(subj) + ".deallocate()";
+                } else {
+                    null;
+                }
+            default:
+                null;
+        };
     }
 
     function callText(fn:TypedExpr, args:Array<TypedExpr>):String {
@@ -5585,6 +5643,14 @@ class SwiftExpr {
             case VEnum(e, f): types.of(Type.TEnum(e, [])) + "." + SwiftDecl.lowerFirst(f.name);
             case VCoalescing(x): coalescingDefaultText(x, t);
         };
+
+    /** Constructors whose Swift spelling carries the applied generic arguments. */
+    function swiftInteropNew(e:TypedExpr, cls:ClassType, args:Array<TypedExpr>):Null<String> {
+        if (cls.module != SwiftInterop.OUT_MODULE) {
+            return null;
+        }
+        return types.of(e.t) + "(" + [for (a in args) expr(a)].join(", ") + ")";
+    }
 
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();

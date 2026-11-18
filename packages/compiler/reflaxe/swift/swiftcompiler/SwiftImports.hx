@@ -31,6 +31,13 @@ class SwiftImports {
         "std.UStringFault" => true,
         "std.FsException" => true,
         "std.FsError" => true,
+        // C interop support types ship with the target itself, so a consumer
+        // build needs no source root for them.
+        "swift.Out" => true,
+        "swift.Buffer" => true,
+        "swift.ConstBuffer" => true,
+        "swift.Opaque" => true,
+        "swift.RawPointer" => true,
     ];
 
     public static function isGuaranteedStdModule(module:String):Bool {

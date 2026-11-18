@@ -7,6 +7,7 @@ import haxe.macro.Type;
 import haxe.macro.Type.AbstractType;
 import haxe.macro.Type.ClassField;
 import haxe.macro.Type.ClassType;
+import haxe.macro.Type.TypedExpr;
 import StringTools;
 
 /**
@@ -50,6 +51,79 @@ class SwiftInterop {
     public static final NATIVE_TYPE_META = ":swiftNativeType";
     public static final BRIDGE_META = ":swiftBridge";
     public static final NAME_META = ":swiftName";
+
+    /** Target support types: out parameters, C buffers, and opaque pointers. */
+    public static final OUT_MODULE = "swift.Out";
+    public static final BUFFER_MODULE = "swift.Buffer";
+    public static final CONST_BUFFER_MODULE = "swift.ConstBuffer";
+    public static final OPAQUE_MODULE = "swift.Opaque";
+    public static final RAW_POINTER_MODULE = "swift.RawPointer";
+
+    static function classOf(type:Null<Type>):Null<ClassType> {
+        return switch (type == null ? null : Context.follow(withoutNull(type))) {
+            case TInst(ref, _): ref.get();
+            case _: null;
+        };
+    }
+
+    /** Whether the parameter is the Swift target's out-parameter wrapper. */
+    public static function isOutParam(type:Null<Type>):Bool {
+        final cls = classOf(type);
+        return cls != null && cls.module == OUT_MODULE;
+    }
+
+    /** Whether the parameter is a mutable C buffer. */
+    public static function isMutableBuffer(type:Null<Type>):Bool {
+        final cls = classOf(type);
+        return cls != null && cls.module == BUFFER_MODULE;
+    }
+
+    /** Whether the parameter is a read-only C buffer. */
+    public static function isConstBuffer(type:Null<Type>):Bool {
+        final cls = classOf(type);
+        return cls != null && cls.module == CONST_BUFFER_MODULE;
+    }
+
+    /** Whether the declaration is a support type with no Swift declaration. */
+    public static function isSupportClass(cls:ClassType):Bool {
+        return cls.module == BUFFER_MODULE || cls.module == CONST_BUFFER_MODULE || cls.module == OPAQUE_MODULE;
+    }
+
+    /** The Swift spelling an extern class declares for opaque C values. */
+    public static function nativeTypeOfClass(cls:ClassType):Null<String> {
+        final params = stringParams(cls.meta, NATIVE_TYPE_META, cls.pos);
+        if (params.length == 0) {
+            return null;
+        }
+        if (params.length != 1 || params[0].length == 0) {
+            Context.error(NATIVE_TYPE_META + " takes exactly one non-empty Swift type spelling", cls.pos);
+        }
+        if (StringTools.contains(params[0], "$T") && cls.params.length == 0) {
+            Context.error(NATIVE_TYPE_META + " uses $T but " + cls.name + " has no type parameter", cls.pos);
+        }
+        return params[0];
+    }
+
+    /** Replaces the element placeholder in a class native-type spelling. */
+    public static function applyNativeType(template:String, params:Array<Type>, render:Type->String):String {
+        if (!StringTools.contains(template, "$T")) {
+            return template;
+        }
+        if (params.length == 0) {
+            return template;
+        }
+        return StringTools.replace(template, "$T", render(params[0]));
+    }
+
+    /** A plain local or field is addressable; a call or literal is not. */
+    public static function isStableLValue(expr:TypedExpr):Bool {
+        return switch (expr.expr) {
+            case TLocal(_): true;
+            case TField(_, FInstance(_, _, _)): true;
+            case TField(_, FStatic(_, _)): true;
+            case _: false;
+        };
+    }
 
     /**
         The Swift spelling of an abstract that wraps a Haxe representation
@@ -176,9 +250,10 @@ class SwiftInterop {
                         }
                         moduleImports(cls);
                     }
-                    if (cls.meta.has(BRIDGE_META) || cls.meta.has(NATIVE_TYPE_META)) {
-                        Context.error(BRIDGE_META + " and " + NATIVE_TYPE_META + " belong on an abstract that wraps a C boundary", cls.pos);
+                    if (cls.meta.has(BRIDGE_META)) {
+                        Context.error(BRIDGE_META + " declares a representation conversion and belongs on an abstract that wraps a C boundary", cls.pos);
                     }
+                    nativeTypeOfClass(cls);
                     for (field in cls.fields.get()) {
                         if (!field.meta.has(NAME_META)) {
                             continue;

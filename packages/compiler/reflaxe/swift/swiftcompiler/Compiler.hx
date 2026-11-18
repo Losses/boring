@@ -146,6 +146,12 @@ class Compiler extends PluginCompiler<Compiler> {
 
     public function compileClassImpl(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Null<String> {
         AssetModules.registerClass(classType);
+        // C interop support types are pure declarations for Haxe's typer: the
+        // Swift representation is the native array/pointer spelling, and the
+        // call sites carry their own lowering.
+        if (SwiftInterop.isSupportClass(classType)) {
+            return null;
+        }
         // Resident runtime modules sit under src/runtime, outside the
         // sample source roots, but compile through this same pipeline.
         final isResident = RuntimeResidents.isResident(classType.module);
