@@ -4283,7 +4283,7 @@ class SwiftExpr {
             // withUnsafeBufferPointer are rethrowing only for a throwing
             // body); a throwing call would need a try marker inside the
             // bracket and a second one outside, which no current lowering
-            // composes, so refuse it instead of emitting code that cannot
+            // composes, so refuse it: an emitted call that cannot compile is worse.
             // compile.
             if (containsThrowingCall({expr: TCall(fn, args), pos: fn.pos, t: fn.t})) {
                 Context.error("a C lifetime bracket cannot enclose a throwing call; split the call", fn.pos);

@@ -216,7 +216,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
             testModules.set(classType.module, true);
             final decl = contextFor(classType.module);
-            // Test classes lower in this branch instead of classDecl, so their
+            // Test classes lower here; classDecl never runs for them, so their
             // declaration-scoped platform imports are collected here.
             decl.collectInteropImports(classType);
             final body:Array<String> = [];

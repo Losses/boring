@@ -10,13 +10,13 @@ import haxe.macro.Type.ClassType;
 import StringTools;
 
 /**
-    The declaration-side surface for C interop on the Swift target.
+    The declaration-side interface for C interop on the Swift target.
 
     The target emits one Swift module, so references between generated Haxe
     modules never need imports; a platform framework is the exception because
     its symbols live in another Swift module. `:swiftImport` names that
     dependency on the source declaration whose generated file needs it, so the
-    import is scoped to that file instead of being a build-wide switch.
+    import is scoped to that file, never a build-wide switch.
 
     A C API wants a representation the translatable subset does not have (a
     CFString, a C string pointer, a buffer pointer) while the Haxe value is a
@@ -55,7 +55,7 @@ class SwiftInterop {
         The Swift spelling of an abstract that wraps a Haxe representation
         for a C boundary, or null when the abstract keeps its underlying
         rendering. Only a source declaration may mint one; the wrapper is a
-        declaration surface, not a global type override.
+        per-declaration annotation, never a global type override.
     **/
     public static function nativeTypeName(abs:AbstractType):Null<String> {
         final params = stringParams(abs.meta, NATIVE_TYPE_META, abs.pos);

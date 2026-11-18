@@ -10,7 +10,7 @@ import std.Fs;
     font through each bridge shape, read ascent/descent, and write the
     measured numbers. The macOS CI step compiles the generated tree and runs
     this test, so a mechanism that emits text that cannot compile (or a
-    bridge that traps at run time) fails the check instead of a probe.
+    bridge that traps at run time) fails the check the way a probe would.
 **/
 @:swiftImport("CoreText")
 @:testOnly
