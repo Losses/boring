@@ -43,7 +43,8 @@ if ! run_stage negative-control nix develop -c bun tests/haxe/kotlin-local-prese
     printf 'retained attempt: %s\n' "$ATTEMPT_DIR"
     exit 1
 fi
-mapfile -d '' KOTLIN_SOURCES < <(find out/kotlin-local-presence-consumer/kotlin-gen/kotlinlocalpresence -name '*.kt' -print0 | sort -z)
+KOTLIN_SOURCES=()
+while IFS= read -r -d '' line; do KOTLIN_SOURCES+=("$line"); done < <(find out/kotlin-local-presence-consumer/kotlin-gen/kotlinlocalpresence -name '*.kt' -print0 | sort -z)
 if ! run_stage kotlin-compile nix develop -c kotlinc "${KOTLIN_SOURCES[@]}" \
     tests/haxe/kotlin-local-presence-consumer/LocalPresenceRunner.kt \
     -include-runtime -d "$ATTEMPT_DIR/local-presence.jar"; then

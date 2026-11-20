@@ -202,7 +202,8 @@ rr_argv_matches() {
 	local file="$1"
 	shift
 	local saved=()
-	mapfile -d '' -t saved < "$file" || return 1
+	saved=()
+	while IFS= read -r -d '' line; do saved+=("$line"); done < "$file" || return 1
 	if [ "${#saved[@]}" -ne "$#" ]; then return 1; fi
 	local i=0
 	while [ "$i" -lt "$#" ]; do

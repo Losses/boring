@@ -38,7 +38,8 @@ run_stage() {
 run_stage identity-haxe haxe -version || exit 1
 run_stage identity-kotlinc kotlinc -version || exit 1
 run_stage generate haxe "$HERE/kotlin.hxml" -D "kotlin-output=$RUN/gen" || exit 1
-mapfile -t kotlin_sources < <(rg --files "$RUN/gen" -g '*.kt' | rg -v '/runtime/test/' | sort)
+kotlin_sources=()
+while IFS= read -r line; do kotlin_sources+=("$line"); done < <(rg --files "$RUN/gen" -g '*.kt' | rg -v '/runtime/test/' | sort)
 sha256sum "${kotlin_sources[@]}" > "$RUN/generated-sha256.txt"
 run_stage compile kotlinc -Xallow-kotlin-package "${kotlin_sources[@]}" \
     "$HERE/native/Main.kt" -include-runtime -d "$RUN/app.jar" || exit 1
@@ -71,7 +72,8 @@ printf '%s\n' 'rejected key generation failed at the key selection boundary' > "
 # parameter identity, and the nested key must still order by the outer field
 # first and the inner field second.
 run_stage generate-identity haxe "$HERE/pidentity.hxml" -D "kotlin-output=$RUN/gen-identity" || exit 1
-mapfile -t identity_sources < <(rg --files "$RUN/gen-identity" -g '*.kt' | rg -v '/runtime/test/' | sort)
+identity_sources=()
+while IFS= read -r line; do identity_sources+=("$line"); done < <(rg --files "$RUN/gen-identity" -g '*.kt' | rg -v '/runtime/test/' | sort)
 run_stage compile-identity kotlinc -Xallow-kotlin-package "${identity_sources[@]}" \
     "$HERE/pid/native/Main.kt" -include-runtime -d "$RUN/identity.jar" || exit 1
 run_stage jvm-identity java -jar "$RUN/identity.jar" || exit 1
@@ -85,7 +87,8 @@ if ! grep -q 'b.value.compareTo(a.value)' "$mutated"; then
     printf 'negative control failed: mutation target not found\n' >&2
     exit 1
 fi
-mapfile -t mutated_sources < <(rg --files "$RUN/gen-mutated" -g '*.kt' | rg -v '/runtime/test/' | sort)
+mutated_sources=()
+while IFS= read -r line; do mutated_sources+=("$line"); done < <(rg --files "$RUN/gen-mutated" -g '*.kt' | rg -v '/runtime/test/' | sort)
 run_stage compile-mutated kotlinc -Xallow-kotlin-package "${mutated_sources[@]}" \
     "$HERE/native/Main.kt" -include-runtime -d "$RUN/mutated.jar" || {
     printf 'negative control failed: mutated sources no longer compile\n' >&2
