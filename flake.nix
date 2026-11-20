@@ -348,11 +348,22 @@
               export BORING_SWIFT_SYSTEM_PACKAGE="${self.packages.${pkgs.stdenv.hostPlatform.system}.swift-system}"
               # boring's haxelib.json declares a dependency on "format";
               # install the pinned library versions so fresh checkouts compile.
-              if [ ! -d "$HAXELIB_PATH/format/3,8,0" ] && ! haxelib install format 3.8.0 >/dev/null; then
+              install_haxelib() {
+                local name="$1" version="$2" attempt
+                for attempt in 1 2 3; do
+                  if haxelib install "$name" "$version" >/dev/null 2>&1; then
+                    return 0
+                  fi
+                  echo "boring devShell: haxelib install $name $version failed (attempt $attempt)" >&2
+                  sleep 5
+                done
+                return 1
+              }
+              if [ ! -d "$HAXELIB_PATH/format/3,8,0" ] && ! install_haxelib format 3.8.0; then
                 echo "boring devShell: failed to install haxelib format 3.8.0" >&2
                 exit 1
               fi
-              if [ ! -d "$HAXELIB_PATH/formatter/1,18,0" ] && ! haxelib install formatter 1.18.0 >/dev/null; then
+              if [ ! -d "$HAXELIB_PATH/formatter/1,18,0" ] && ! install_haxelib formatter 1.18.0; then
                 echo "boring devShell: failed to install haxelib formatter 1.18.0" >&2
                 exit 1
               fi
