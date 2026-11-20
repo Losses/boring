@@ -42,7 +42,8 @@ run_stage() {
     return "$status"
 }
 
-mapfile -t GEN_ARGS < <(bun "$ROOT/tests/support/print-gen-args.ts" ts "$RUN/gen" "$RUN/gen-tests") || exit 1
+GEN_ARGS=()
+while IFS= read -r line; do GEN_ARGS+=("$line"); done < <(bun "$ROOT/tests/support/print-gen-args.ts" ts "$RUN/gen" "$RUN/gen-tests") || exit 1
 run_stage generate haxe -v "${GEN_ARGS[@]}" || exit 1
 
 # The typecheck below must see this attempt's tree. Refuse an empty or

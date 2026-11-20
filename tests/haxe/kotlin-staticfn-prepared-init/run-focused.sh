@@ -35,7 +35,8 @@ if ! run_stage generation nix develop -c haxe tests/haxe/kotlin-staticfn-prepare
     printf 'retained attempt: %s\n' "$ATTEMPT_DIR"
     exit 1
 fi
-mapfile -d '' KOTLIN_SOURCES < <(find out/kotlin-staticfn-prepared-init/kotlin-gen/boring out/kotlin-staticfn-prepared-init/kotlin-gen/ksfshapes -name '*.kt' -print0 | sort -z)
+KOTLIN_SOURCES=()
+while IFS= read -r -d '' line; do KOTLIN_SOURCES+=("$line"); done < <(find out/kotlin-staticfn-prepared-init/kotlin-gen/boring out/kotlin-staticfn-prepared-init/kotlin-gen/ksfshapes -name '*.kt' -print0 | sort -z)
 if ! run_stage kotlin-compile nix develop -c kotlinc "${KOTLIN_SOURCES[@]}" \
     tests/haxe/kotlin-staticfn-prepared-init/StaticFnRunner.kt \
     tests/haxe/kotlin-staticfn-prepared-init/StaticFnShapesRunner.kt \

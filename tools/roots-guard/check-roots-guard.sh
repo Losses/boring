@@ -173,6 +173,19 @@
 #   ROOTS_GUARD_REPO_ROOT   repository root (same as --repo-root=PATH)
 #
 # Exit: 0 = PASS, 1 = FAILED, 2 = usage error.
+# Associative arrays need bash 4; macOS ships bash 3.2 and cannot parse
+# them. When a newer bash is installed the guard re-executes through it;
+# otherwise it names the dependency and exits.
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  for candidate in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    if [ -x "$candidate" ]; then
+      exec "$candidate" "$0" "$@"
+    fi
+  done
+  echo "roots guard: this check needs bash 4 or later (associative arrays); install it with: brew install bash" >&2
+  exit 2
+fi
+
 set -u
 
 usage() {

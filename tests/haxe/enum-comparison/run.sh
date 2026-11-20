@@ -87,7 +87,8 @@ argv_decodes() {
 	local count="$#"
 	local decoded=()
 	local index=0
-	mapfile -d '' decoded <"$path"
+	decoded=()
+	while IFS= read -r -d '' line; do decoded+=("$line"); done < "$path"
 	if [ "${#decoded[@]}" -ne "$count" ]; then
 		printf 'argv record %s holds %s arguments, expected %s\n' "$path" "${#decoded[@]}" "$count" >&2
 		return 1

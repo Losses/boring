@@ -170,7 +170,8 @@ else
 			add_reason test-host-present
 		fi
 		find "$GEN" -name '*.swift' | LC_ALL=C sort >"$RUN/stages/swift-compile/generated-files.txt"
-		mapfile -t GEN_FILES <"$RUN/stages/swift-compile/generated-files.txt"
+		GEN_FILES=()
+		while IFS= read -r line; do GEN_FILES+=("$line"); done < "$RUN/stages/swift-compile/generated-files.txt"
 		if [ "${#GEN_FILES[@]}" -gt 0 ]; then
 			if run_stage swift-compile swiftc "${GEN_FILES[@]}" "$HERE/native-main.swift" -o "$BINARY"; then
 				record_status swift-compile zero swiftc
