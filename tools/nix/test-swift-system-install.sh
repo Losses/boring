@@ -109,6 +109,30 @@ else
   failed "swiftbuild layout: expected defined symbols including c_system_probe"
 fi
 
+# The module sits in an intermediates directory without objects while the
+# objects sit in Products/Debug: \`find -print -quit\` returns the module copy
+# and the object lookup that follows it finds nothing.
+twocopies="$work/twocopies"
+make_source_root "$twocopies/src"
+mkdir -p "$twocopies/build/out/Intermediates.noindex/SystemPackage.build/Debug/SystemPackage.build/Modules/SystemPackage.swiftmodule"
+mkdir -p "$twocopies/build/out/Products/Debug"
+cp "$artifacts/SystemPackage.o" "$twocopies/build/out/Products/Debug/SystemPackage.o"
+cp "$artifacts/CSystem.o" "$twocopies/build/out/Products/Debug/CSystem.o"
+cp "$artifacts/SystemPackage.swiftmodule" \
+  "$twocopies/build/out/Intermediates.noindex/SystemPackage.build/Debug/SystemPackage.build/Modules/SystemPackage.swiftmodule/probe.swiftmodule"
+
+out_twocopies="$work/out-twocopies"
+( cd "$twocopies/src" && OUT="$out_twocopies" BUILD_ROOT="$twocopies/build" SWIFTC="$SWIFTC" \
+  LIBRARY_SUFFIX="$library_suffix" bash "$installer" ) > "$work/twocopies.log" 2>&1 \
+  || failed "intermediates module with products objects: the installer exited non-zero"
+
+if [ -f "$out_twocopies/libSystemPackage.$library_suffix" ] \
+  && [ -d "$out_twocopies/SystemPackage.swiftmodule" ] \
+  && grep -q '^layout=swiftbuild$' "$out_twocopies/swift-toolchain.txt"; then
+  pass "intermediates module with products objects: found the objects in Products/Debug"
+else
+  failed "intermediates module with products objects: the installer did not find the objects"
+fi
 # One installer run that must fail with the installer's diagnostic and never
 # with swiftc's empty argument list.
 expect_installer_error() {

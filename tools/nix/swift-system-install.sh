@@ -66,11 +66,39 @@ fi
 mkdir -p "$OUT"
 cp -R Sources/CSystem/include/. "$OUT/"
 
-module="$(find "$BUILD_ROOT" -name SystemPackage.swiftmodule -print -quit)"
-if [ -z "$module" ]; then
+# A build tree can carry the module twice: one copy sits beside the objects,
+# the other is an intermediates copy without them, and `find` returns whichever
+# comes first. Choose the copy whose neighbouring directories hold every target
+# object, and fall back to the first one only when no copy qualifies.
+module_candidates=()
+# macOS ships bash 3.2, which has no mapfile.
+while IFS= read -r candidate_module; do
+  module_candidates+=("$candidate_module")
+done < <(find "$BUILD_ROOT" -name SystemPackage.swiftmodule -print)
+if [ "${#module_candidates[@]}" -eq 0 ]; then
   echo "swift-system: SystemPackage.swiftmodule was not built under $BUILD_ROOT" >&2
   find "$BUILD_ROOT" -maxdepth 5 -name '*.swiftmodule' -print >&2
   exit 1
+fi
+
+module=""
+for candidate_module in "${module_candidates[@]}"; do
+  candidate_module_dir="$(dirname "$candidate_module")"
+  candidate_module_config="$(dirname "$candidate_module_dir")"
+  for candidate_dir in "$candidate_module_dir" "$candidate_module_config"; do
+    candidate_complete=1
+    for candidate_target in "${targets[@]}"; do
+      [ -f "$candidate_dir/$candidate_target.o" ] || candidate_complete=0
+    done
+    if [ "$candidate_complete" -eq 1 ]; then
+      module="$candidate_module"
+      break 2
+    fi
+  done
+done
+if [ -z "$module" ]; then
+  module="${module_candidates[0]}"
+  echo "swift-system: no module copy sits beside every target object; using $module" >&2
 fi
 
 if [ -d "$module" ]; then
@@ -87,23 +115,46 @@ config_dir="$(dirname "$module_dir")"
 native_dir="$config_dir"
 
 swiftbuild_objects=()
-for dir in "$module_dir" "$config_dir"; do
-  candidate=()
-  complete=1
+products_dir=""
+collect_objects() {
+  local dir="$1"
+  local collected=()
+  local target
   for target in "${targets[@]}"; do
     if [ -f "$dir/$target.o" ]; then
-      candidate+=("$dir/$target.o")
+      collected+=("$dir/$target.o")
     else
-      complete=0
+      return 1
     fi
   done
-  if [ "$complete" -eq 1 ]; then
-    swiftbuild_objects=("${candidate[@]}")
-    products_dir="$dir"
-    break
-  fi
-done
+  swiftbuild_objects=("${collected[@]}")
+  products_dir="$dir"
+  return 0
+}
 
+# First the directories that should sit beside the module, then every other
+# directory of the build tree with Products directories ahead of the rest: a
+# tree can carry the module in an intermediates directory while the objects
+# live in Products/Debug.
+for dir in "$module_dir" "$config_dir"; do
+  collect_objects "$dir" && break
+done
+if [ "${#swiftbuild_objects[@]}" -ne "${#targets[@]}" ]; then
+  candidate_dirs=()
+  while IFS= read -r candidate_dir; do
+    candidate_dirs+=("$candidate_dir")
+  done < <(
+    find "$BUILD_ROOT" -type d -print \
+      | awk '{ print (index($0, "/Products/") ? "0 " : "1 ") $0 }' \
+      | LC_ALL=C sort \
+      | cut -d' ' -f2-
+  )
+  for dir in "${candidate_dirs[@]}"; do
+    [ "$dir" = "$module_dir" ] && continue
+    [ "$dir" = "$config_dir" ] && continue
+    collect_objects "$dir" && break
+  done
+fi
 native_objects=()
 native_complete=1
 for target in "${targets[@]}"; do
