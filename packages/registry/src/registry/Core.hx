@@ -648,6 +648,26 @@ class Core {
         }
     }
 
+    /** The GitHub repository whose releases hold a Maven release's files. */
+    static function mavenGroup(r:Release):String {
+        var rg = r.groupId;
+        var g:String = rg == null ? "" : rg;
+        return g;
+    }
+
+    static function mavenTarget(r:Release):String {
+        var rr = r.repository;
+        var t:String = rr == null ? r.owner + "/" + r.repo : rr;
+        return t;
+    }
+
+    /** The Maven rules carry no version or file name: a file request is
+        `<groupId path>/<artifactId>/<version>/<file>` and the release asset
+        is `v<version>/<file>`, so one rule per groupId covers every version
+        and artifact when all its releases come from one repository, and one
+        rule per artifactId covers them otherwise. Each rule matches exactly
+        three segments below the groupId path, so the artifact-level
+        maven-metadata.xml stays a static file. */
     static function redirects(scope:String, archiveBase:String, a:Array<Release>):String {
         var lines:Array<String> = [
             "/swift/:scope/:name/*.zip  " + archiveBase + "/swift/:scope/:name/:splat.zip  303"
@@ -670,17 +690,37 @@ class Core {
         lines.push("/cargo/dl/" + n + "-:version.crate  https://github.com/" + cargoTarget + "/releases/download/v:version/" + n
                 + "-:version.crate  302");
         }
+        var gids:Array<String> = [];
         for (ai in 0...a.length) {
-            var r = a[ai];
-            if (r.platform == "maven")
-                for (fi in 0...r.artifacts.length) {
-                    var file = r.artifacts[fi],
-                        rg = r.groupId,
-                        gid:String = rg == null ? "" : rg;
-                    final mavenTarget = r.repository == null ? r.owner + "/" + r.repo : r.repository;
-                    lines.push("/maven/" + gid.split(".").join("/") + "/" + mavenArtifactId(r, fi) + "/:version/" + file + "  https://github.com/" + mavenTarget
-                        + "/releases/download/v:version/" + file + "  302");
-                }
+            var r = a[ai], gid = mavenGroup(r);
+            if (r.platform == "maven" && gid != "" && !gids.has(gid))
+                gids.push(gid);
+        }
+        sortStrings(gids);
+        for (gi in 0...gids.length) {
+            var gid = gids[gi], targets:Array<String> = [];
+            for (ai in 0...a.length) {
+                var r = a[ai];
+                if (r.platform == "maven" && mavenGroup(r) == gid && !targets.has(mavenTarget(r)))
+                    targets.push(mavenTarget(r));
+            }
+            var gpath = "/maven/" + gid.split(".").join("/") + "/";
+            if (targets.length == 1) {
+                lines.push(gpath + ":artifact/:version/:file  https://github.com/" + targets[0] + "/releases/download/v:version/:file  302");
+                continue;
+            }
+            var seen:Array<String> = [];
+            for (ai in 0...a.length) {
+                var r = a[ai];
+                if (r.platform == "maven" && mavenGroup(r) == gid)
+                    for (fi in 0...r.artifacts.length) {
+                        var id = mavenArtifactId(r, fi);
+                        if (!seen.has(id)) {
+                            seen.push(id);
+                            lines.push(gpath + id + "/:version/:file  https://github.com/" + mavenTarget(r) + "/releases/download/v:version/:file  302");
+                        }
+                    }
+            }
         }
         var moving = 0;
         var fixed = 0;

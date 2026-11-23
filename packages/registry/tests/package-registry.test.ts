@@ -376,10 +376,43 @@ describe("committed package registry", () => {
         expect(fs.readFileSync(file + ".sha1", "utf8")).toBe(crypto.createHash("sha1").update(xml).digest("hex") + "\n");
       }
       const redirects = fs.readFileSync(path.join(output, "_redirects"), "utf8");
-      for(const id of ids) {
-        const extension = id === "tiqian-engine" ? ".pom" : ".module";
-        expect(redirects).toContain("/maven/org/tiqian/" + id + "/:version/" + id + "-" + version + extension + "  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/" + id + "-" + version + extension + "  302");
-      }
+      const mavenRules = redirects.split("\n").filter((line) => line.startsWith("/maven/"));
+      expect(mavenRules).toEqual(["/maven/org/tiqian/:artifact/:version/:file  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/:file  302"]);
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
+  test("maven redirects stay fixed as versions grow and split per artifactId across repositories", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-maven-rules-"));
+    const output = path.join(tree, "out");
+    try {
+      const write = (name: string, repository: string, groupId: string, ids: string[], version: string) => {
+        const repo = path.join(tree, "acme", name);
+        fs.mkdirSync(path.join(repo, version, "maven"), { recursive: true });
+        fs.writeFileSync(path.join(repo, "README.md"), "# " + name + "\n");
+        const artifacts = ids.flatMap((id) => [".pom", ".jar", ".module", "-sources.jar"].map((extension) => {
+          const file = id + "-" + version + extension;
+          return { file, url: "https://assets.example.test/" + file, artifactId: id };
+        }));
+        writeJson(path.join(repo, version, "maven", "metadata.json"), {
+          name, version, repository, tag: "v" + version, groupId, artifacts,
+        });
+      };
+      const coreIds = Array.from({ length: 12 }, (_, i) => "core-" + i);
+      // 30 versions of 12 artifacts with 4 files each: 1440 files.
+      for(let minor = 0; minor < 30; minor++) write("core", "acme/core", "dev.acme", coreIds, "1." + minor + ".0");
+      write("ui", "acme/ui", "dev.acme", ["ui", "ui-android"], "2.0.0");
+      write("other", "acme/other", "dev.other", ["other"], "1.0.0");
+      const result = await generate(tree, output);
+      expect(result.code).toBe(0);
+      const rules = fs.readFileSync(path.join(output, "_redirects"), "utf8").split("\n").filter((line) => line.startsWith("/maven/"));
+      const perArtifact = (id: string, repository: string) =>
+        "/maven/dev/acme/" + id + "/:version/:file  https://github.com/" + repository + "/releases/download/v:version/:file  302";
+      expect(rules.sort()).toEqual([
+        ...coreIds.map((id) => perArtifact(id, "acme/core")),
+        perArtifact("ui", "acme/ui"),
+        perArtifact("ui-android", "acme/ui"),
+        "/maven/dev/other/:artifact/:version/:file  https://github.com/acme/other/releases/download/v:version/:file  302",
+      ].sort());
     } finally { fs.rmSync(tree, { recursive: true, force: true }); }
   }, 120000);
 
