@@ -254,15 +254,17 @@ consumer.
    without a prerelease, or the highest semver when every version
    carries one. npm requests the unscoped name, or the scoped name
    with the slash percent-encoded (`@scope%2fname`, lowercase hex).
-   Cloudflare Pages decodes `%2f` before the file lookup (verified:
-   a file stored as `npm/@scope%2fname` answers 404 to that request
-   and 200 to `@scope%252fname`), so the packument file sits at the
-   decoded path: `npm/<name>` for an unscoped package and
-   `npm/@scope/name` for a scoped one. The same file serves a client
-   that sends the slash unencoded. The file has no extension; the npm
-   client parses the body without checking the media type. The packument carries `readme` at
-   top level: the repository's committed `README.md` text, copied
-   verbatim.
+   Cloudflare Pages decodes `%2f` before the file lookup, so the
+   packument file sits at the decoded path: `npm/<name>` for an
+   unscoped package and `npm/@scope/name` for a scoped one, and the
+   same file serves a client that sends the slash unencoded (verified
+   on registry.tiqian.org: `npm/@tiqian/engine` answers 200 to both
+   `@tiqian%2fengine` and `@tiqian/engine`, where the earlier
+   `npm/@tiqian%2fengine` layout answered 404, and npm 11.12.1
+   installs `@tiqian/engine` from it). The file has no extension; the
+   npm client parses the body without checking the media type. The
+   packument carries `readme` at top level: the repository's
+   committed `README.md` text, copied verbatim.
 4. **cargo.** `cargo/index/config.json` holds
    `{"dl": "<base>/cargo/dl/{crate}-{version}.crate"}` and no `api`
    key: the registry is read-only, so search and publish are absent.
