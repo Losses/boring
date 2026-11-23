@@ -121,6 +121,112 @@ class Core {
         return v;
     }
 
+    /** The package.json fields the npm client resolves from the packument
+        version entry before it downloads the tarball. npm builds the
+        dependency tree from this entry alone, so a dependency the tarball
+        declares and the entry omits is never installed. The order here is
+        the order the packument writes them in. */
+    static function npmManifestKeys():Array<String>
+        return [
+            "dependencies",
+            "optionalDependencies",
+            "peerDependencies",
+            "peerDependenciesMeta",
+            "bin",
+            "engines",
+            "os",
+            "cpu"
+        ];
+
+    /** The npm `manifest` object: the resolution fields of the packed
+        package.json. A metadata file written before the field existed
+        carries none, and the version entry then declares no dependencies.
+        A key outside npmManifestKeys stops the generation. */
+    static function readNpmManifest(j:JsonValue, pp:String):Null<JsonValue> {
+        var v = get(j, "manifest");
+        var k = jsonKind(v);
+        if (k == 0)
+            return null;
+        if (k != 2)
+            fail(pp + ": invalid manifest");
+        var fs = jobject(v);
+        for (fi in 0...fs.length) {
+            var key = fs[fi].name;
+            if (!npmManifestKeys().has(key))
+                fail(pp + ": unknown manifest key " + key);
+            if (!npmManifestValueOk(key, fs[fi].value))
+                fail(pp + ": invalid manifest " + key);
+        }
+        return v;
+    }
+
+    /** Every value of an object is of JSON kind k. */
+    static function objectOf(v:JsonValue, k:Int):Bool {
+        if (jsonKind(v) != 2)
+            return false;
+        var fs = jobject(v);
+        for (i in 0...fs.length)
+            if (jsonKind(fs[i].value) != k)
+                return false;
+        return true;
+    }
+
+    static function stringList(v:JsonValue):Bool {
+        if (jsonKind(v) != 3)
+            return false;
+        var xs = jarray(v);
+        for (i in 0...xs.length)
+            if (jsonKind(xs[i]) != 1)
+                return false;
+        return true;
+    }
+
+    /** The shape package.json gives each manifest key: dependency maps
+        and engines map names to range strings, peerDependenciesMeta maps
+        names to option objects, os and cpu list strings, and bin is one
+        path or a map of command names to paths. A value of another shape
+        would pass generation and fail at npm install. */
+    static function npmManifestValueOk(key:String, v:JsonValue):Bool {
+        if (key == "os" || key == "cpu")
+            return stringList(v);
+        if (key == "peerDependenciesMeta")
+            return objectOf(v, 2);
+        if (key == "bin")
+            return jsonKind(v) == 1 || objectOf(v, 1);
+        return objectOf(v, 1);
+    }
+
+    /** One npm name segment: lowercase letters, digits and -._~, not
+        starting with . or _. This is the set npm accepts for new names,
+        and it keeps the segment a single path component. */
+    static function npmSegmentOk(s:String):Bool {
+        if (s.length == 0)
+            return false;
+        var c0 = s.charCodeAt(0);
+        if (c0 == 46 || c0 == 95)
+            return false;
+        for (i in 0...s.length) {
+            var c = s.charCodeAt(i);
+            if (!((c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 45 || c == 46 || c == 95 || c == 126))
+                return false;
+        }
+        return true;
+    }
+
+    /** An npm name is `name` or `@scope/name`. The packument is written at
+        npm/<name>, so a name outside this shape could leave the output
+        directory or nest under another package. */
+    static function npmNameOk(n:String):Bool {
+        if (n.length > 214)
+            return false;
+        var ps = n.split("/");
+        if (ps.length == 1)
+            return npmSegmentOk(ps[0]);
+        if (ps.length != 2 || !ps[0].startsWith("@"))
+            return false;
+        return npmSegmentOk(ps[0].substring(1, ps[0].length)) && npmSegmentOk(ps[1]);
+    }
+
     static function readArtifacts(v:JsonValue, r:Release, pp:String):Bool {
         if (jsonKind(v) != 3) {
             fail(pp + ": artifacts must be array");
@@ -319,6 +425,7 @@ class Core {
                         if (p == "npm") {
                             r.url = str(j, "url");
                             r.digest = str(j, "sha512");
+                            r.npmManifest = readNpmManifest(j, tree + "/" + pp);
                         } else if (p == "cargo" || p == "pub") {
                             r.url = str(j, "url");
                             r.digest = str(j, "sha256");
@@ -352,7 +459,15 @@ class Core {
         for (ni in 0...ns.length) {
             var n = ns[ni], g = group(a, "npm", n), vs:Array<JsonField> = [];
             for (i in 0...g.length) {
-                var r = g[i], f = fields(r), ru = r.url, u:String = ru == null ? "" : ru;
+                var r = g[i], f = fields(r), ru = r.url, u:String = ru == null ? "" : ru, rm = r.npmManifest;
+                if (rm != null) {
+                    var keys = npmManifestKeys();
+                    for (ki in 0...keys.length) {
+                        var mv = get(rm, keys[ki]);
+                        if (jsonKind(mv) != 0)
+                            f.push({name: keys[ki], value: mv});
+                    }
+                }
                 f.push({
                     name: "dist",
                     value: O([
@@ -362,7 +477,11 @@ class Core {
                 });
                 vs.push({name: r.version, value: O(f)});
             }
-            emit(out, "npm/" + n.split("/").join("%2f"), Json.write(O([
+            // npm requests a scoped package as @scope%2fname. The host
+            // decodes %2f before the file lookup, so the file sits at the
+            // decoded path @scope/name, which also serves clients that
+            // send the slash unencoded.
+            emit(out, "npm/" + n, Json.write(O([
                 {name: "name", value: S(n)},
                 {name: "dist-tags", value: O([{name: "latest", value: S(latest(g))}])},
                 {name: "versions", value: O(vs)},
@@ -583,6 +702,8 @@ class Core {
             var x = a[i];
             if (x.platform == "cargo" && x.name != x.name.toLowerCase())
                 fail(x.name + ": cargo name must be lowercase");
+            if (x.platform == "npm" && !npmNameOk(x.name))
+                fail(x.owner + "/" + x.repo + "/" + x.version + ": invalid npm name " + x.name);
         }
         for (i in 0...a.length) {
             var x = a[i];

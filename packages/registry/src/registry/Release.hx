@@ -17,6 +17,7 @@ class Release {
     public var packageSwift:Null<String>;
     public var pubspec:Null<registry.Json.JsonValue>;
     public var features:Null<registry.Json.JsonValue>;
+    public var npmManifest:Null<registry.Json.JsonValue>;
     public var groupId:Null<String>;
     public var artifacts:Array<String>;
     public var artifactUrls:Array<String>;
@@ -37,6 +38,7 @@ class Release {
         packageSwift = null;
         pubspec = null;
         features = null;
+        npmManifest = null;
         groupId = null;
         artifacts = [];
         artifactUrls = [];
