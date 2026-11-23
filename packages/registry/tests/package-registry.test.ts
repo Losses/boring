@@ -405,8 +405,9 @@ describe("committed package registry", () => {
       write("ui", "acme/ui", "dev.acme", ["ui", "ui-android"], "2.0.0");
       write("moved", "acme/old", "dev.acme", ["moved"], "1.0.0");
       write("moved", "acme/new", "dev.acme", ["moved"], "2.0.0");
-      // dev.solo has one repository but dev.solo.sub nests under it.
-      write("solo", "acme/solo", "dev.solo", ["solo"], "1.0.0");
+      // dev.solo has one repository but dev.solo.sub nests under it, and
+      // its artifactId sub shares a path segment with that nested group.
+      write("solo", "acme/solo", "dev.solo", ["solo", "sub"], "1.0.0");
       write("sub", "acme/sub", "dev.solo.sub", ["widget"], "1.0.0");
       const result = await generate(tree, output);
       expect(result.code, result.output).toBe(0);
@@ -420,6 +421,8 @@ describe("committed package registry", () => {
         rule("dev/acme/moved/1.0.0", "acme/old", "1.0.0"),
         rule("dev/acme/moved/2.0.0", "acme/new", "2.0.0"),
         rule("dev/solo/solo/:version", "acme/solo"),
+        ...[".pom", ".jar", ".module", "-sources.jar"].map((extension) => "/maven/dev/solo/sub/1.0.0/sub-1.0.0" + extension
+          + "  https://github.com/acme/solo/releases/download/v1.0.0/sub-1.0.0" + extension + "  302"),
         rule("dev/solo/sub/:artifact/:version", "acme/sub"),
       ].sort());
       expect(fs.existsSync(path.join(output, "maven/dev/solo/sub/widget/maven-metadata.xml"))).toBe(true);

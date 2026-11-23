@@ -715,7 +715,10 @@ class Core {
         per version. Every rule matches exactly three segments below its
         group path. The nesting check keeps a parent rule from matching
         `<child path>/<artifactId>/maven-metadata.xml`, which sits three
-        segments below the parent path. */
+        segments below the parent path. An artifactId that is also the next
+        segment of a nested groupId (`sub` beside `<group>.sub`) gets one
+        exact rule per file instead: `<group path>/sub/:version/:file` would
+        match `<group path>/sub/<artifactId>/maven-metadata.xml`. */
     static function mavenRules(a:Array<Release>):Array<String> {
         var out:Array<String> = [];
         var gids = mavenGroupIds(a);
@@ -738,6 +741,21 @@ class Core {
             }
             for (ii in 0...ids.length) {
                 var id = ids[ii], os = mavenOwners(a, gid, id);
+                if (gids.has(gid + "." + id)) {
+                    var exact:Array<String> = [];
+                    for (ai in 0...a.length) {
+                        var r = a[ai];
+                        if (r.platform == "maven" && mavenGroup(r) == gid)
+                            for (fi in 0...r.artifacts.length) {
+                                var file = r.artifacts[fi], from = gpath + id + "/" + r.version + "/" + file;
+                                if (mavenArtifactId(r, fi) == id && !exact.has(from)) {
+                                    exact.push(from);
+                                    out.push(from + "  https://github.com/" + mavenTarget(r) + "/releases/download/v" + r.version + "/" + file + "  302");
+                                }
+                            }
+                    }
+                    continue;
+                }
                 if (os.length == 1) {
                     out.push(mavenRule(gpath + id + "/:version", os[0], ":version"));
                     continue;
@@ -785,7 +803,10 @@ class Core {
         var moving = 0;
         var fixed = 0;
         for (li in 0...lines.length) {
-            if (lines[li].endsWith("303") || lines[li].endsWith("302"))
+            // Cloudflare counts a rule as dynamic when its source path has a
+            // placeholder or a splat, whatever its status code.
+            var source = lines[li].split("  ")[0];
+            if (source.indexOf(":") >= 0 || source.indexOf("*") >= 0)
                 moving = moving + 1;
             else
                 fixed = fixed + 1;

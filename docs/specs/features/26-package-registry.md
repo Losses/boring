@@ -429,6 +429,13 @@ consumer.
      `<artifactId>/maven-metadata.xml` sits two segments below its own
      group path, and three below the parent of a nested groupId, which
      is why a groupId with a nested groupId takes per-artifactId rules.
+     For the same reason an artifactId that is also the next segment of
+     a nested groupId (`sub` beside `<group>.sub`) takes one exact rule
+     per file, with no placeholder:
+
+     ```
+     /maven/<groupPath>/<artifactId>/<version>/<file>  https://github.com/<owner>/<repo>/releases/download/v<version>/<file>  302
+     ```
 
    The Cloudflare router matches a placeholder followed by a literal
    suffix inside one segment (`:version.crate`, `*.zip`) and a splat
@@ -444,8 +451,9 @@ consumer.
    that package and, for Maven, one per file. Cargo rules are emitted in descending crate-name
    length order: matching is first-match-wins and
    `/cargo/dl/my-:version.crate` would otherwise capture requests for
-   a crate named `my-crate`. The tool counts dynamic and static rules
-   and stops with an error naming both counts when the registry would
+   a crate named `my-crate`. A rule is dynamic when its source path
+   holds a placeholder or a splat, and static otherwise, whatever its
+   status code. The tool counts dynamic and static rules and stops with an error naming both counts when the registry would
    exceed the host cap (Cloudflare Pages: 100 dynamic, 2000 static,
    2100 total); the documented overflow path is Bulk Redirects or
    moving that namespace to object storage.
