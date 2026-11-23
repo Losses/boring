@@ -105,7 +105,7 @@ archive-base argument, and a redirect rule count over the host cap.
 
 | Namespace | Contents | Client configuration |
 | --- | --- | --- |
-| `/npm/` | one packument per package at its request path | `npm --registry=<base>/npm/` |
+| `/npm/` | one packument per package at its decoded request path | `npm --registry=<base>/npm/` |
 | `/cargo/index/` | `config.json` and the prefix-tier entry files | a named registry in `.cargo/config.toml`: `index = "sparse+<base>/cargo/index/"` |
 | `/cargo/dl/` | no files; one redirect rule per crate maps the request to the release asset | part of the `dl` template |
 | `/swift/` | releases and metadata JSON stored with a `.json` extension and served at their extensionless protocol paths through exact rewrites, `Package.swift`, `identifiers`; the zip paths exist only as the universal redirect rule to the archive base | `swift package-registry set <base>/swift/` |
@@ -201,8 +201,19 @@ consumer.
 
    `name` and `version` are the spec 24 identity. A platform
    directory is present if and only if that release ships the
-   platform; `license` is optional. The `cargo`, `pub`, and `swift`
-   files hold the same scalar fields with `sha256` in place of
+   platform; `license` is optional. The `npm` `name` is `name` or
+   `@scope/name`, each segment lowercase letters, digits, and `-._~`,
+   not starting with `.` or `_`, 214 characters at most; any other
+   name stops the generation, since the packument path is built from
+   it (ruling 3). The `npm` file may add `manifest`, an object holding
+   the resolution fields of the packed `package.json`:
+   `dependencies`, `optionalDependencies`, `peerDependencies`,
+   `peerDependenciesMeta`, `bin`, `engines`, `os`, and `cpu`. The
+   dependency maps and `engines` map names to strings,
+   `peerDependenciesMeta` maps names to objects, `os` and `cpu` are
+   string lists, and `bin` is a string or a map of names to strings.
+   A key outside that list, or a value of another shape, stops the
+   generation. The `cargo`, `pub`, and `swift` files hold the same scalar fields with `sha256` in place of
    `sha512`; the `pub` file adds the `pubspec` object of the spec 24
    grammar; the `cargo` file may add `features`, an object mapping each
    feature name to the list of features it enables, which the index entry
@@ -228,19 +239,28 @@ consumer.
    names both paths.
 3. **npm.** One packument per package: `name`, `dist-tags.latest`, and
    `versions`, each version entry carrying `name`, `version`,
-   `license` when the metadata states one, and
-   `dist: { tarball, integrity }`. `tarball` is the artifact URL copied
-   verbatim from the committed metadata; `integrity` is `sha512-` plus the manifest's
-   base64 digest. The npm client follows the asset's own redirect
+   `license` when the metadata states one, every field the
+   metadata `manifest` states in the order of the ruling 2 list, and
+   `dist: { tarball, integrity }`. npm builds the dependency tree from
+   the version entry before it downloads any tarball, so a dependency
+   the tarball declares and the entry omits is never installed
+   (verified: npm 11.12.1 installs a package whose entry omits its one
+   dependency and leaves the dependency out of `node_modules`).
+   `tarball` is the artifact URL copied verbatim from the committed
+   metadata; `integrity` is `sha512-` plus the manifest's base64
+   digest. The npm client follows the asset's own redirect
    chain and verifies the integrity (verified: npm 10 follows two
    cross-origin 302 hops to the bytes). `latest` is the highest semver
    without a prerelease, or the highest semver when every version
-   carries one. The packument file name equals the request path npm
-   sends: the unscoped name, or the scoped name with the slash
-   percent-encoded (`@scope%2fname`; npm 22 emits lowercase hex, and
-   the consumer test asserts the served path equals the requested
-   bytes). The file has no extension; the npm client parses the body
-   without checking the media type. The packument carries `readme` at
+   carries one. npm requests the unscoped name, or the scoped name
+   with the slash percent-encoded (`@scope%2fname`, lowercase hex).
+   Cloudflare Pages decodes `%2f` before the file lookup (verified:
+   a file stored as `npm/@scope%2fname` answers 404 to that request
+   and 200 to `@scope%252fname`), so the packument file sits at the
+   decoded path: `npm/<name>` for an unscoped package and
+   `npm/@scope/name` for a scoped one. The same file serves a client
+   that sends the slash unencoded. The file has no extension; the npm
+   client parses the body without checking the media type. The packument carries `readme` at
    top level: the repository's committed `README.md` text, copied
    verbatim.
 4. **cargo.** `cargo/index/config.json` holds
@@ -468,8 +488,13 @@ consumer.
   the tool with `--tree`, `--archive-base`, and a temp `--output`,
   then checks: the packument fields, its `readme` equal to the
   committed README text, and an integrity that matches a sha512
-  recomputed from the artifact bytes; the scoped packument file name
-  equals the request path npm sends; the cargo `config.json` template,
+  recomputed from the artifact bytes; the scoped packument file at the
+  decoded path `npm/@scope/name`; the `manifest` fields copied into
+  the version entry in the ruling 2 order, and the rejection of a
+  `manifest` that is not an object, holds a key outside that list, or
+  holds a value of another shape; the rejection of an npm name outside
+  the ruling 2 shape, with no file written outside `--output`; the
+  cargo `config.json` template,
   the prefix-tier placement, an entry `cksum` that matches the
   crate bytes, and an entry `features` that copies the metadata map
   or falls back to an empty object; the Swift releases document nesting

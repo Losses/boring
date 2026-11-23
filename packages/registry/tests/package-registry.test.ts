@@ -157,7 +157,11 @@ describe("committed package registry", () => {
       expect(npm.readme).toBe("# Acme Core\n\nCommitted README.\n");
       const versions = npm.versions as Record<string, Record<string, unknown>>;
       expect(versions["1.0.0"]?.dist).toEqual({ tarball: `${fixtureBase}/acme/core/1.0.0/package.tgz`, integrity: `sha512-${sha512("npm-acme/core/1.0.0")}` });
-      expect(fs.existsSync(path.join(first, "npm/@acme%2ftools"))).toBe(true);
+      // npm sends @acme%2ftools and the host decodes %2f before the file
+      // lookup, so the packument file sits at the decoded path.
+      expect(fs.existsSync(path.join(first, "npm/@acme/tools"))).toBe(true);
+      expect(fs.existsSync(path.join(first, "npm/@acme%2ftools"))).toBe(false);
+      expect(versions["1.0.0"]).not.toHaveProperty("dependencies");
       expect(JSON.parse(fs.readFileSync(path.join(first, "cargo/index/config.json"), "utf8"))).toEqual({ dl: `${BASE}/cargo/dl/{crate}-{version}.crate` });
       expect(fs.readFileSync(path.join(first, "cargo/index/ac/me/acme-core"), "utf8")).toContain('"cksum":"');
       expect(JSON.parse(fs.readFileSync(path.join(first, "swift/acme/acme-core.json"), "utf8")).releases).toEqual({ "1.0.0": {}, "1.1.0": {} });
@@ -227,6 +231,85 @@ describe("committed package registry", () => {
       expect(result.output.toLowerCase()).toContain("invalid features");
     } finally { fs.rmSync(tree, { recursive: true, force: true }); }
   }, 120000);
+
+  test("npm version entries copy the metadata manifest fields in a fixed order", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-manifest-"));
+    const output = path.join(tree, "out");
+    try {
+      const repo = path.join(tree, "acme", "client");
+      fs.mkdirSync(path.join(repo, "1.0.0", "npm"), { recursive: true });
+      fs.writeFileSync(path.join(repo, "README.md"), "# Client\n");
+      writeJson(path.join(repo, "1.0.0", "npm", "metadata.json"), {
+        name: "@acme/client", version: "1.0.0", license: "MIT",
+        url: `${fixtureBase}/client.tgz`, sha512: sha512("client"),
+        manifest: {
+          cpu: ["arm64"],
+          optionalDependencies: { "@acme/client-darwin-arm64": "1.0.0" },
+          dependencies: { "@acme/tools": "2.0.0", "left-pad": "^1.3.0" },
+          peerDependencies: { react: "^18.0.0 || ^19.0.0" },
+        },
+      });
+      const result = await generate(tree, output);
+      expect(result.code).toBe(0);
+      const packument = JSON.parse(fs.readFileSync(path.join(output, "npm/@acme/client"), "utf8")) as Record<string, unknown>;
+      const entry = (packument.versions as Record<string, Record<string, unknown>>)["1.0.0"] ?? {};
+      expect(entry.dependencies).toEqual({ "@acme/tools": "2.0.0", "left-pad": "^1.3.0" });
+      expect(entry.optionalDependencies).toEqual({ "@acme/client-darwin-arm64": "1.0.0" });
+      expect(entry.peerDependencies).toEqual({ react: "^18.0.0 || ^19.0.0" });
+      expect(entry.cpu).toEqual(["arm64"]);
+      expect(Object.keys(entry)).toEqual(["name", "version", "license", "dependencies", "optionalDependencies", "peerDependencies", "cpu", "dist"]);
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
+  type ManifestCase = [string, unknown, string];
+  const manifestNegatives: ManifestCase[] = [
+    ["a manifest that is not an object", ["dependencies"], "invalid manifest"],
+    ["a manifest key outside the resolution fields", { scripts: { postinstall: "node x.js" } }, "unknown manifest key scripts"],
+    ["dependencies that are not a map", { dependencies: "left-pad" }, "invalid manifest dependencies"],
+    ["a dependency range that is not a string", { peerDependencies: { react: 18 } }, "invalid manifest peerDependencies"],
+    ["peerDependenciesMeta entries that are not objects", { peerDependenciesMeta: { react: true } }, "invalid manifest peerDependenciesMeta"],
+    ["cpu that is not a string list", { cpu: "arm64" }, "invalid manifest cpu"],
+    ["os entries that are not strings", { os: ["linux", 1] }, "invalid manifest os"],
+    ["a bin that is neither a path nor a path map", { bin: ["cli.js"] }, "invalid manifest bin"],
+  ];
+  for(const [label, manifest, expected] of manifestNegatives) {
+    test(`rejects ${label}`, async () => {
+      const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-manifest-invalid-"));
+      const output = path.join(tree, "out");
+      try {
+        const repo = path.join(tree, "acme", "client");
+        fs.mkdirSync(path.join(repo, "1.0.0", "npm"), { recursive: true });
+        fs.writeFileSync(path.join(repo, "README.md"), "# Client\n");
+        writeJson(path.join(repo, "1.0.0", "npm", "metadata.json"), {
+          name: "client", version: "1.0.0", license: "MIT",
+          url: `${fixtureBase}/client.tgz`, sha512: sha512("client"), manifest,
+        });
+        const result = await generate(tree, output);
+        expect(result.code).not.toBe(0);
+        expect(result.output).toContain(expected);
+      } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+    }, 120000);
+  }
+
+  for(const name of ["../../escaped", "foo/bar", "@acme/../x", "Client", "@acme/tools/extra"]) {
+    test(`rejects the npm name ${name}`, async () => {
+      const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-npm-name-"));
+      const output = path.join(tree, "out", "site");
+      try {
+        const repo = path.join(tree, "acme", "client");
+        fs.mkdirSync(path.join(repo, "1.0.0", "npm"), { recursive: true });
+        fs.writeFileSync(path.join(repo, "README.md"), "# Client\n");
+        writeJson(path.join(repo, "1.0.0", "npm", "metadata.json"), {
+          name, version: "1.0.0", license: "MIT",
+          url: `${fixtureBase}/client.tgz`, sha512: sha512("client"),
+        });
+        const result = await generate(tree, output);
+        expect(result.code).not.toBe(0);
+        expect(result.output).toContain(`invalid npm name ${name}`);
+        expect(fs.existsSync(path.join(tree, "out", "escaped"))).toBe(false);
+      } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+    }, 120000);
+  }
 
   type NegativeCase = [string, FixtureOptions, string[], string];
   const negatives: NegativeCase[] = [
