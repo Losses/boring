@@ -26,8 +26,12 @@ jobs:
         run: |
           GEN_DIR=reference/registry-tool/gen
           cd "$GEN_DIR"
-          echo "" >> Cargo.toml
-          echo "[workspace]" >> Cargo.toml
+          # The generated manifest already declares [workspace] since the
+          # generator started emitting it; a second table fails to parse.
+          if ! grep -q '^\[workspace\]' Cargo.toml; then
+            echo "" >> Cargo.toml
+            echo "[workspace]" >> Cargo.toml
+          fi
           cat > src_main.rs << 'ENTRY'
           fn main() {
               match registry_tool::registry::main::Main::main_main() {

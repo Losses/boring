@@ -648,6 +648,133 @@ class Core {
         }
     }
 
+    /** The groupId of a Maven release; the reader requires one. */
+    static function mavenGroup(r:Release):String {
+        var rg = r.groupId;
+        var g:String = rg == null ? "" : rg;
+        return g;
+    }
+
+    /** The GitHub repository whose releases hold a Maven release's files. */
+    static function mavenTarget(r:Release):String {
+        var rr = r.repository;
+        var t:String = rr == null ? r.owner + "/" + r.repo : rr;
+        return t;
+    }
+
+    static function mavenGroupIds(a:Array<Release>):Array<String> {
+        var out:Array<String> = [];
+        for (ai in 0...a.length) {
+            var r = a[ai];
+            if (r.platform == "maven" && !out.has(mavenGroup(r)))
+                out.push(mavenGroup(r));
+        }
+        sortStrings(out);
+        return out;
+    }
+
+    /** The artifactIds of one groupId that have files, sorted. */
+    static function mavenFileArtifactIds(a:Array<Release>, gid:String):Array<String> {
+        var out:Array<String> = [];
+        for (ai in 0...a.length) {
+            var r = a[ai];
+            if (r.platform == "maven" && mavenGroup(r) == gid)
+                for (fi in 0...r.artifacts.length)
+                    if (!out.has(mavenArtifactId(r, fi)))
+                        out.push(mavenArtifactId(r, fi));
+        }
+        sortStrings(out);
+        return out;
+    }
+
+    /** The repositories that publish files of one coordinate, across every
+        version. */
+    static function mavenOwners(a:Array<Release>, gid:String, id:String):Array<String> {
+        var out:Array<String> = [];
+        for (ai in 0...a.length) {
+            var r = a[ai];
+            if (r.platform == "maven" && mavenGroup(r) == gid)
+                for (fi in 0...r.artifacts.length)
+                    if (mavenArtifactId(r, fi) == id && !out.has(mavenTarget(r)))
+                        out.push(mavenTarget(r));
+        }
+        return out;
+    }
+
+    static function mavenRule(path:String, target:String, version:String):String
+        return path + "/:file  https://github.com/" + target + "/releases/download/v" + version + "/:file  302";
+
+    /** The Maven redirect rules. A file request is
+        `<group path>/<artifactId>/<version>/<file>` and the release asset is
+        `v<version>/<file>` in the publishing repository, so a rule names a
+        version or a file only when it must. A groupId whose files all come
+        from one repository, and under which no other registered groupId
+        nests, gets one rule for every artifactId and version. Otherwise each
+        artifactId published from one repository gets one rule, and an
+        artifactId whose repository changed between versions gets one rule
+        per version. Every rule matches exactly three segments below its
+        group path. The nesting check keeps a parent rule from matching
+        `<child path>/<artifactId>/maven-metadata.xml`, which sits three
+        segments below the parent path. An artifactId that is also the next
+        segment of a nested groupId (`sub` beside `<group>.sub`) gets one
+        exact rule per file instead: `<group path>/sub/:version/:file` would
+        match `<group path>/sub/<artifactId>/maven-metadata.xml`. */
+    static function mavenRules(a:Array<Release>):Array<String> {
+        var out:Array<String> = [];
+        var gids = mavenGroupIds(a);
+        for (gi in 0...gids.length) {
+            var gid = gids[gi], gpath = "/maven/" + gid.split(".").join("/") + "/", ids = mavenFileArtifactIds(a, gid);
+            var nested = false;
+            for (oi in 0...gids.length)
+                if (gids[oi].startsWith(gid + "."))
+                    nested = true;
+            var owners:Array<String> = [];
+            for (ii in 0...ids.length) {
+                var os = mavenOwners(a, gid, ids[ii]);
+                for (oi in 0...os.length)
+                    if (!owners.has(os[oi]))
+                        owners.push(os[oi]);
+            }
+            if (!nested && owners.length == 1) {
+                out.push(mavenRule(gpath + ":artifact/:version", owners[0], ":version"));
+                continue;
+            }
+            for (ii in 0...ids.length) {
+                var id = ids[ii], os = mavenOwners(a, gid, id);
+                if (gids.has(gid + "." + id)) {
+                    var exact:Array<String> = [];
+                    for (ai in 0...a.length) {
+                        var r = a[ai];
+                        if (r.platform == "maven" && mavenGroup(r) == gid)
+                            for (fi in 0...r.artifacts.length) {
+                                var file = r.artifacts[fi], from = gpath + id + "/" + r.version + "/" + file;
+                                if (mavenArtifactId(r, fi) == id && !exact.has(from)) {
+                                    exact.push(from);
+                                    out.push(from + "  https://github.com/" + mavenTarget(r) + "/releases/download/v" + r.version + "/" + file + "  302");
+                                }
+                            }
+                    }
+                    continue;
+                }
+                if (os.length == 1) {
+                    out.push(mavenRule(gpath + id + "/:version", os[0], ":version"));
+                    continue;
+                }
+                var versions:Array<String> = [];
+                for (ai in 0...a.length) {
+                    var r = a[ai];
+                    if (r.platform == "maven" && mavenGroup(r) == gid && !versions.has(r.version))
+                        for (fi in 0...r.artifacts.length)
+                            if (mavenArtifactId(r, fi) == id && !versions.has(r.version)) {
+                                versions.push(r.version);
+                                out.push(mavenRule(gpath + id + "/" + r.version, mavenTarget(r), r.version));
+                            }
+                }
+            }
+        }
+        return out;
+    }
+
     static function redirects(scope:String, archiveBase:String, a:Array<Release>):String {
         var lines:Array<String> = [
             "/swift/:scope/:name/*.zip  " + archiveBase + "/swift/:scope/:name/:splat.zip  303"
@@ -670,22 +797,16 @@ class Core {
         lines.push("/cargo/dl/" + n + "-:version.crate  https://github.com/" + cargoTarget + "/releases/download/v:version/" + n
                 + "-:version.crate  302");
         }
-        for (ai in 0...a.length) {
-            var r = a[ai];
-            if (r.platform == "maven")
-                for (fi in 0...r.artifacts.length) {
-                    var file = r.artifacts[fi],
-                        rg = r.groupId,
-                        gid:String = rg == null ? "" : rg;
-                    final mavenTarget = r.repository == null ? r.owner + "/" + r.repo : r.repository;
-                    lines.push("/maven/" + gid.split(".").join("/") + "/" + mavenArtifactId(r, fi) + "/:version/" + file + "  https://github.com/" + mavenTarget
-                        + "/releases/download/v:version/" + file + "  302");
-                }
-        }
+        var mavenLines = mavenRules(a);
+        for (mi in 0...mavenLines.length)
+            lines.push(mavenLines[mi]);
         var moving = 0;
         var fixed = 0;
         for (li in 0...lines.length) {
-            if (lines[li].endsWith("303") || lines[li].endsWith("302"))
+            // Cloudflare counts a rule as dynamic when its source path has a
+            // placeholder or a splat, whatever its status code.
+            var source = lines[li].split("  ")[0];
+            if (source.indexOf(":") >= 0 || source.indexOf("*") >= 0)
                 moving = moving + 1;
             else
                 fixed = fixed + 1;

@@ -180,11 +180,8 @@ test("pack runs the publication command and labels every Gradle maven file", asy
     expect(text, id).toContain("<version>" + VERSION + "</version>");
   }
   const redirects = readFileSync(join(site, "_redirects"), "utf8");
-  for (const entry of artifacts) {
-    const rule = "/maven/org/tiqian/" + entry.artifactId + "/:version/" + entry.file
-      + "  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/" + entry.file + "  302";
-    expect(redirects, entry.file).toContain(rule);
-  }
+  const mavenRules = redirects.split("\n").filter((line) => line.startsWith("/maven/"));
+  expect(mavenRules).toEqual(["/maven/org/tiqian/:artifact/:version/:file  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/:file  302"]);
 }, 300_000);
 
 test("pack collects every publication directory in the staged maven tree", async () => {
@@ -324,7 +321,7 @@ test("a scoped npm name keeps the scope in metadata and encodes the tree directo
   const site = join(current.dir, "site");
   const generated = generateRegistry(join(current.dir, "registry-out"), site);
   expect(generated.code, generated.output).toBe(0);
-  const document = JSON.parse(readFileSync(join(site, "npm", "@tiqian%2fprotocol"), "utf8"));
+  const document = JSON.parse(readFileSync(join(site, "npm", "@tiqian", "protocol"), "utf8"));
   expect(document.name).toBe("@tiqian/protocol");
   expect(document["dist-tags"].latest).toBe(VERSION);
 }, 300_000);

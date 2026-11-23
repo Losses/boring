@@ -376,10 +376,56 @@ describe("committed package registry", () => {
         expect(fs.readFileSync(file + ".sha1", "utf8")).toBe(crypto.createHash("sha1").update(xml).digest("hex") + "\n");
       }
       const redirects = fs.readFileSync(path.join(output, "_redirects"), "utf8");
-      for(const id of ids) {
-        const extension = id === "tiqian-engine" ? ".pom" : ".module";
-        expect(redirects).toContain("/maven/org/tiqian/" + id + "/:version/" + id + "-" + version + extension + "  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/" + id + "-" + version + extension + "  302");
-      }
+      const mavenRules = redirects.split("\n").filter((line) => line.startsWith("/maven/"));
+      expect(mavenRules).toEqual(["/maven/org/tiqian/:artifact/:version/:file  https://github.com/tiqian-cjk/tiqian/releases/download/v:version/:file  302"]);
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }, 120000);
+
+  test("maven redirects stay fixed as versions grow and narrow only where routing needs it", async () => {
+    const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-maven-rules-"));
+    const output = path.join(tree, "out");
+    try {
+      const write = (name: string, repository: string, groupId: string, ids: string[], version: string) => {
+        const repo = path.join(tree, "acme", name);
+        fs.mkdirSync(path.join(repo, version, "maven"), { recursive: true });
+        fs.writeFileSync(path.join(repo, "README.md"), "# " + name + "\n");
+        const artifacts = ids.flatMap((id) => [".pom", ".jar", ".module", "-sources.jar"].map((extension) => {
+          const file = id + "-" + version + extension;
+          return { file, url: "https://assets.example.test/" + file, artifactId: id };
+        }));
+        writeJson(path.join(repo, version, "maven", "metadata.json"), {
+          name, version, repository, tag: "v" + version, groupId, artifacts,
+        });
+      };
+      // dev.acme spans repositories: 30 versions of 12 artifacts from
+      // acme/core (1440 files), two artifacts from acme/ui, and one whose
+      // repository changed between versions.
+      const coreIds = Array.from({ length: 12 }, (_, i) => "core-" + i);
+      for(let minor = 0; minor < 30; minor++) write("core", "acme/core", "dev.acme", coreIds, "1." + minor + ".0");
+      write("ui", "acme/ui", "dev.acme", ["ui", "ui-android"], "2.0.0");
+      write("moved", "acme/old", "dev.acme", ["moved"], "1.0.0");
+      write("moved", "acme/new", "dev.acme", ["moved"], "2.0.0");
+      // dev.solo has one repository but dev.solo.sub nests under it, and
+      // its artifactId sub shares a path segment with that nested group.
+      write("solo", "acme/solo", "dev.solo", ["solo", "sub"], "1.0.0");
+      write("sub", "acme/sub", "dev.solo.sub", ["widget"], "1.0.0");
+      const result = await generate(tree, output);
+      expect(result.code, result.output).toBe(0);
+      const rules = fs.readFileSync(path.join(output, "_redirects"), "utf8").split("\n").filter((line) => line.startsWith("/maven/"));
+      const rule = (pattern: string, repository: string, version = ":version") =>
+        "/maven/" + pattern + "/:file  https://github.com/" + repository + "/releases/download/v" + version + "/:file  302";
+      expect(rules.sort()).toEqual([
+        ...coreIds.map((id) => rule("dev/acme/" + id + "/:version", "acme/core")),
+        rule("dev/acme/ui/:version", "acme/ui"),
+        rule("dev/acme/ui-android/:version", "acme/ui"),
+        rule("dev/acme/moved/1.0.0", "acme/old", "1.0.0"),
+        rule("dev/acme/moved/2.0.0", "acme/new", "2.0.0"),
+        rule("dev/solo/solo/:version", "acme/solo"),
+        ...[".pom", ".jar", ".module", "-sources.jar"].map((extension) => "/maven/dev/solo/sub/1.0.0/sub-1.0.0" + extension
+          + "  https://github.com/acme/solo/releases/download/v1.0.0/sub-1.0.0" + extension + "  302"),
+        rule("dev/solo/sub/:artifact/:version", "acme/sub"),
+      ].sort());
+      expect(fs.existsSync(path.join(output, "maven/dev/solo/sub/widget/maven-metadata.xml"))).toBe(true);
     } finally { fs.rmSync(tree, { recursive: true, force: true }); }
   }, 120000);
 

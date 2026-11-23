@@ -330,8 +330,8 @@ consumer.
    No `lastUpdated` element is written: a release timestamp is no
    property of the committed metadata, and the document stays
    deterministic without it. The version files (jar, pom, both sha1) live as release
-   assets and are reached through one redirect rule per artifact
-   (ruling 9). Gradle follows the redirect chain, including the GitHub
+   assets and are reached through one redirect rule per groupId or
+   per artifact (ruling 9). Gradle follows the redirect chain, including the GitHub
    asset's own second hop, stores the bytes without checking the media
    type, and tolerates a missing sha1 (verified: Gradle 9.6 resolves
    through 200, 302, 303, 307, and the GitHub double hop).
@@ -401,10 +401,40 @@ consumer.
      /cargo/dl/<crate>-:version.crate  https://github.com/<owner>/<repo>/releases/download/v:version/<crate>-:version.crate  302
      ```
 
-   - One dynamic rule per Maven artifact:
+   - Maven rules, the widest that routes every file correctly. A
+     groupId whose files all publish from one repository, and under
+     which no other registered groupId nests, gets one rule:
+
+     ```
+     /maven/<groupPath>/:artifact/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
+     ```
+
+     Otherwise each artifactId whose files all publish from one
+     repository gets one rule:
 
      ```
      /maven/<groupPath>/<artifactId>/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
+     ```
+
+     and an artifactId whose repository changed between versions gets
+     one rule per version:
+
+     ```
+     /maven/<groupPath>/<artifactId>/<version>/:file  https://github.com/<owner>/<repo>/releases/download/v<version>/:file  302
+     ```
+
+     No rule names a file, so the count does not grow with files, and
+     only a coordinate that moved repositories adds rules per version.
+     Every rule matches exactly three segments below its group path.
+     `<artifactId>/maven-metadata.xml` sits two segments below its own
+     group path, and three below the parent of a nested groupId, which
+     is why a groupId with a nested groupId takes per-artifactId rules.
+     For the same reason an artifactId that is also the next segment of
+     a nested groupId (`sub` beside `<group>.sub`) takes one exact rule
+     per file, with no placeholder:
+
+     ```
+     /maven/<groupPath>/<artifactId>/<version>/<file>  https://github.com/<owner>/<repo>/releases/download/v<version>/<file>  302
      ```
 
    The Cloudflare router matches a placeholder followed by a literal
@@ -421,8 +451,9 @@ consumer.
    that package and, for Maven, one per file. Cargo rules are emitted in descending crate-name
    length order: matching is first-match-wins and
    `/cargo/dl/my-:version.crate` would otherwise capture requests for
-   a crate named `my-crate`. The tool counts dynamic and static rules
-   and stops with an error naming both counts when the registry would
+   a crate named `my-crate`. A rule is dynamic when its source path
+   holds a placeholder or a splat, and static otherwise, whatever its
+   status code. The tool counts dynamic and static rules and stops with an error naming both counts when the registry would
    exceed the host cap (Cloudflare Pages: 100 dynamic, 2000 static,
    2100 total); the documented overflow path is Bulk Redirects or
    moving that namespace to object storage.
