@@ -381,7 +381,7 @@ describe("committed package registry", () => {
     } finally { fs.rmSync(tree, { recursive: true, force: true }); }
   }, 120000);
 
-  test("maven redirects stay fixed as versions grow and split per artifactId across repositories", async () => {
+  test("maven redirects stay fixed as versions grow and narrow only where routing needs it", async () => {
     const tree = fs.mkdtempSync(path.join(os.tmpdir(), "boring-registry-maven-rules-"));
     const output = path.join(tree, "out");
     try {
@@ -397,22 +397,32 @@ describe("committed package registry", () => {
           name, version, repository, tag: "v" + version, groupId, artifacts,
         });
       };
+      // dev.acme spans repositories: 30 versions of 12 artifacts from
+      // acme/core (1440 files), two artifacts from acme/ui, and one whose
+      // repository changed between versions.
       const coreIds = Array.from({ length: 12 }, (_, i) => "core-" + i);
-      // 30 versions of 12 artifacts with 4 files each: 1440 files.
       for(let minor = 0; minor < 30; minor++) write("core", "acme/core", "dev.acme", coreIds, "1." + minor + ".0");
       write("ui", "acme/ui", "dev.acme", ["ui", "ui-android"], "2.0.0");
-      write("other", "acme/other", "dev.other", ["other"], "1.0.0");
+      write("moved", "acme/old", "dev.acme", ["moved"], "1.0.0");
+      write("moved", "acme/new", "dev.acme", ["moved"], "2.0.0");
+      // dev.solo has one repository but dev.solo.sub nests under it.
+      write("solo", "acme/solo", "dev.solo", ["solo"], "1.0.0");
+      write("sub", "acme/sub", "dev.solo.sub", ["widget"], "1.0.0");
       const result = await generate(tree, output);
-      expect(result.code).toBe(0);
+      expect(result.code, result.output).toBe(0);
       const rules = fs.readFileSync(path.join(output, "_redirects"), "utf8").split("\n").filter((line) => line.startsWith("/maven/"));
-      const perArtifact = (id: string, repository: string) =>
-        "/maven/dev/acme/" + id + "/:version/:file  https://github.com/" + repository + "/releases/download/v:version/:file  302";
+      const rule = (pattern: string, repository: string, version = ":version") =>
+        "/maven/" + pattern + "/:file  https://github.com/" + repository + "/releases/download/v" + version + "/:file  302";
       expect(rules.sort()).toEqual([
-        ...coreIds.map((id) => perArtifact(id, "acme/core")),
-        perArtifact("ui", "acme/ui"),
-        perArtifact("ui-android", "acme/ui"),
-        "/maven/dev/other/:artifact/:version/:file  https://github.com/acme/other/releases/download/v:version/:file  302",
+        ...coreIds.map((id) => rule("dev/acme/" + id + "/:version", "acme/core")),
+        rule("dev/acme/ui/:version", "acme/ui"),
+        rule("dev/acme/ui-android/:version", "acme/ui"),
+        rule("dev/acme/moved/1.0.0", "acme/old", "1.0.0"),
+        rule("dev/acme/moved/2.0.0", "acme/new", "2.0.0"),
+        rule("dev/solo/solo/:version", "acme/solo"),
+        rule("dev/solo/sub/:artifact/:version", "acme/sub"),
       ].sort());
+      expect(fs.existsSync(path.join(output, "maven/dev/solo/sub/widget/maven-metadata.xml"))).toBe(true);
     } finally { fs.rmSync(tree, { recursive: true, force: true }); }
   }, 120000);
 

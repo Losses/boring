@@ -126,9 +126,8 @@ class RegistryPipelineTests {
                 jvmFound = true;
                 Test.equals(jvmXml, files[i].content);
             } else if (files[i].path == "_redirects") {
-                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine/:version/engine-1.0.0.pom") >= 0, "root redirect");
-                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine-jvm/:version/engine-jvm-1.0.0.pom") >= 0, "jvm pom redirect");
-                Test.ok(files[i].content.indexOf("/maven/dev/dana/engine-jvm/:version/engine-jvm-1.0.0.module") >= 0, "jvm module redirect");
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/:artifact/:version/:file  https://github.com/dana/engine/releases/download/v:version/:file  302") >= 0,
+                    "group redirect");
             }
         }
         Test.equals(true, rootFound);
@@ -161,7 +160,8 @@ class RegistryPipelineTests {
                 legacyFound = true;
                 Test.equals(legacyXml, files[i].content);
             } else if (files[i].path == "_redirects")
-                Test.ok(files[i].content.indexOf("/maven/dev/dana/legacy/:version/legacy-1.0.0.pom") >= 0, "legacy redirect");
+                Test.ok(files[i].content.indexOf("/maven/dev/dana/:artifact/:version/:file  https://github.com/dana/legacy/releases/download/v:version/:file  302") >= 0,
+                    "legacy redirect");
         }
         Test.equals(true, legacyFound);
     }

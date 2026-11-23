@@ -401,24 +401,34 @@ consumer.
      /cargo/dl/<crate>-:version.crate  https://github.com/<owner>/<repo>/releases/download/v:version/<crate>-:version.crate  302
      ```
 
-   - One dynamic rule per Maven groupId whose releases all publish
-     from one repository:
+   - Maven rules, the widest that routes every file correctly. A
+     groupId whose files all publish from one repository, and under
+     which no other registered groupId nests, gets one rule:
 
      ```
      /maven/<groupPath>/:artifact/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
      ```
 
-     A groupId shared by several repositories gets one rule per
-     artifactId instead:
+     Otherwise each artifactId whose files all publish from one
+     repository gets one rule:
 
      ```
      /maven/<groupPath>/<artifactId>/:version/:file  https://github.com/<owner>/<repo>/releases/download/v:version/:file  302
      ```
 
-     Neither rule names a version or a file, so the count stays fixed
-     as versions and files grow. Both match exactly three segments
-     below the group path, so `<artifactId>/maven-metadata.xml`, two
-     segments below it, stays a static file.
+     and an artifactId whose repository changed between versions gets
+     one rule per version:
+
+     ```
+     /maven/<groupPath>/<artifactId>/<version>/:file  https://github.com/<owner>/<repo>/releases/download/v<version>/:file  302
+     ```
+
+     No rule names a file, so the count does not grow with files, and
+     only a coordinate that moved repositories adds rules per version.
+     Every rule matches exactly three segments below its group path.
+     `<artifactId>/maven-metadata.xml` sits two segments below its own
+     group path, and three below the parent of a nested groupId, which
+     is why a groupId with a nested groupId takes per-artifactId rules.
 
    The Cloudflare router matches a placeholder followed by a literal
    suffix inside one segment (`:version.crate`, `*.zip`) and a splat
