@@ -495,3 +495,45 @@ test("dependsOn requires the dependency to be generated first", () => {
   expect(result.output).toContain('dependsOn "base" has no module manifest; run gen for "base" first');
 });
 
+
+
+test("dependsOn skips provided modules and imports the dependency package", () => {
+  const { dir, file } = fixture({
+    sourceRoots: ["src"],
+    sourceSets: {
+      base: { types: ["demo.Base"] },
+      consumer: { types: ["demo.Consumer"] },
+    },
+    baseline: "consumer",
+    bundles: [
+      { id: "consumer", target: "ts", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer-pkg", version: "1.0.0" } },
+      { id: "base", target: "ts", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.0.0" } },
+    ],
+  });
+  const repo = resolve(".");
+  const compilerArgs = [
+    "-lib", "reflaxe",
+    "-cp", join(repo, "packages/compiler"),
+    "-cp", join(repo, "samples"),
+    "-cp", join(repo, "packages/compiler/reflaxe/ts/std-shadow"),
+    "-cp", join(repo, "packages/compiler/reflaxe/ts"),
+    "--macro", 'Intercept.run(["src"])',
+    "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+    "--macro", "tscompiler.Compiler.use()",
+    "-D", "runtime-import=./runtime", "-D", "runtime-emit=.", "-D", "package-shell=none",
+  ];
+  const config = JSON.parse(readFileSync(file, "utf8"));
+  for (const bundle of config.bundles) bundle.haxeArgs = compilerArgs;
+  writeFileSync(file, JSON.stringify(config));
+  mkdirSync(join(dir, "src", "demo"), { recursive: true });
+  writeFileSync(join(dir, "src", "demo", "Base.hx"), "package demo; class Base { public static function value():Int return 1; }\n");
+  writeFileSync(join(dir, "src", "demo", "Consumer.hx"), "package demo; class Consumer { public static function value():Int return Base.value(); }\n");
+  const base = run(file, ["gen", "base"]);
+  if (base.code !== 0) throw new Error(base.output);
+  const consumer = run(file, ["gen", "consumer"]);
+  if (consumer.code !== 0) throw new Error(consumer.output);
+  expect(readFileSync(join(dir, "out", "base", "modules.txt"), "utf8")).toContain("demo.Base");
+  const generated = readFileSync(join(dir, "out", "consumer", "gen", "demo", "Consumer.ts"), "utf8");
+  expect(generated).toContain('from "base-pkg/demo/Base.ts"');
+  expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.ts");
+});
