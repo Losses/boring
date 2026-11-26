@@ -1603,11 +1603,13 @@ class Compiler extends PluginCompiler<Compiler> {
                     switch (d.type) {
                         case TAnonymous(anon):
                             final sig = RustDecl.structureSignature(anon);
-                            final existing = state.structTypedefs.get(sig);
-                            if (existing != null && (existing.name != d.name || existing.module != d.module)) {
-                                Context.error("typedefs " + existing.name + " and " + d.name + " share one anonymous structure shape", d.pos);
+                            // Structurally identical typedefs all lower to the
+                            // same synthesized struct; the first registration
+                            // names it and every reference to either typedef
+                            // resolves to that name.
+                            if (state.structTypedefs.get(sig) == null) {
+                                state.structTypedefs.set(sig, {module: d.module, name: d.name});
                             }
-                            state.structTypedefs.set(sig, {module: d.module, name: d.name});
                         case _:
                     }
                 case _:
