@@ -191,8 +191,9 @@ class Main {
                 if (dep.packageName == "" || dep.packageVersion == "") {
                     continue;
                 }
-                final ecosystem = Config.ecosystemName(bundle.target, dep.packageName, dep.packageNpmName,
-                    dep.packageCargoName, dep.packagePubName, dep.packageMavenName);
+                final declared = packageNameOf(dep);
+                final ecosystem = declared != "" ? declared : Config.ecosystemName(bundle.target, dep.packageName,
+                    dep.packageNpmName, dep.packageCargoName, dep.packagePubName, dep.packageMavenName);
                 args.push("-D");
                 args.push('package-dependency-' + depId + '=' + ecosystem + '@' + dep.packageVersion);
                 args.push("-D");
@@ -219,6 +220,26 @@ class Main {
             }
         }
         return args;
+    }
+
+    static function packageNameOf(bundle:BundleSpec):String {
+        var index = 0;
+        while (index < bundle.haxeArgs.length) {
+            final arg = bundle.haxeArgs[index];
+            if (arg == "-D" && index + 1 < bundle.haxeArgs.length) {
+                final value = bundle.haxeArgs[index + 1];
+                if (StringTools.startsWith(value, "package-name=")) {
+                    return value.substr("package-name=".length);
+                }
+                index += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "-Dpackage-name=")) {
+                return arg.substr("-Dpackage-name=".length);
+            }
+            index++;
+        }
+        return "";
     }
 
     static function moduleManifestPath(project:Project, bundle:BundleSpec):String {

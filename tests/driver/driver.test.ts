@@ -784,5 +784,5 @@ test("gen writes declared Rust dependencies into Cargo.toml", () => {
   if (consumer.code !== 0) throw new Error(consumer.output);
   const manifest = readFileSync(join(dir, "out", "consumer", "gen", "Cargo.toml"), "utf8");
   expect(manifest).toContain("[dependencies]");
-  expect(manifest).toContain('base_pkg = "1.2.3"');
+  expect(manifest).toContain('base_pkg = { package = "base-pkg", version = "1.2.3" }');
 }, 30000);

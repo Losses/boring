@@ -969,10 +969,11 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push("[dependencies]");
             for (dependency in dependencies) {
                 final crate = StringTools.replace(dependency.name, "-", "_");
+                final packageClause = crate == dependency.name ? "" : 'package = "${dependency.name}", ';
                 if (PackageShell.dependencyMode() == "path") {
-                    lines.push('$crate = { path = "${dependency.path}" }');
+                    lines.push('$crate = { ${packageClause}path = "${dependency.path}" }');
                 } else {
-                    lines.push('$crate = "${dependency.version}"');
+                    lines.push('$crate = { ${packageClause}version = "${dependency.version}" }');
                 }
             }
         }
