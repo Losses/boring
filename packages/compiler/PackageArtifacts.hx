@@ -215,6 +215,20 @@ class PackageArtifacts {
         files.sort((a, b) -> Reflect.compare(a.name, b.name));
         final stem = StringTools.replace(PackageShell.artifactStem(), "/", "-") + "-" + PackageShell.version();
         sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
+        // A dependent bundle compiles against this package's installed
+        // shape (dist .js with declarations), not its source tree.
+        final installed = haxe.io.Path.join([parent, "npm"]);
+        deleteTree(installed);
+        sys.FileSystem.createDirectory(installed);
+        sys.io.File.saveContent(haxe.io.Path.join([installed, "package.json"]), manifest);
+        for (distPath in walkFiles(haxe.io.Path.join([stage, "dist"]))) {
+            final target = haxe.io.Path.join([installed, "dist", distPath]);
+            final directory = haxe.io.Path.directory(target);
+            if (!sys.FileSystem.exists(directory)) {
+                sys.FileSystem.createDirectory(directory);
+            }
+            sys.io.File.saveBytes(target, sys.io.File.getBytes(haxe.io.Path.join([stage, "dist", distPath])));
+        }
         deleteTree(stage);
     }
 
@@ -242,7 +256,9 @@ class PackageArtifacts {
                 continue;
             }
             final name = spec.substring(0, at);
-            copyTree(dir, haxe.io.Path.join([stage, "node_modules", name]));
+            final installed = haxe.io.Path.join([dir, "npm"]);
+            copyTree(sys.FileSystem.exists(installed) ? installed : haxe.io.Path.join([dir, "gen"]),
+                haxe.io.Path.join([stage, "node_modules", name]));
         }
     }
 
