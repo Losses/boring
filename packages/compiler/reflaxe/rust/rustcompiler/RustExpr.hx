@@ -15806,6 +15806,10 @@ class RustExpr {
                         && RustShapeParse.shapeOf(val) != RustShape.ShapeOption)
                         val = "Some(" + val + ")";
                 }
+                if (typeName == "PreparedLineChild"
+                    && (f.name == "run" || f.name == "cell" || f.name == "ruby" || f.name == "zone")
+                    && !isTNull(f.expr) && !StringTools.startsWith(val, "Some(") && val != "None")
+                    val = "Some(" + val + ")";
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
         ];
@@ -17386,6 +17390,37 @@ class RustExpr {
         // callers on the parameter axis.
         if (expected == null || actual == null)
             return rendered;
+        // A record typedef destination accepts another record typedef with a
+        // wider field set through Haxe structural subtyping; Rust needs the
+        // fields copied into the destination struct. The declaration scan and
+        // the read-site type can differ in Null unification, so the lookup
+        // falls back to the unification match.
+        final expectedRecord = switch (Context.follow(expected)) {
+            case TAnonymous(anonRef):
+                final found = state.structTypedefs.get(RustDecl.structureSignature(anonRef));
+                found != null ? found : PolicyQueries.matchStructTypedefByUnification(anonRef, state.structTypedefs);
+            case _: null;
+        };
+        if (expectedRecord != null) {
+            final actualRecord = switch (Context.follow(actual.t)) {
+                case TAnonymous(anonRef):
+                    final found = state.structTypedefs.get(RustDecl.structureSignature(anonRef));
+                    found != null ? found : PolicyQueries.matchStructTypedefByUnification(anonRef, state.structTypedefs);
+                case _: null;
+            };
+            if (actualRecord == null || actualRecord.name != expectedRecord.name || actualRecord.module != expectedRecord.module) {
+                final destinationFields = declaredStructFieldTypes(expectedRecord.module, expectedRecord.name);
+                if (destinationFields != null) {
+                    final parts = [];
+                    for (fieldName in destinationFields.keys()) {
+                        final fieldType = destinationFields.get(fieldName);
+                        final sourceText = "(" + rendered + ")." + RustImports.toSnakeCase(fieldName);
+                        parts.push(RustImports.toSnakeCase(fieldName) + ": " + (StaticFieldHelper.isNullableType(fieldType) ? "Some(" + sourceText + ".clone())" : sourceText + ".clone()"));
+                    }
+                    return expectedRecord.name + " { " + parts.join(", ") + " }";
+                }
+            }
+        }
         // A value entering a slot that names a shared concrete implementor
         // wraps into the shared handle, so every binding of the class names
         // one object; a value already typed as the implementor is itself a
