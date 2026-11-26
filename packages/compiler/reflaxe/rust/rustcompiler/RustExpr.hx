@@ -8025,7 +8025,11 @@ class RustExpr {
 
     function isAllCopy(fields:Array<ClassField>):Bool {
         for (f in fields) {
-            if (!isTypeCopy(f.type))
+            // Context.follow unwraps Null<T> to T, so a nullable field would
+            // otherwise read as Copy while the generated struct stores
+            // Option<T> without a Copy derive. Treat nullable fields as
+            // non-Copy so reads clone instead of moving out of a reference.
+            if (StaticFieldHelper.isNullableType(f.type) || !isTypeCopy(f.type))
                 return false;
         }
         return true;
