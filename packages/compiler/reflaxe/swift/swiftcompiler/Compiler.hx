@@ -361,6 +361,11 @@ class Compiler extends PluginCompiler<Compiler> {
         final testOutput = Context.definedValue("swift-test-output");
 
         for (module in modules) {
+            if (PackageDependencies.provides(module)) {
+                // Provided by a dependency module; the dependant imports it
+                // instead of writing a copy.
+                continue;
+            }
             if (RuntimeResidents.isResident(module)) {
                 // Resident modules append into Runtime.swift below,
                 // not into the business tree.
@@ -508,6 +513,9 @@ class Compiler extends PluginCompiler<Compiler> {
         final testImport = Context.definedValue("swift-test-import");
         if (CompilationUnits.isTestModule(module) && testImport != null) {
             header.push("import " + testImport);
+        }
+        for (dependency in PackageDependencies.modules()) {
+            header.push("import " + dependency);
         }
         // Declaration-scoped framework imports (C interop). The target emits
         // one Swift module, so an ordinary cross-module reference needs no
