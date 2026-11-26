@@ -745,6 +745,18 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         lines.push("environment:");
         lines.push("  sdk: ^3.0.0");
+        final dependencies = PackageShell.dependencies();
+        if (dependencies.length > 0) {
+            lines.push("dependencies:");
+            for (dependency in dependencies) {
+                if (PackageShell.dependencyMode() == "path") {
+                    lines.push("  " + dependency.name + ":");
+                    lines.push("    path: " + dependency.path);
+                } else {
+                    lines.push("  " + dependency.name + ": ^" + dependency.version);
+                }
+            }
+        }
         return lines.join("\n") + "\n";
     }
 

@@ -588,7 +588,7 @@ test("dependsOn skips provided modules on the Kotlin target", () => {
     baseline: "consumer",
     bundles: [
       { id: "consumer", target: "kotlin", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer-pkg", version: "1.0.0" } },
-      { id: "base", target: "kotlin", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.0.0" } },
+      { id: "base", target: "kotlin", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.0.0", mavenGroup: "org.tiqian" } },
     ],
   });
   const repo = resolve(".");
@@ -616,6 +616,7 @@ test("dependsOn skips provided modules on the Kotlin target", () => {
   expect(readFileSync(join(dir, "out", "base", "modules.txt"), "utf8")).toContain("demo.Base");
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.kt");
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).toContain("Consumer.kt");
+  expect(readFileSync(join(dir, "out", "consumer", "gen", "build.gradle.kts"), "utf8")).toContain('implementation("org.tiqian:base-pkg:1.0.0")');
 }, 30000);
 
 test("dependsOn skips provided modules and imports the Dart package", () => {
@@ -656,6 +657,7 @@ test("dependsOn skips provided modules and imports the Dart package", () => {
   expect(readFileSync(join(dir, "out", "base", "modules.txt"), "utf8")).toContain("demo.Base");
   expect(readdirSync(join(dir, "out", "consumer", "gen", "lib", "demo"))).not.toContain("base.dart");
   expect(readFileSync(join(dir, "out", "consumer", "gen", "lib", "demo", "consumer.dart"), "utf8")).toContain("package:base-pkg/demo/base.dart");
+  expect(readFileSync(join(dir, "out", "consumer", "gen", "pubspec.yaml"), "utf8")).toContain("base-pkg: ^1.0.0");
 }, 30000);
 
 test("dependsOn skips provided modules and imports the Swift module", () => {
@@ -667,7 +669,7 @@ test("dependsOn skips provided modules and imports the Swift module", () => {
     },
     baseline: "consumer",
     bundles: [
-      { id: "consumer", target: "swift", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer-pkg", version: "1.0.0" } },
+      { id: "consumer", target: "swift", sourceSet: "consumer", dependsOn: ["base"], dependencyMode: "path", dependencyPaths: { base: "../base/gen" }, package: { name: "consumer-pkg", version: "1.0.0" } },
       { id: "base", target: "swift", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.0.0" } },
     ],
   });
@@ -696,6 +698,9 @@ test("dependsOn skips provided modules and imports the Swift module", () => {
   expect(readFileSync(join(dir, "out", "base", "modules.txt"), "utf8")).toContain("demo.Base");
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.swift");
   expect(readFileSync(join(dir, "out", "consumer", "gen", "demo", "Consumer.swift"), "utf8")).toContain("import base_pkg");
+  const swiftManifest = readFileSync(join(dir, "out", "consumer", "gen", "Package.swift"), "utf8");
+  expect(swiftManifest).toContain('.package(path: "../base/gen")');
+  expect(swiftManifest).toContain('.product(name: "base_pkg", package: "gen")');
 }, 30000);
 
 test("pack writes declared dependencies into the package manifest", () => {

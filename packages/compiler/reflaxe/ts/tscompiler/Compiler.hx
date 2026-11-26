@@ -660,7 +660,7 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('  "dependencies": {');
             for (index in 0...dependencies.length) {
                 final comma = index < dependencies.length - 1 ? "," : "";
-                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(dependencies[index].version)}${comma}');
+                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(PackageShell.dependencySpec(dependencies[index]))}${comma}');
             }
             lines.push("  },");
         }
@@ -762,7 +762,7 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('  "dependencies": {');
             for (index in 0...dependencies.length) {
                 final comma = index < dependencies.length - 1 ? "," : "";
-                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(dependencies[index].version)}${comma}');
+                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(PackageShell.dependencySpec(dependencies[index]))}${comma}');
             }
             lines.push("  }");
         }

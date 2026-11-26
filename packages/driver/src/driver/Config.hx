@@ -8,12 +8,12 @@ import registry.JsonException;
 /** Parses the project file without host I/O or reflection. */
 class Config {
     static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "sourceSets", "rootsFile", "haxeArgs", "bundles"];
-    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication", "kmpPublication", "dependsOn"];
+    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication", "kmpPublication", "dependsOn", "dependencyMode", "dependencyPaths"];
     static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env", "cargoArgs"];
     static final COMMAND_FIELDS = ["command", "args", "env"];
-    static final PACKAGE_FIELDS = ["name", "version", "license", "npmName", "cargoName", "pubName", "mavenName"];
+    static final PACKAGE_FIELDS = ["name", "version", "license", "npmName", "cargoName", "pubName", "mavenName", "swiftUrl", "swiftPath", "mavenGroup"];
     static final TARGETS = ["haxe", "ts", "kotlin", "rust", "swift", "dart"];
 
     static function fail(message:String):Void {
@@ -359,6 +359,9 @@ class Config {
             var packageCargoName = "";
             var packagePubName = "";
             var packageMavenName = "";
+            var packageSwiftUrl = "";
+            var packageSwiftPath = "";
+            var packageMavenGroup = "";
             if (has(values, "package")) {
                 final packageFields = fieldsOf(field(values, "package"), 'boring.json: bundle "$id": package');
                 final packageWhere = 'boring.json: bundle "$id": package';
@@ -373,6 +376,9 @@ class Config {
                 packageCargoName = packageOverride(packageFields, "cargoName", packageWhere);
                 packagePubName = packageOverride(packageFields, "pubName", packageWhere);
                 packageMavenName = packageOverride(packageFields, "mavenName", packageWhere);
+                packageSwiftUrl = packageOverride(packageFields, "swiftUrl", packageWhere);
+                packageSwiftPath = packageOverride(packageFields, "swiftPath", packageWhere);
+                packageMavenGroup = packageOverride(packageFields, "mavenGroup", packageWhere);
                 packageName = ecosystemName(target, baseName, packageNpmName, packageCargoName, packagePubName,
                     packageMavenName);
                 if (packageName == "" || packageVersion == "") {
@@ -380,6 +386,26 @@ class Config {
                 }
             }
             final dependsOn = parseDependsOn(values, id);
+            final dependencyMode = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
+            if (dependencyMode != "registry" && dependencyMode != "path" && dependencyMode != "workspace") {
+                fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+            }
+            final dependencyPaths:Array<{id:String, path:String}> = [];
+            if (has(values, "dependencyPaths")) {
+                final pathsWhere = 'boring.json: bundle "$id": dependencyPaths';
+                for (entry in fieldsOf(field(values, "dependencyPaths"), pathsWhere)) {
+                    dependencyPaths.push({id: entry.name, path: requiredValue(entry.value, pathsWhere + ': "' + entry.name + '" must be a string')});
+                }
+                for (dep in dependsOn) {
+                    var found = false;
+                    for (entry in dependencyPaths) if (entry.id == dep) found = true;
+                    if (!found) {
+                        fail('boring.json: bundle "$id": dependencyPaths has no entry for dependsOn "' + dep + '"');
+                    }
+                }
+            } else if (dependencyMode == "path") {
+                fail('boring.json: bundle "$id": dependencyMode path needs dependencyPaths');
+            }
             final runOverride = step(values, "run", 'boring.json: bundle "$id"');
             for (variable in runOverride.env) {
                 if (variable.key == "BORING_TEST_RESULTS") {
@@ -412,7 +438,8 @@ class Config {
                 kmpPublication: kmpPublication,
                 packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense,
                 packageNpmName: packageNpmName, packageCargoName: packageCargoName, packagePubName: packagePubName,
-                packageMavenName: packageMavenName,
+                packageMavenName: packageMavenName, packageSwiftUrl: packageSwiftUrl, packageSwiftPath: packageSwiftPath,
+                packageMavenGroup: packageMavenGroup, dependencyMode: dependencyMode, dependencyPaths: dependencyPaths,
                 dependsOn: dependsOn
             };
             bundles.push(bundle);

@@ -180,6 +180,10 @@ class Main {
         if (bundle.dependsOn.length > 0) {
             args.push("-D");
             args.push("package-dependency-file=" + writeDependencyFile(project, bundle));
+            if (bundle.dependencyMode != "registry") {
+                args.push("-D");
+                args.push("package-dependency-mode=" + bundle.dependencyMode);
+            }
             // Each dependency's registry-side name and version, so the
             // compiler writes them into the manifest it generates.
             for (depId in bundle.dependsOn) {
@@ -192,7 +196,26 @@ class Main {
                 args.push("-D");
                 args.push('package-dependency-' + depId + '=' + ecosystem + '@' + dep.packageVersion);
                 args.push("-D");
-                args.push('package-dependency-dir-' + depId + '=' + genDir(project, dep));
+                args.push('package-dependency-dir-' + depId + '='
+                    + resolveAgainst(project.root, joinPath(project.outRoot, dep.id)));
+                for (entry in bundle.dependencyPaths) {
+                    if (entry.id == depId) {
+                        args.push("-D");
+                        args.push('package-dependency-path-' + depId + '=' + entry.path);
+                    }
+                }
+                if (dep.packageMavenGroup != "") {
+                    args.push("-D");
+                    args.push('package-dependency-group-' + depId + '=' + dep.packageMavenGroup);
+                }
+                if (dep.packageSwiftUrl != "") {
+                    args.push("-D");
+                    args.push('package-dependency-swift-url-' + depId + '=' + dep.packageSwiftUrl);
+                }
+                if (dep.packageSwiftPath != "") {
+                    args.push("-D");
+                    args.push('package-dependency-swift-path-' + depId + '=' + dep.packageSwiftPath);
+                }
             }
         }
         return args;

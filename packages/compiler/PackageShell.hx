@@ -22,31 +22,66 @@ import haxe.macro.Context;
     - `package-license`: optional; the license field appears only under
       this define.
 **/
+typedef PackageDependency = {
+    name:String,
+    version:String,
+    path:String,
+    group:String,
+    swiftUrl:String,
+    swiftPath:String
+}
+
 class PackageShell {
     /**
         The dependency entries the driver declares for this bundle:
         `-D package-dependency-<id>=<registry name>@<version>`. Sorted by
         name so identical compilations emit identical manifests.
     **/
-    public static function dependencies():Array<{name:String, version:String}> {
+    public static function dependencyMode():String {
+        final value = Context.definedValue("package-dependency-mode");
+        return value == null || value == "" ? "registry" : value;
+    }
+
+    public static function dependencySpec(dependency:PackageDependency):String {
+        return switch (dependencyMode()) {
+            case "workspace": "workspace:*";
+            case "path": "file:" + dependency.path;
+            case _: dependency.version;
+        }
+    }
+
+    public static function dependencies():Array<PackageDependency> {
         final defines = Context.getDefines();
-        final out:Array<{name:String, version:String}> = [];
+        final out:Array<PackageDependency> = [];
         for (key in defines.keys()) {
-            if (!StringTools.startsWith(key, "package-dependency-")) {
-                continue;
-            }
+            if (!StringTools.startsWith(key, "package-dependency-")) continue;
+            if (key == "package-dependency-mode"
+                || StringTools.startsWith(key, "package-dependency-dir-")
+                || StringTools.startsWith(key, "package-dependency-path-")
+                || StringTools.startsWith(key, "package-dependency-group-")
+                || StringTools.startsWith(key, "package-dependency-swift-url-")
+                || StringTools.startsWith(key, "package-dependency-swift-path-")) continue;
+            final id = key.substr("package-dependency-".length);
             final value = defines.get(key);
-            if (value == null) {
-                continue;
-            }
+            if (value == null) continue;
             final at = value.lastIndexOf("@");
-            if (at <= 0 || at == value.length - 1) {
-                continue;
-            }
-            out.push({name: value.substring(0, at), version: value.substr(at + 1)});
+            if (at <= 0 || at == value.length - 1) continue;
+            out.push({
+                name: value.substring(0, at),
+                version: value.substr(at + 1),
+                path: defineOr("package-dependency-path-" + id, ""),
+                group: defineOr("package-dependency-group-" + id, ""),
+                swiftUrl: defineOr("package-dependency-swift-url-" + id, ""),
+                swiftPath: defineOr("package-dependency-swift-path-" + id, "")
+            });
         }
         out.sort(function(a, b) return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0));
         return out;
+    }
+
+    static function defineOr(key:String, fallback:String):String {
+        final value = Context.definedValue(key);
+        return value == null ? fallback : value;
     }
 
     /** True when the compilation emits a package manifest. Errors on any value outside emit/none. */
