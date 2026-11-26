@@ -583,7 +583,7 @@ class Main {
             if (genFailure != null) exit(1);
             // The TypeScript and Rust compilers write the authoritative module
             // names (they know declaration case); other targets keep the scan.
-            if (bundle.target != "ts" && bundle.target != "rust") writeModuleManifest(project, bundle, generated);
+            if (bundle.target != "ts" && bundle.target != "rust" && bundle.target != "dart") writeModuleManifest(project, bundle, generated);
             final afterGen = bundle.afterGen;
             if (afterGen != null) {
                 final afterFailure = step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,

@@ -553,6 +553,11 @@ class Compiler extends PluginCompiler<Compiler> {
         final emitDir = RuntimeConfig.emitDir();
 
         for (module in modules) {
+            if (PackageDependencies.packageOf(module) != null) {
+                // Provided by a dependency package; the dependant imports it
+                // through package:<pubName>/... instead of writing a copy.
+                continue;
+            }
             if (RuntimeResidents.isResident(module)) {
                 // Resident modules append into the combined runtime library
                 // (runtime.dart for std residents, test_host.dart for the
@@ -613,6 +618,20 @@ class Compiler extends PluginCompiler<Compiler> {
         // Write the self-contained runtime library when any business code
         // uses the runtime, or when force-compiled residents produced parts
         // that need to live inside runtime.dart.
+        final modulesFile = Context.definedValue("package-modules-file");
+        if (modulesFile != null && modulesFile != "") {
+            // Haxe module names for dependant bundles: Dart file paths are
+            // snake_case and cannot be turned back into declaration names.
+            final names = [];
+            for (module in modules) {
+                if (CompilationUnits.isTestModule(module)) continue;
+                if (RuntimeResidents.isResident(module)) continue;
+                if (PackageDependencies.packageOf(module) != null) continue;
+                names.push(module);
+            }
+            names.sort(Reflect.compare);
+            sys.io.File.saveContent(modulesFile, names.length == 0 ? "" : names.join("\n") + "\n");
+        }
         final needRuntime = emitDir != null && (anyRuntimeUsed() || anyResidentCompiled());
         if (needRuntime) {
             // Resident modules compile through the normal pipeline and
@@ -771,6 +790,11 @@ class Compiler extends PluginCompiler<Compiler> {
             // tree, so the import walks to that tree. The emission loop
             // routes by the same testModules map. A helper class sharing a
             // module with a test class follows the module routing.
+            final provided = PackageDependencies.packageOf(entry.module);
+            if (provided != null) {
+                lines.push("import 'package:" + provided + "/" + DartImports.libraryPathOf(entry.module) + "' as " + entry.prefix + ";");
+                continue;
+            }
             final entryPath = CompilationUnits.isTestModule(entry.module)
                 ? testOutput + "/" + DartImports.libraryPathOf(entry.module)
                 : dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module);
@@ -781,6 +805,11 @@ class Compiler extends PluginCompiler<Compiler> {
                 + ";");
         }
         for (module in ctx.imports.extensionModuleList()) {
+            final provided = PackageDependencies.packageOf(module);
+            if (provided != null) {
+                lines.push("import 'package:" + provided + "/" + DartImports.libraryPathOf(module) + "';");
+                continue;
+            }
             final extPath = CompilationUnits.isTestModule(module)
                 ? testOutput + "/" + DartImports.libraryPathOf(module)
                 : dartOutput + "/lib/" + DartImports.libraryPathOf(module);

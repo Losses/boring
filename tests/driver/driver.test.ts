@@ -617,3 +617,43 @@ test("dependsOn skips provided modules on the Kotlin target", () => {
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.kt");
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).toContain("Consumer.kt");
 }, 30000);
+
+test("dependsOn skips provided modules and imports the Dart package", () => {
+  const { dir, file } = fixture({
+    sourceRoots: ["src"],
+    sourceSets: {
+      base: { types: ["demo.Base"] },
+      consumer: { types: ["demo.Consumer"] },
+    },
+    baseline: "consumer",
+    bundles: [
+      { id: "consumer", target: "dart", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer-pkg", version: "1.0.0" } },
+      { id: "base", target: "dart", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.0.0" } },
+    ],
+  });
+  const repo = resolve(".");
+  const compilerArgs = [
+    "-lib", "reflaxe",
+    "-cp", join(repo, "packages/compiler"),
+    "-cp", join(repo, "samples"),
+    "-cp", join(repo, "packages/compiler/reflaxe/dart/std-shadow"),
+    "-cp", join(repo, "packages/compiler/reflaxe/dart"),
+    "--macro", 'Intercept.run(["src"])',
+    "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+    "--macro", "dartcompiler.Compiler.use()",
+    "-D", "runtime-import=@boring/runtime", "-D", "runtime-emit=.",
+  ];
+  const config = JSON.parse(readFileSync(file, "utf8"));
+  for (const bundle of config.bundles) bundle.haxeArgs = compilerArgs;
+  writeFileSync(file, JSON.stringify(config));
+  mkdirSync(join(dir, "src", "demo"), { recursive: true });
+  writeFileSync(join(dir, "src", "demo", "Base.hx"), "package demo; class Base { public static function value():Int return 1; }\n");
+  writeFileSync(join(dir, "src", "demo", "Consumer.hx"), "package demo; class Consumer { public static function value():Int return Base.value(); }\n");
+  const base = run(file, ["gen", "base"]);
+  if (base.code !== 0) throw new Error(base.output);
+  const consumer = run(file, ["gen", "consumer"]);
+  if (consumer.code !== 0) throw new Error(consumer.output);
+  expect(readFileSync(join(dir, "out", "base", "modules.txt"), "utf8")).toContain("demo.Base");
+  expect(readdirSync(join(dir, "out", "consumer", "gen", "lib", "demo"))).not.toContain("base.dart");
+  expect(readFileSync(join(dir, "out", "consumer", "gen", "lib", "demo", "consumer.dart"), "utf8")).toContain("package:base-pkg/demo/base.dart");
+}, 30000);
