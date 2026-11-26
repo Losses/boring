@@ -198,6 +198,7 @@ class PackageArtifacts {
         // The manifest doubles as the stage's module marker: its
         // `"type": "module"` line is what makes nodenext treat the
         // staged sources as ES modules.
+        copyStagedDependencies(stage);
         sys.io.File.saveContent(haxe.io.Path.join([stage, "package.json"]), manifest);
         sys.io.File.saveContent(haxe.io.Path.join([stage, "tsconfig.json"]), TSCONFIG);
         // The staged tree carries no @types package, so the platform
@@ -215,6 +216,55 @@ class PackageArtifacts {
         final stem = StringTools.replace(PackageShell.artifactStem(), "/", "-") + "-" + PackageShell.version();
         sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
         deleteTree(stage);
+    }
+
+    /**
+        The declared bundle dependencies, staged under `node_modules`
+        with the registry name the manifest uses: the npm artifact's
+        tsc resolves a by-name dependency import from this tree, so the
+        pack stays self-contained instead of depending on the consumer's
+        workspace links.
+    **/
+    static function copyStagedDependencies(stage:String):Void {
+        final defines = haxe.macro.Context.getDefines();
+        for (key in defines.keys()) {
+            if (!StringTools.startsWith(key, "package-dependency-dir-")) {
+                continue;
+            }
+            final id = key.substr("package-dependency-dir-".length);
+            final dir = defines.get(key);
+            final spec = defines.get("package-dependency-" + id);
+            if (dir == null || spec == null) {
+                continue;
+            }
+            final at = spec.lastIndexOf("@");
+            if (at <= 0) {
+                continue;
+            }
+            final name = spec.substring(0, at);
+            copyTree(dir, haxe.io.Path.join([stage, "node_modules", name]));
+        }
+    }
+
+    static function copyTree(src:String, dst:String):Void {
+        if (!sys.FileSystem.exists(src)) {
+            return;
+        }
+        if (sys.FileSystem.isDirectory(src)) {
+            sys.FileSystem.createDirectory(dst);
+            for (entry in sys.FileSystem.readDirectory(src)) {
+                if (entry == "gen-tests" || entry == "target" || StringTools.startsWith(entry, ".package-")) {
+                    continue;
+                }
+                copyTree(haxe.io.Path.join([src, entry]), haxe.io.Path.join([dst, entry]));
+            }
+        } else {
+            final parent = haxe.io.Path.directory(dst);
+            if (!sys.FileSystem.exists(parent)) {
+                sys.FileSystem.createDirectory(parent);
+            }
+            sys.io.File.saveBytes(dst, sys.io.File.getBytes(src));
+        }
     }
 
     /**

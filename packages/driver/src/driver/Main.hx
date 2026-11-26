@@ -191,6 +191,8 @@ class Main {
                     dep.packageCargoName, dep.packagePubName, dep.packageMavenName);
                 args.push("-D");
                 args.push('package-dependency-' + depId + '=' + ecosystem + '@' + dep.packageVersion);
+                args.push("-D");
+                args.push('package-dependency-dir-' + depId + '=' + genDir(project, dep));
             }
         }
         return args;

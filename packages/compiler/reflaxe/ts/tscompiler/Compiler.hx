@@ -756,7 +756,16 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('      "default": ${jsonString("./dist/" + stem + ".js")}');
             lines.push('    }' + comma);
         }
-        lines.push("  }");
+        lines.push("  },");
+        final dependencies = PackageShell.dependencies();
+        if (dependencies.length > 0) {
+            lines.push('  "dependencies": {');
+            for (index in 0...dependencies.length) {
+                final comma = index < dependencies.length - 1 ? "," : "";
+                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(dependencies[index].version)}${comma}');
+            }
+            lines.push("  }");
+        }
         lines.push("}");
         return lines.join("\n") + "\n";
     }
