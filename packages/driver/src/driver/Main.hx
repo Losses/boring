@@ -180,6 +180,18 @@ class Main {
         if (bundle.dependsOn.length > 0) {
             args.push("-D");
             args.push("package-dependency-file=" + writeDependencyFile(project, bundle));
+            // Each dependency's registry-side name and version, so the
+            // compiler writes them into the manifest it generates.
+            for (depId in bundle.dependsOn) {
+                final dep = dependencyBundle(project, depId);
+                if (dep.packageName == "" || dep.packageVersion == "") {
+                    continue;
+                }
+                final ecosystem = Config.ecosystemName(bundle.target, dep.packageName, dep.packageNpmName,
+                    dep.packageCargoName, dep.packagePubName, dep.packageMavenName);
+                args.push("-D");
+                args.push('package-dependency-' + depId + '=' + ecosystem + '@' + dep.packageVersion);
+            }
         }
         return args;
     }

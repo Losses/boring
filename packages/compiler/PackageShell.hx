@@ -7,8 +7,8 @@ import haxe.macro.Context;
     module decides whether the tree also carries the ecosystem's package
     manifest and which identity the manifest states. Every field comes
     from a compile-time define: the generator owns what the compilation
-    derives (entry paths, the empty dependency set, the dialect floor),
-    and the consumer's build owns everything else.
+    derives (entry paths, the dependency entries the driver declares for
+    the bundle, the dialect floor); the consumer's build owns the rest.
 
     - `package-shell=emit` (or the absent define): write the manifest.
     - `package-shell=none`: source only; the consumer maintains its own
@@ -23,6 +23,32 @@ import haxe.macro.Context;
       this define.
 **/
 class PackageShell {
+    /**
+        The dependency entries the driver declares for this bundle:
+        `-D package-dependency-<id>=<registry name>@<version>`. Sorted by
+        name so identical compilations emit identical manifests.
+    **/
+    public static function dependencies():Array<{name:String, version:String}> {
+        final defines = Context.getDefines();
+        final out:Array<{name:String, version:String}> = [];
+        for (key in defines.keys()) {
+            if (!StringTools.startsWith(key, "package-dependency-")) {
+                continue;
+            }
+            final value = defines.get(key);
+            if (value == null) {
+                continue;
+            }
+            final at = value.lastIndexOf("@");
+            if (at <= 0 || at == value.length - 1) {
+                continue;
+            }
+            out.push({name: value.substring(0, at), version: value.substr(at + 1)});
+        }
+        out.sort(function(a, b) return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0));
+        return out;
+    }
+
     /** True when the compilation emits a package manifest. Errors on any value outside emit/none. */
     public static function enabled():Bool {
         SharedModuleTrace.record("PackageShell");

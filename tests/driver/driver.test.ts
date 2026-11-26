@@ -697,3 +697,87 @@ test("dependsOn skips provided modules and imports the Swift module", () => {
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.swift");
   expect(readFileSync(join(dir, "out", "consumer", "gen", "demo", "Consumer.swift"), "utf8")).toContain("import base_pkg");
 }, 30000);
+
+test("pack writes declared dependencies into the package manifest", () => {
+  const { dir, file } = fixture({
+    sourceRoots: ["src"],
+    sourceSets: {
+      base: { types: ["demo.Base"] },
+      consumer: { types: ["demo.Consumer"] },
+    },
+    baseline: "consumer",
+    bundles: [
+      { id: "consumer", target: "ts", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer", npmName: "consumer-pkg", version: "2.0.0" } },
+      { id: "base", target: "ts", sourceSet: "base", test: false, compare: false, package: { name: "base", npmName: "base-pkg", version: "1.2.3" } },
+    ],
+  });
+  const repo = resolve(".");
+  const compilerArgs = [
+    "-lib", "reflaxe",
+    "-cp", join(repo, "packages/compiler"),
+    "-cp", join(repo, "samples"),
+    "-cp", join(repo, "packages/compiler/reflaxe/ts/std-shadow"),
+    "-cp", join(repo, "packages/compiler/reflaxe/ts"),
+    "--macro", 'Intercept.run(["src"])',
+    "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+    "--macro", "tscompiler.Compiler.use()",
+    "-D", "runtime-import=./runtime", "-D", "runtime-emit=.",
+  ];
+  const config = JSON.parse(readFileSync(file, "utf8"));
+  for (const bundle of config.bundles) bundle.haxeArgs = compilerArgs;
+  writeFileSync(file, JSON.stringify(config));
+  mkdirSync(join(dir, "src", "demo"), { recursive: true });
+  writeFileSync(join(dir, "src", "demo", "Base.hx"), "package demo; class Base { public static function value():Int return 1; }\n");
+  writeFileSync(join(dir, "src", "demo", "Consumer.hx"), "package demo; class Consumer { public static function value():Int return Base.value(); }\n");
+  const base = run(file, ["gen", "base"]);
+  if (base.code !== 0) throw new Error(base.output);
+  const bin = join(dir, "bin");
+  mkdirSync(bin, { recursive: true });
+  const tsc = join(bin, "tsc");
+  writeFileSync(tsc, "#!/bin/sh\nstage=\"\"\nprev=\"\"\nfor arg in \"$@\"; do\n  if [ \"$prev\" = \"-p\" ]; then stage=\"$arg\"; fi\n  prev=\"$arg\"\ndone\nif [ -n \"$stage\" ]; then mkdir -p \"$stage/dist\"; fi\nexit 0\n");
+  chmodSync(tsc, 0o755);
+  const consumer = run(file, ["pack", "consumer"], { BORING_PACKAGE_TSC: tsc });
+  if (consumer.code !== 0) throw new Error(consumer.output);
+  const manifest = JSON.parse(readFileSync(join(dir, "out", "consumer", "gen", "package.json"), "utf8"));
+  expect(manifest.dependencies).toEqual({ "base-pkg": "1.2.3" });
+}, 30000);
+
+test("gen writes declared Rust dependencies into Cargo.toml", () => {
+  const { dir, file } = fixture({
+    sourceRoots: ["src"],
+    sourceSets: {
+      base: { types: ["demo.Base"] },
+      consumer: { types: ["demo.Consumer"] },
+    },
+    baseline: "consumer",
+    bundles: [
+      { id: "consumer", target: "rust", sourceSet: "consumer", dependsOn: ["base"], package: { name: "consumer-pkg", version: "2.0.0" } },
+      { id: "base", target: "rust", sourceSet: "base", test: false, compare: false, package: { name: "base-pkg", version: "1.2.3" } },
+    ],
+  });
+  const repo = resolve(".");
+  const compilerArgs = [
+    "-lib", "reflaxe",
+    "-cp", join(repo, "packages/compiler"),
+    "-cp", join(repo, "samples"),
+    "-cp", join(repo, "packages/compiler/reflaxe/rust/std-shadow"),
+    "-cp", join(repo, "packages/compiler/reflaxe/rust"),
+    "--macro", 'Intercept.run(["src"])',
+    "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+    "--macro", "rustcompiler.Compiler.use()",
+    "-D", "runtime-import=crate::runtime", "-D", "runtime-emit=runtime",
+  ];
+  const config = JSON.parse(readFileSync(file, "utf8"));
+  for (const bundle of config.bundles) bundle.haxeArgs = compilerArgs;
+  writeFileSync(file, JSON.stringify(config));
+  mkdirSync(join(dir, "src", "demo"), { recursive: true });
+  writeFileSync(join(dir, "src", "demo", "Base.hx"), "package demo; class Base { public static function value():Int return 1; }\n");
+  writeFileSync(join(dir, "src", "demo", "Consumer.hx"), "package demo; class Consumer { public static function value():Int return Base.value(); }\n");
+  const base = run(file, ["gen", "base"]);
+  if (base.code !== 0) throw new Error(base.output);
+  const consumer = run(file, ["gen", "consumer"]);
+  if (consumer.code !== 0) throw new Error(consumer.output);
+  const manifest = readFileSync(join(dir, "out", "consumer", "gen", "Cargo.toml"), "utf8");
+  expect(manifest).toContain("[dependencies]");
+  expect(manifest).toContain('base_pkg = "1.2.3"');
+}, 30000);

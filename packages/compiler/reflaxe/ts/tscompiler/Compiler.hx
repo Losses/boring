@@ -655,6 +655,15 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             lines.push("  },");
         }
+        final dependencies = PackageShell.dependencies();
+        if (dependencies.length > 0) {
+            lines.push('  "dependencies": {');
+            for (index in 0...dependencies.length) {
+                final comma = index < dependencies.length - 1 ? "," : "";
+                lines.push('    ${jsonString(dependencies[index].name)}: ${jsonString(dependencies[index].version)}${comma}');
+            }
+            lines.push("  },");
+        }
         lines.push('  "devDependencies": {');
         lines.push('    "typescript": "^5.9.0"');
         lines.push('  }');

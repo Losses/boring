@@ -142,7 +142,7 @@ class Config {
         target reads the field of its own ecosystem; the others stay inert,
         so one package block serves every target of a package.
     **/
-    static function ecosystemName(target:String, name:String, npmName:String, cargoName:String,
+    public static function ecosystemName(target:String, name:String, npmName:String, cargoName:String,
             pubName:String, mavenName:String):String {
         if (target == "ts" && npmName != "") return npmName;
         if (target == "rust" && cargoName != "") return cargoName;
@@ -355,6 +355,10 @@ class Config {
             var packageName = "";
             var packageVersion = "";
             var packageLicense = "";
+            var packageNpmName = "";
+            var packageCargoName = "";
+            var packagePubName = "";
+            var packageMavenName = "";
             if (has(values, "package")) {
                 final packageFields = fieldsOf(field(values, "package"), 'boring.json: bundle "$id": package');
                 final packageWhere = 'boring.json: bundle "$id": package';
@@ -365,11 +369,12 @@ class Config {
                     packageLicense = requiredString(packageFields, "license", packageWhere);
                     if (packageLicense == "") fail('boring.json: bundle "$id": package license must not be empty');
                 }
-                packageName = ecosystemName(target, baseName,
-                    packageOverride(packageFields, "npmName", packageWhere),
-                    packageOverride(packageFields, "cargoName", packageWhere),
-                    packageOverride(packageFields, "pubName", packageWhere),
-                    packageOverride(packageFields, "mavenName", packageWhere));
+                packageNpmName = packageOverride(packageFields, "npmName", packageWhere);
+                packageCargoName = packageOverride(packageFields, "cargoName", packageWhere);
+                packagePubName = packageOverride(packageFields, "pubName", packageWhere);
+                packageMavenName = packageOverride(packageFields, "mavenName", packageWhere);
+                packageName = ecosystemName(target, baseName, packageNpmName, packageCargoName, packagePubName,
+                    packageMavenName);
                 if (packageName == "" || packageVersion == "") {
                     fail('boring.json: bundle "$id": package name and version must not be empty');
                 }
@@ -406,6 +411,8 @@ class Config {
                 mavenPublication: command(values, "mavenPublication", 'boring.json: bundle "$id"'),
                 kmpPublication: kmpPublication,
                 packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense,
+                packageNpmName: packageNpmName, packageCargoName: packageCargoName, packagePubName: packagePubName,
+                packageMavenName: packageMavenName,
                 dependsOn: dependsOn
             };
             bundles.push(bundle);
