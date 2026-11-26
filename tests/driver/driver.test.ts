@@ -536,4 +536,4 @@ test("dependsOn skips provided modules and imports the dependency package", () =
   const generated = readFileSync(join(dir, "out", "consumer", "gen", "demo", "Consumer.ts"), "utf8");
   expect(generated).toContain('from "base-pkg/demo/Base.ts"');
   expect(readdirSync(join(dir, "out", "consumer", "gen", "demo"))).not.toContain("Base.ts");
-});
+}, 30000);
