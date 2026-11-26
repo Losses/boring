@@ -1918,6 +1918,14 @@ class RustExpr {
                     recordDeclInit(v, "(" + expr(init) + ").unwrap()");
                     return [indent(depth) + kw + " " + name + explicitType + " = " + "(" + expr(init) + ").unwrap()" + ";"];
                 }
+                if (!isNullType(v.t) && isNullType(init.t)) {
+                    // A non-null local annotated over a nullable source
+                    // unwraps at the declaration, matching the Haxe
+                    // implicit non-null assignment.
+                    final unwrapped = "(" + expr(init) + ").unwrap()";
+                    recordDeclInit(v, unwrapped);
+                    return [indent(depth) + kw + " " + name + explicitType + " = " + unwrapped + ";"];
+                }
                 var initStr = switch (init.expr) {
                     case TFunction(fn):
                         localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
@@ -7798,6 +7806,16 @@ class RustExpr {
                 || hasGuardedTernaryLocals.exists(v.id);
             case _: false;
         };
+        final nullableFieldReceiver:Null<String> = switch (stripWrap(subj).expr) {
+            case TField(base, FInstance(_, _, cf)) | TField(base, FAnon(cf)):
+                (isNullType(base.t) || fieldReceiverCarriesFallibleWrapper(base))
+                    ? expr(base) + ".as_ref().unwrap()." + RustImports.toSnakeCase(cf.get().name)
+                    : null;
+            case _: null;
+        };
+        if (nullableFieldReceiver != null) {
+            return nullableFieldReceiver;
+        }
         if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse) {
             // (ElementWriteCloneLoss) A mutating method (push, insert)
             // whose receiver is an array element must reach the element
