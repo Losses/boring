@@ -180,9 +180,13 @@ class Main {
         if (bundle.dependsOn.length > 0) {
             args.push("-D");
             args.push("package-dependency-file=" + writeDependencyFile(project, bundle));
-            if (bundle.dependencyMode != "registry") {
+            // A packed artifact is installed from the registry, so a path
+            // dependency becomes a versioned one at pack time. Local
+            // generation keeps the bundle's mode.
+            final dependencyMode = pack && bundle.dependencyMode == "path" ? "registry" : bundle.dependencyMode;
+            if (dependencyMode != "registry") {
                 args.push("-D");
-                args.push("package-dependency-mode=" + bundle.dependencyMode);
+                args.push("package-dependency-mode=" + dependencyMode);
             }
             // Each dependency's registry-side name and version, so the
             // compiler writes them into the manifest it generates.
