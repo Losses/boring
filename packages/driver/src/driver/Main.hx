@@ -195,7 +195,10 @@ class Main {
                 if (dep.packageName == "" || dep.packageVersion == "") {
                     continue;
                 }
-                final declared = packageNameOf(dep);
+                // A packed artifact is installed from the registry, where the
+                // crate is published under its package name; local generation
+                // links the generated crate name.
+                final declared = pack ? dep.packageName : packageNameOf(dep);
                 final ecosystem = declared != "" ? declared : Config.ecosystemName(bundle.target, dep.packageName,
                     dep.packageNpmName, dep.packageCargoName, dep.packagePubName, dep.packageMavenName);
                 args.push("-D");
