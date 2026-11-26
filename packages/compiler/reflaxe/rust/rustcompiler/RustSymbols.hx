@@ -172,6 +172,8 @@ class RustSymbols {
             if (module == fromModule)
                 return name;
             recordModuleReference(fromModule, module);
+            final provided = PackageDependencies.crateOf(module);
+            if (provided != null) return provided + "::" + RustImports.moduleToRustPath(module) + "::" + name;
             final prefix = isTestSource(fromModule)
                 ? (isTestTarget(module)
                     ? (state != null && state.testModules.exists(fromModule) ? SUPPORT_PREFIX : TEST_PREFIX)
@@ -179,6 +181,8 @@ class RustSymbols {
                 : "crate::";
             return prefix + RustImports.moduleToRustPath(module) + "::" + name;
         }
+        final provided = PackageDependencies.crateOf(module);
+        if (provided != null) return provided + "::" + RustImports.moduleToRustPath(module) + "::" + name;
         return "crate::" + RustImports.moduleToRustPath(module) + "::" + name;
     }
 
@@ -191,6 +195,8 @@ class RustSymbols {
         if (module == fromModule)
             return name;
         recordModuleReference(fromModule, module);
+        final provided = PackageDependencies.crateOf(module);
+        if (provided != null) return provided + "::" + RustImports.moduleToRustPath(module) + "::" + name;
         final prefix = isTestSource(fromModule)
             ? (isTestTarget(module) ? TEST_PREFIX : MAIN_PREFIX)
             : "crate::";
