@@ -402,6 +402,21 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
 
+        final modulesFile = haxe.macro.Context.definedValue("package-modules-file");
+        if (modulesFile != null && modulesFile != "") {
+            // Haxe module names for dependant bundles: file paths are
+            // snake_case and cannot be turned back into declaration names.
+            final names = [];
+            for (module in modules) {
+                if (isRustTestUnit(module)) continue;
+                if (RuntimeResidents.isResident(module)) continue;
+                if (PackageDependencies.crateOf(module) != null) continue;
+                names.push(module);
+            }
+            names.sort(Reflect.compare);
+            sys.io.File.saveContent(modulesFile, names.length == 0 ? "" : names.join("\n") + "\n");
+        }
+
         // The Haxe tests package owns the generated test helper; every
         // per-test crate includes it.
         var hasHaxeTestsPackage = false;

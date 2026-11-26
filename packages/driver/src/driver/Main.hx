@@ -175,6 +175,8 @@ class Main {
             ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
         final args = Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
             discoverSourceTypes(project, bundle.sourceSet));
+        args.push("-D");
+        args.push("package-modules-file=" + moduleManifestPath(project, bundle));
         if (bundle.dependsOn.length > 0) {
             args.push("-D");
             args.push("package-dependency-file=" + writeDependencyFile(project, bundle));
@@ -579,7 +581,9 @@ class Main {
             print('[${pack ? "pack" : "gen"}] ${bundle.id} -> $generated, $genTests');
             final genFailure = step(project, bundle, pack ? "pack" : "gen", "generate", "haxe", genArgs(project, bundle, pack), [], null);
             if (genFailure != null) exit(1);
-            writeModuleManifest(project, bundle, generated);
+            // The TypeScript and Rust compilers write the authoritative module
+            // names (they know declaration case); other targets keep the scan.
+            if (bundle.target != "ts" && bundle.target != "rust") writeModuleManifest(project, bundle, generated);
             final afterGen = bundle.afterGen;
             if (afterGen != null) {
                 final afterFailure = step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,
