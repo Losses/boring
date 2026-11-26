@@ -401,3 +401,68 @@ test("an empty ecosystem package name is rejected", () => {
   expect(result.code).toBe(1);
   expect(result.output).toContain('field "npmName" must not be empty');
 });
+
+function dependsFixture(dependsOn: string[], dependency: Record<string, unknown>) {
+  return fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn },
+    { id: "base", target: "ts", test: false, package: { name: "demo-base", version: "1.0.0" }, ...dependency },
+  ] });
+}
+
+test("dependsOn names an unknown bundle", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["missing"] },
+  ] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('dependsOn names unknown bundle "missing"');
+});
+
+test("dependsOn may not name its own bundle", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["reference"] },
+  ] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain("may not name the bundle itself");
+});
+
+test("dependsOn lists a bundle twice", () => {
+  const { file } = dependsFixture(["base", "base"], {});
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('lists "base" twice');
+});
+
+test("dependsOn requires the same target", () => {
+  const { file } = dependsFixture(["base"], { target: "rust" });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('dependsOn "base" has target "rust", expected "ts"');
+});
+
+test("dependsOn requires the dependency package", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["base"] },
+    { id: "base", target: "ts", test: false },
+  ] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('dependsOn "base" declares no package');
+});
+
+test("dependsOn rejects a cycle", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["base"], package: { name: "demo", version: "1.0.0" } },
+    { id: "base", target: "ts", test: false, dependsOn: ["reference"], package: { name: "demo-base", version: "1.0.0" } },
+  ] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain("dependsOn forms a cycle");
+});
+
+test("a valid dependsOn parses", () => {
+  const { file } = dependsFixture(["base"], {});
+  const result = run(file, ["gen", "reference"]);
+  expect(result.output).not.toContain("dependsOn");
+});

@@ -8,7 +8,7 @@ import registry.JsonException;
 /** Parses the project file without host I/O or reflection. */
 class Config {
     static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "sourceSets", "rootsFile", "haxeArgs", "bundles"];
-    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication", "kmpPublication"];
+    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen", "mavenPublication", "kmpPublication", "dependsOn"];
     static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env", "cargoArgs"];
@@ -374,6 +374,7 @@ class Config {
                     fail('boring.json: bundle "$id": package name and version must not be empty');
                 }
             }
+            final dependsOn = parseDependsOn(values, id);
             final runOverride = step(values, "run", 'boring.json: bundle "$id"');
             for (variable in runOverride.env) {
                 if (variable.key == "BORING_TEST_RESULTS") {
@@ -404,10 +405,12 @@ class Config {
                 afterGen: command(values, "afterGen", 'boring.json: bundle "$id"'),
                 mavenPublication: command(values, "mavenPublication", 'boring.json: bundle "$id"'),
                 kmpPublication: kmpPublication,
-                packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense
+                packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense,
+                dependsOn: dependsOn
             };
             bundles.push(bundle);
         }
+        validateDependsOn(bundles);
         if (seen.indexOf(baseline) < 0) fail('boring.json: field "baseline" names "$baseline", which is not a bundle id in this file');
         for (bundle in bundles) if (bundle.id == baseline && !bundle.hasTests) fail('boring.json: baseline "$baseline" must have tests');
         for (bundle in bundles) if (bundle.id == baseline && !bundle.hasComparison) fail('boring.json: baseline "$baseline" must participate in compare');
@@ -418,5 +421,53 @@ class Config {
             haxeArgs: strings(fields, "haxeArgs", "boring.json"), bundles: bundles
         };
         return project;
+    }
+
+    static function parseDependsOn(values:Array<JsonField>, bundleId:String):Array<String> {
+        final where = 'boring.json: bundle "${bundleId}"';
+        if (!has(values, "dependsOn")) return [];
+        final out = strings(values, "dependsOn", where);
+        for (bundle in out) {
+            if (bundle == "") fail('${where}: dependsOn must not name an empty bundle');
+            if (bundle == bundleId) fail('${where}: dependsOn may not name the bundle itself');
+            if (out.indexOf(bundle) != out.lastIndexOf(bundle)) fail('${where}: dependsOn lists "${bundle}" twice');
+        }
+        return out;
+    }
+
+    static function bundleById(bundles:Array<BundleSpec>, id:String):Null<BundleSpec> {
+        for (bundle in bundles) if (bundle.id == id) return bundle;
+        return null;
+    }
+
+    static function validateDependsOn(bundles:Array<BundleSpec>):Void {
+        for (bundle in bundles) {
+            for (dep in bundle.dependsOn) {
+                final target = bundleById(bundles, dep);
+                if (target == null) fail('boring.json: bundle "${bundle.id}": dependsOn names unknown bundle "${dep}"');
+                if (target.target != bundle.target) {
+                    fail('boring.json: bundle "${bundle.id}": dependsOn "${dep}" has target "${target.target}", expected "${bundle.target}"');
+                }
+                if (target.packageName == "") {
+                    fail('boring.json: bundle "${bundle.id}": dependsOn "${dep}" declares no package; a dependency must declare package.name so the reference uses its published name');
+                }
+            }
+        }
+        final done:Array<String> = [];
+        for (bundle in bundles) visitDependency(bundle.id, bundles, done, []);
+    }
+
+    static function visitDependency(id:String, bundles:Array<BundleSpec>, done:Array<String>, chain:Array<String>):Void {
+        if (done.indexOf(id) >= 0) return;
+        if (chain.indexOf(id) >= 0) {
+            final at = chain.indexOf(id);
+            final cycle = chain.slice(at).concat([id]);
+            fail('boring.json: bundle "${id}": dependsOn forms a cycle ${cycle.join(" -> ")}');
+        }
+        chain.push(id);
+        final bundle = bundleById(bundles, id);
+        if (bundle != null) for (dep in bundle.dependsOn) visitDependency(dep, bundles, done, chain);
+        chain.pop();
+        done.push(id);
     }
 }

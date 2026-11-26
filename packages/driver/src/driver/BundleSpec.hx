@@ -16,5 +16,6 @@ typedef BundleSpec = {
     hasComparison:Bool,
     afterGen:Null<CommandStep>,
     mavenPublication:Null<CommandStep>,
-    kmpPublication:Bool
+    kmpPublication:Bool,
+    dependsOn:Array<String>
 };
