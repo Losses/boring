@@ -2356,7 +2356,16 @@ class RustDecl {
                 return [item];
             case ThreadSafeShared:
                 imports.require("std::sync::Mutex");
-                final item = '${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});';
+                final initText = expr.rawExpression(init);
+                if (StringTools.startsWith(initText, "UString::from(")) {
+                    // UString::from is not const, so a final Mutex static
+                    // holding one initializes through LazyLock.
+                    imports.require("std::sync::LazyLock");
+                    final item = '${vis}static ${name}: LazyLock<Mutex<${typeStr}>> = LazyLock::new(|| Mutex::new(${initText}));';
+                    RustStaticRealization.verifyItem(mode, item, label, field.pos);
+                    return [item];
+                }
+                final item = '${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${initText});';
                 RustStaticRealization.verifyItem(mode, item, label, field.pos);
                 return [item];
         }
@@ -4243,7 +4252,12 @@ lines.push("        }");
                 // this struct derives Eq, so the struct must derive it too.
                 final fieldsEq = (function() { for (field in fields) if (!RustType.isEqType(field.type)) return false; return true; })();
                 final allPartialEq = RustType.fieldsAllPartialEq(fields);
-                final deriveTraits = ["Debug", "Clone"];
+                final recordDebug = (function() {
+                    for (field in fields)
+                        if (!isDebugTypeDepth(field.type, 0, null, state.sealedCloneInterfaces, null)) return false;
+                    return true;
+                })();
+                final deriveTraits = recordDebug ? ["Debug", "Clone"] : ["Clone"];
                 if (isAllCopy(fields)) deriveTraits.push("Copy");
                 if (allPartialEq) deriveTraits.push("PartialEq");
                 if (allPartialEq && fieldsEq) deriveTraits.push("Eq");
@@ -4382,7 +4396,7 @@ lines.push("        }");
                     for (p in params) if (!isDebugTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) all = false;
                     all;
                 } else if (n == "SortedMapTable" || n == "SortedSetTable" || n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder" || n == "SortedMap" || n == "SortedSet" || n == "SortedMapBuilder" || n == "SortedSetBuilder") false
-                else if (cls.isInterface) sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name)
+                else if (cls.isInterface) false
                 else if (cls.meta.has(":dataClass")) dataClassFieldsAllDebug(cls, depth, root, sealedCloneInterfaces, selfIfaceKey)
                 else if (cls.module == "std" || cls.module.indexOf("haxe.") == 0) false
                 else false;

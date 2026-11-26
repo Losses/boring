@@ -1230,6 +1230,18 @@ impl PartialEq<UString> for &UStr {
     }
 }
 
+impl PartialEq<&UString> for UString {
+    fn eq(&self, other: &&UString) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl PartialEq<UString> for &UString {
+    fn eq(&self, other: &UString) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl PartialEq<&UStr> for UString {
     fn eq(&self, other: &&UStr) -> bool {
         self.as_slice() == other.as_slice()
