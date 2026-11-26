@@ -173,8 +173,76 @@ class Main {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
         final packageKotlinc = pack && bundle.target == "kotlin" && bundle.mavenPublication == null && !bundle.kmpPublication
             ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
-        return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
+        final args = Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
             discoverSourceTypes(project, bundle.sourceSet));
+        if (bundle.dependsOn.length > 0) {
+            args.push("-D");
+            args.push("package-dependency-file=" + writeDependencyFile(project, bundle));
+        }
+        return args;
+    }
+
+    static function moduleManifestPath(project:Project, bundle:BundleSpec):String {
+        return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "modules.txt"));
+    }
+
+    static function dependencyFilePath(project:Project, bundle:BundleSpec):String {
+        return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "dependencies.tsv"));
+    }
+
+    static function dependencyBundle(project:Project, id:String):BundleSpec {
+        for (item in project.bundles) if (item.id == id) return item;
+        fail('bundle dependsOn names unknown bundle "$id"');
+        return null;
+    }
+
+    /** Writes <module> TAB <package name> for every module the dependencies provide. **/
+    static function writeDependencyFile(project:Project, bundle:BundleSpec):String {
+        final path = dependencyFilePath(project, bundle);
+        final lines:Array<String> = [];
+        for (depId in bundle.dependsOn) {
+            final dep = dependencyBundle(project, depId);
+            final manifest = moduleManifestPath(project, dep);
+            if (!exists(manifest)) {
+                fail('bundle "${bundle.id}": dependsOn "${depId}" has no module manifest; run gen for "${depId}" first');
+            }
+            for (line in Host.readText(manifest).split("\n")) {
+                final module = StringTools.trim(line);
+                if (module == "") continue;
+                lines.push(module + "\t" + dep.packageName);
+            }
+        }
+        lines.sort(Reflect.compare);
+        Host.writeText(path, lines.length == 0 ? "" : lines.join("\n") + "\n");
+        return path;
+    }
+
+    /** Records the modules a generated tree provides for dependants. **/
+    static function writeModuleManifest(project:Project, bundle:BundleSpec, root:String):Void {
+        final modules:Array<String> = [];
+        collectModules(root, "", modules);
+        modules.sort(Reflect.compare);
+        Host.writeText(moduleManifestPath(project, bundle), modules.length == 0 ? "" : modules.join("\n") + "\n");
+    }
+
+    static function collectModules(root:String, dir:String, out:Array<String>):Void {
+        final base = dir == "" ? root : joinPath(root, dir);
+        for (entry in Host.readDir(base)) {
+            final relative = dir == "" ? entry : dir + "/" + entry;
+            if (Host.isDirectory(joinPath(root, relative))) {
+                collectModules(root, relative, out);
+                continue;
+            }
+            final dot = relative.lastIndexOf(".");
+            if (dot < 0) continue;
+            final extension = relative.substr(dot + 1);
+            if (["ts", "rs", "kt", "swift", "dart", "hx"].indexOf(extension) < 0) continue;
+            final module = relative.substr(0, dot).split("/").join(".");
+            // The runtime module is emitted by every bundle; a dependant
+            // imports its own runtime, not the dependency's.
+            if (module == "runtime" || module == "runtime.test") continue;
+            out.push(module);
+        }
     }
 
     static function discoverSourceTypes(project:Project, setName:String):Array<String> {
@@ -511,6 +579,7 @@ class Main {
             print('[${pack ? "pack" : "gen"}] ${bundle.id} -> $generated, $genTests');
             final genFailure = step(project, bundle, pack ? "pack" : "gen", "generate", "haxe", genArgs(project, bundle, pack), [], null);
             if (genFailure != null) exit(1);
+            writeModuleManifest(project, bundle, generated);
             final afterGen = bundle.afterGen;
             if (afterGen != null) {
                 final afterFailure = step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,

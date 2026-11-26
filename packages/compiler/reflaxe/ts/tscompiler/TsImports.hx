@@ -317,8 +317,10 @@ class TsImports {
             for (name in nameSet.keys())
                 names.push(name);
             names.sort(Reflect.compare);
+            final provided = PackageDependencies.specifier(module);
+            final specifier = provided == null ? relativeModule(selfModule, module) : provided;
             lines.push('import { ${importedNames(module, names)} } from "'
-                + relativeModule(selfModule, module) + '.ts";');
+                + specifier + '.ts";');
         }
         if (hasAnyKey(runtimeNames)) {
             final names = [];

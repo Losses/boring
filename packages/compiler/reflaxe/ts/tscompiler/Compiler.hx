@@ -512,6 +512,11 @@ class Compiler extends PluginCompiler<Compiler> {
         final testRunner = Context.definedValue("ts-test-runner");
 
         for (module in modules) {
+            if (PackageDependencies.packageOf(module) != null) {
+                // Provided by a bundle this compilation depends on; the
+                // dependant imports the package instead of writing a copy.
+                continue;
+            }
             if (RuntimeResidents.isResident(module)) {
                 // Resident modules append into runtime.ts below,
                 // not into the business tree.

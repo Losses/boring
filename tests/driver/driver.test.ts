@@ -463,6 +463,35 @@ test("dependsOn rejects a cycle", () => {
 
 test("a valid dependsOn parses", () => {
   const { file } = dependsFixture(["base"], {});
-  const result = run(file, ["gen", "reference"]);
+  const result = run(file, ["compare"]);
   expect(result.output).not.toContain("dependsOn");
 });
+
+test("dependsOn passes a dependency module file to the compiler", () => {
+  const { dir, file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["base"] },
+    { id: "base", target: "ts", test: false, package: { name: "base-pkg", version: "1.0.0" } },
+  ] });
+  mkdirSync(join(dir, "out", "base"), { recursive: true });
+  writeFileSync(join(dir, "out", "base", "modules.txt"), "org.demo.Base\n");
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "haxe"), '#!/bin/sh\nprintf "%s\\n" "$@" > "$BORING_ARG_LOG"\n');
+  chmodSync(join(bin, "haxe"), 0o755);
+  const argLog = join(dir, "haxe-args.txt");
+  const result = run(file, ["gen", "reference"], { PATH: bin + ":" + process.env.PATH, BORING_ARG_LOG: argLog });
+  expect(result.code).toBe(0);
+  expect(readFileSync(argLog, "utf8")).toContain("package-dependency-file=");
+  expect(readFileSync(join(dir, "out", "reference", "dependencies.tsv"), "utf8")).toBe("org.demo.Base\tbase-pkg\n");
+});
+
+test("dependsOn requires the dependency to be generated first", () => {
+  const { file } = fixture({ bundles: [
+    { id: "reference", target: "ts", dependsOn: ["base"] },
+    { id: "base", target: "ts", test: false, package: { name: "base-pkg", version: "1.0.0" } },
+  ] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('dependsOn "base" has no module manifest; run gen for "base" first');
+});
+
