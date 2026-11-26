@@ -318,9 +318,12 @@ class TsImports {
                 names.push(name);
             names.sort(Reflect.compare);
             final provided = PackageDependencies.specifier(module);
-            final specifier = provided == null ? relativeModule(selfModule, module) : provided;
+            // A package specifier resolves through the dependency's exports
+            // map, which names the module without an extension; only a
+            // tree-relative import carries the .ts suffix.
+            final specifier = provided == null ? relativeModule(selfModule, module) + ".ts" : provided;
             lines.push('import { ${importedNames(module, names)} } from "'
-                + specifier + '.ts";');
+                + specifier + '";');
         }
         if (hasAnyKey(runtimeNames)) {
             final names = [];
