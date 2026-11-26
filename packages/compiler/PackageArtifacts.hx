@@ -246,6 +246,12 @@ class PackageArtifacts {
         }
     }
 
+    static final RELATIVE_TS_IMPORT = ~/from "(\.{1,2}\/[^"]+)\.ts"/g;
+
+    static function stripTsImportExtensions(content:String):String {
+        return RELATIVE_TS_IMPORT.replace(content, 'from "$1"');
+    }
+
     static function copyTree(src:String, dst:String):Void {
         if (!sys.FileSystem.exists(src)) {
             return;
@@ -263,7 +269,15 @@ class PackageArtifacts {
             if (!sys.FileSystem.exists(parent)) {
                 sys.FileSystem.createDirectory(parent);
             }
-            sys.io.File.saveBytes(dst, sys.io.File.getBytes(src));
+            // A dependency tree is compiled inside the dependent's stage,
+            // which does not enable allowImportingTsExtensions; drop the
+            // extension from its relative imports so the same sources
+            // typecheck under the stage's tsconfig.
+            if (StringTools.endsWith(dst, ".ts")) {
+                sys.io.File.saveContent(dst, stripTsImportExtensions(sys.io.File.getContent(src)));
+            } else {
+                sys.io.File.saveBytes(dst, sys.io.File.getBytes(src));
+            }
         }
     }
 
