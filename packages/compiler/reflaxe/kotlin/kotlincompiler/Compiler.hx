@@ -301,6 +301,11 @@ class Compiler extends PluginCompiler<Compiler> {
         final kotlinTestOutput = Context.definedValue("kotlin-test-output");
 
         for (module in modules) {
+            if (PackageDependencies.provides(module)) {
+                // Provided by a dependency artifact; the dependant resolves
+                // the declarations by Kotlin package path.
+                continue;
+            }
             if (state.payloadEnumOwners.exists(module)) {
                 // The enum declaration is folded into the sealed exception;
                 // other declarations in the same module still need writing.
