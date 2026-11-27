@@ -756,8 +756,10 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('      "default": ${jsonString("./dist/" + stem + ".js")}');
             lines.push('    }' + comma);
         }
-        lines.push("  },");
         final dependencies = PackageShell.dependencies();
+        // A dependency list is the only field after the exports map; without
+        // one the map is the last field and must not carry a trailing comma.
+        lines.push(dependencies.length > 0 ? "  }," : "  }");
         if (dependencies.length > 0) {
             lines.push('  "dependencies": {');
             for (index in 0...dependencies.length) {
