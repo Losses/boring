@@ -16,6 +16,15 @@ class Config {
     static final PACKAGE_FIELDS = ["name", "version", "license", "npmName", "cargoName", "pubName", "mavenName", "swiftUrl", "swiftPath", "mavenGroup"];
     static final TARGETS = ["haxe", "ts", "kotlin", "rust", "swift", "dart"];
 
+    static function failIf(condition:Bool, message:String):String {
+        return condition ? failAndReturn(message) : "";
+    }
+
+    static function failAndReturn(message:String):String {
+        fail(message);
+        return "";
+    }
+
     static function fail(message:String):Void {
         throw new DriverException(InvalidConfig(message));
     }
@@ -219,14 +228,10 @@ class Config {
             final packages = sourcePaths(ruleFields, "packages", name);
             if (packages.length == 0) fail('$where: field "packages" must name at least one package');
             final suffix = requiredString(ruleFields, "suffix", where);
-            if (!validModulePath(suffix) || suffix.indexOf(".") >= 0) {
-                fail('$where: suffix "$suffix" must be a nonempty Haxe identifier');
-            }
+            failIf(!validModulePath(suffix) || suffix.indexOf(".") >= 0, '$where: suffix "$suffix" must be a nonempty Haxe identifier');
             for (prior in rules) {
                 if (prior.root == root && prior.suffix == suffix) {
-                    for (pack in packages) if (prior.packages.indexOf(pack + "") >= 0) {
-                        fail('$where: duplicate package "$pack" for root "$root" and suffix "$suffix"');
-                    }
+                    for (pack in packages) failIf(prior.packages.indexOf(pack + "") >= 0, '$where: duplicate package "$pack" for root "$root" and suffix "$suffix"');
                 }
             }
             rules.push({root: root, packages: packages, suffix: suffix});
@@ -346,12 +351,8 @@ class Config {
             if (has(values, "kmpPublication")) {
                 kmpPublication = requiredBool(field(values, "kmpPublication"), 'boring.json: bundle "$id": field "kmpPublication" must be a boolean');
             }
-            if (has(values, "kmpPublication") && target != "kotlin") {
-                fail('boring.json: bundle "$id": field "kmpPublication" is only valid on the kotlin target');
-            }
-            if (kmpPublication && has(values, "mavenPublication")) {
-                fail('boring.json: bundle "$id": kmpPublication and mavenPublication are mutually exclusive');
-            }
+            failIf(has(values, "kmpPublication") && target != "kotlin", 'boring.json: bundle "$id": field "kmpPublication" is only valid on the kotlin target');
+            failIf(kmpPublication && has(values, "mavenPublication"), 'boring.json: bundle "$id": kmpPublication and mavenPublication are mutually exclusive');
             var packageName = "";
             var packageVersion = "";
             var packageLicense = "";
@@ -381,9 +382,7 @@ class Config {
                 packageMavenGroup = packageOverride(packageFields, "mavenGroup", packageWhere);
                 packageName = ecosystemName(target, baseName, packageNpmName, packageCargoName, packagePubName,
                     packageMavenName);
-                if (packageName == "" || packageVersion == "") {
-                    fail('boring.json: bundle "$id": package name and version must not be empty');
-                }
+                failIf(packageName == "" || packageVersion == "", 'boring.json: bundle "$id": package name and version must not be empty');
             }
             final dependsOn = parseDependsOn(values, id);
             final dependencyMode = parseDependencyMode(values, id);
@@ -396,13 +395,9 @@ class Config {
                 for (dep in dependsOn) {
                     var found = false;
                     for (entry in dependencyPaths) if (entry.id == dep) found = true;
-                    if (!found) {
-                        fail('boring.json: bundle "$id": dependencyPaths has no entry for dependsOn "' + dep + '"');
-                    }
+                    failIf(!found, 'boring.json: bundle "$id": dependencyPaths has no entry for dependsOn "' + dep + '"');
                 }
-            } else if (dependencyMode == "path") {
-                fail('boring.json: bundle "$id": dependencyMode path needs dependencyPaths');
-            }
+            } else failIf(dependencyMode == "path", 'boring.json: bundle "$id": dependencyMode path needs dependencyPaths');
             final runOverride = step(values, "run", 'boring.json: bundle "$id"');
             for (variable in runOverride.env) {
                 if (variable.key == "BORING_TEST_RESULTS") {
@@ -419,9 +414,7 @@ class Config {
                 for (set in sourceSets) if (set.name == sourceSet) foundSet = true;
                 if (!foundSet) fail('boring.json: bundle "$id": unknown source set "$sourceSet"');
             }
-            if (has(values, "mavenPublication") && target != "kotlin") {
-                fail('boring.json: bundle "$id": field "mavenPublication" is only valid on the kotlin target');
-            }
+            failIf(has(values, "mavenPublication") && target != "kotlin", 'boring.json: bundle "$id": field "mavenPublication" is only valid on the kotlin target');
             final bundle:BundleSpec = {
                 id: id, target: target, precision: precision == null ? "" : precision + "", hasTests: hasTests,
                 hasComparison: hasComparison,
@@ -452,11 +445,12 @@ class Config {
     }
 
     static function parseDependencyMode(values:Array<JsonField>, id:String):String {
-        final raw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
-        if (raw == "registry" || raw == "path" || raw == "workspace")
-            return raw;
-        fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
-        return "registry";
+        final raw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"');
+        var mode = "registry";
+        if (raw != null) mode = raw;
+        if (mode != "registry" && mode != "path" && mode != "workspace")
+            mode = failAndReturn('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+        return mode;
     }
 
     static function parseDependsOn(values:Array<JsonField>, bundleId:String):Array<String> {
@@ -481,9 +475,7 @@ class Config {
             for (dep in bundle.dependsOn) {
                 final target = bundleById(bundles, dep);
                 if (target == null) fail('boring.json: bundle "${bundle.id}": dependsOn names unknown bundle "${dep}"');
-                if (target.target != bundle.target) {
-                    fail('boring.json: bundle "${bundle.id}": dependsOn "${dep}" has target "${target.target}", expected "${bundle.target}"');
-                }
+                failIf(target.target != bundle.target, 'boring.json: bundle "${bundle.id}": dependsOn "${dep}" has target "${target.target}", expected "${bundle.target}"');
                 if (target.packageName == "") {
                     fail('boring.json: bundle "${bundle.id}": dependsOn "${dep}" declares no package; a dependency must declare package.name so the reference uses its published name');
                 }
