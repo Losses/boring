@@ -1925,9 +1925,12 @@ class RustExpr {
                 if (!isNullType(v.t) && isNullType(init.t)) {
                     // A non-null local annotated over a nullable source
                     // unwraps at the declaration, matching the Haxe
-                    // implicit non-null assignment.
+                    // implicit non-null assignment. The storage is the
+                    // unwrapped value, so later field reads must not
+                    // re-apply the as_ref forcing read.
                     final unwrapped = "(" + expr(init) + ").unwrap()";
                     recordDeclInit(v, unwrapped);
+                    nullableCollapsedLocals.set(v.id, true);
                     return [indent(depth) + kw + " " + name + explicitType + " = " + unwrapped + ";"];
                 }
                 var initStr = switch (init.expr) {
