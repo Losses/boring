@@ -666,7 +666,7 @@ class Main {
                 makeDirs(mavenDir);
                 final publicationEnv:Array<EnvVar> = [];
                 for (variable in publication.env) {
-                    publicationEnv.push({key: variable.key, value: publicationValue(variable.value, mavenDir, bundle.packageVersion)});
+                    publicationEnv.push(new EnvVar(variable.key, publicationValue(variable.value, mavenDir, bundle.packageVersion)));
                 }
                 final publicationFailure = step(project, bundle, "pack", "mavenPublication", publication.command,
                     publicationArguments(publication.args, mavenDir, bundle.packageVersion), publicationEnv, null);

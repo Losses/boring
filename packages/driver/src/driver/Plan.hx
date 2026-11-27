@@ -91,7 +91,7 @@ class Plan {
         if (!bundle.hasTests) throw new DriverException(InvalidConfig('bundle "${bundle.id}": this target configuration has test=false and cannot run the test action'));
         final steps:Array<ExecutionStep> = [];
         final runEnv = bundle.run.env.copy();
-        final resultVariable:EnvVar = {key: "BORING_TEST_RESULTS", value: results};
+        final resultVariable:EnvVar = new EnvVar("BORING_TEST_RESULTS", results);
         runEnv.push(resultVariable);
         if (bundle.target == "ts") {
             addStep(steps, "run", "bun", ["test", genTests].concat(bundle.run.args), project.root, runEnv);
@@ -147,7 +147,7 @@ class Plan {
             final hostPaths:Array<String> = [];
             if (host != "darwin" && swiftHostLibraries != null && swiftHostLibraries != "") hostPaths.push(swiftHostLibraries + "");
             if (existingLibraryPath != "") hostPaths.push(existingLibraryPath);
-            final libraryVariable:EnvVar = {key: swiftLibraryPathVariable(host), value: hostPaths.length == 0 ? runPaths : runPaths + ":" + hostPaths.join(":")};
+            final libraryVariable:EnvVar = new EnvVar(swiftLibraryPathVariable(host), hostPaths.length == 0 ? runPaths : runPaths + ":" + hostPaths.join(":"));
             runEnv.push(libraryVariable);
             addStep(steps, "run", build + "/test-runner", bundle.run.args, project.root, runEnv);
         } else {
