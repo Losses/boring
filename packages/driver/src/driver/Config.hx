@@ -386,9 +386,14 @@ class Config {
                 }
             }
             final dependsOn = parseDependsOn(values, id);
-            final dependencyMode = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
-            if (dependencyMode != "registry" && dependencyMode != "path" && dependencyMode != "workspace")
-                fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+            final dependencyModeRaw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
+            final dependencyMode = switch (dependencyModeRaw) {
+                case "registry" | "path" | "workspace": dependencyModeRaw;
+                case _: {
+                    fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+                    dependencyModeRaw;
+                }
+            };
             final dependencyPaths:Array<{id:String, path:String}> = [];
             if (has(values, "dependencyPaths")) {
                 final pathsWhere = 'boring.json: bundle "$id": dependencyPaths';
