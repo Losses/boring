@@ -445,12 +445,9 @@ class Config {
         if (seen.indexOf(baseline) < 0) fail('boring.json: field "baseline" names "$baseline", which is not a bundle id in this file');
         for (bundle in bundles) if (bundle.id == baseline && !bundle.hasTests) fail('boring.json: baseline "$baseline" must have tests');
         for (bundle in bundles) if (bundle.id == baseline && !bundle.hasComparison) fail('boring.json: baseline "$baseline" must participate in compare');
-        final project:Project = {
-            path: projectPath, root: root, outRoot: outRoot,
-            resultsDir: resultsDir == null ? "out/test-results" : resultsDir,
-            baseline: baseline, sourceRoots: sourceRoots, sourceSets: sourceSets, rootsFile: rootsFile,
-            haxeArgs: strings(fields, "haxeArgs", "boring.json"), bundles: bundles
-        };
+        final project:Project = new Project(projectPath, root, outRoot,
+            resultsDir == null ? "out/test-results" : resultsDir, baseline, sourceRoots, sourceSets,
+            rootsFile, strings(fields, "haxeArgs", "boring.json"), bundles);
         return project;
     }
 

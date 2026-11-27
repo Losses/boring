@@ -103,9 +103,11 @@ class TsType {
                         '${argName}: ${of(arg.t)}';
                     }
                 ].join(", ") + ") => " + of(ret);
-            case TAnonymous(_):
-                Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
-                null;
+            case TAnonymous(anonRef):
+                // A structure literal carries no nominal type; TypeScript
+                // accepts the structural shape inline.
+                final fields = anonRef.get().fields;
+                "{" + [for (field in fields) field.name + ": " + of(field.type)].join("; ") + "}";
             case TDynamic(_) | TMono(_):
                 fail(t);
             case TLazy(f): of(f());
