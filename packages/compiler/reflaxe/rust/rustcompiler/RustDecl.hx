@@ -4450,8 +4450,8 @@ lines.push("        }");
 
     static function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
         // Mutually recursive types form a cycle here; treat the cycle as
-        // Clone-capable the same way a direct self-reference is (Box<Self>),
-        // instead of recursing without bound.
+        // Clone-capable the same way a direct self-reference is (Box<Self>);
+        // the recursion stops at the depth guard.
         if (depth > 64) return true;
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so

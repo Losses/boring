@@ -514,7 +514,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             if (PackageDependencies.packageOf(module) != null) {
                 // Provided by a bundle this compilation depends on; the
-                // dependant imports the package instead of writing a copy.
+                // dependant imports the package; no copy is written.
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {

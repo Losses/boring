@@ -359,7 +359,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             if (PackageDependencies.crateOf(module) != null) {
                 // Provided by a dependency crate; the dependant imports it
-                // instead of writing a copy.
+                // no copy is written.
                 continue;
             }
             // A payload enum and its exception can share one Haxe module; that

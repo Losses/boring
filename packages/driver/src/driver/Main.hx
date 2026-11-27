@@ -306,7 +306,7 @@ class Main {
             if (["ts", "rs", "kt", "swift", "dart", "hx"].indexOf(extension) < 0) continue;
             final module = relative.substr(0, dot).split("/").join(".");
             // The runtime module is emitted by every bundle; a dependant
-            // imports its own runtime, not the dependency's.
+            // imports its own runtime; the dependency's runtime is not imported.
             if (module == "runtime" || module == "runtime.test") continue;
             out.push(module);
         }

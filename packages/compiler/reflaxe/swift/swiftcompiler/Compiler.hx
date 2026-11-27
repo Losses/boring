@@ -363,7 +363,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             if (PackageDependencies.provides(module)) {
                 // Provided by a dependency module; the dependant imports it
-                // instead of writing a copy.
+                // no copy is written.
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {

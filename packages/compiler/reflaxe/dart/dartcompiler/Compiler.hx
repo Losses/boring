@@ -555,7 +555,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             if (PackageDependencies.packageOf(module) != null) {
                 // Provided by a dependency package; the dependant imports it
-                // through package:<pubName>/... instead of writing a copy.
+                // through package:<pubName>/...; no copy is written.
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {

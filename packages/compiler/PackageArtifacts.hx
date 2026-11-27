@@ -216,7 +216,7 @@ class PackageArtifacts {
         final stem = StringTools.replace(PackageShell.artifactStem(), "/", "-") + "-" + PackageShell.version();
         sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
         // A dependent bundle compiles against this package's installed
-        // shape (dist .js with declarations), not its source tree.
+        // shape (dist .js with declarations); the source tree is not read.
         final installed = haxe.io.Path.join([parent, "npm"]);
         deleteTree(installed);
         sys.FileSystem.createDirectory(installed);
@@ -236,8 +236,8 @@ class PackageArtifacts {
         The declared bundle dependencies, staged under `node_modules`
         with the registry name the manifest uses: the npm artifact's
         tsc resolves a by-name dependency import from this tree, so the
-        pack stays self-contained instead of depending on the consumer's
-        workspace links.
+        pack carries its own copy; the consumer's workspace links are not
+        read.
     **/
     static function copyStagedDependencies(stage:String):Void {
         final defines = haxe.macro.Context.getDefines();
