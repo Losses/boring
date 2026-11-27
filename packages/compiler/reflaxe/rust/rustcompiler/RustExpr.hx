@@ -2245,11 +2245,6 @@ class RustExpr {
                 final declText = unusedLocalIds.exists(v.id)
                     ? "let _ = " + initStr + ";"
                     : '$kw $name$nullableType = $initStr;';
-                // A nullable-typed local whose initializer was already
-                // unwrapped at the declaration stores the plain value; later
-                // reads must not re-apply the as_ref forcing read.
-                if (isNullType(v.t) && isNullType(init.t) && initStr.indexOf(".unwrap(") >= 0)
-                    nullableCollapsedLocals.set(v.id, true);
                 // (NonNullSlotUnwrap)
                 if (declText.indexOf(": Option<") >= 0
                     || StringTools.startsWith(initStr, "Some(")
