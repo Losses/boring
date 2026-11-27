@@ -386,7 +386,7 @@ class Config {
             }
             final dependsOn = parseDependsOn(values, id);
             final dependencyMode = parseDependencyMode(values, id);
-            final dependencyPaths:Array<{id:String, path:String}> = [];
+            final dependencyPaths:Array<DependencyPath> = [];
             if (has(values, "dependencyPaths")) {
                 final pathsWhere = 'boring.json: bundle "$id": dependencyPaths';
                 for (entry in fieldsOf(field(values, "dependencyPaths"), pathsWhere)) {
