@@ -264,7 +264,7 @@ class Config {
         final result:Array<EnvVar> = [];
         for (item in values) {
             final value = requiredValue(item.value, '$where: env "${item.name}" must be a string');
-            final variable:EnvVar = {key: item.name, value: value};
+            final variable:EnvVar = new EnvVar(item.name, value);
             result.push(variable);
         }
         return result;
@@ -272,7 +272,7 @@ class Config {
 
     static function step(fields:Array<JsonField>, name:String, where:String):StepOverride {
         if (!has(fields, name)) {
-            final empty:StepOverride = {args: [], env: [], cargoArgs: null};
+            final empty:StepOverride = new StepOverride([], [], null);
             return empty;
         }
         final values = fieldsOf(field(fields, name), '$where: field "$name"');
@@ -281,7 +281,7 @@ class Config {
         // that must come before the test-harness -- separator; the rust
         // plan inserts them there and every other target ignores them.
         final cargoArgs:Null<Array<String>> = has(values, "cargoArgs") ? strings(values, "cargoArgs", '$where: $name') : null;
-        final stepValue:StepOverride = {args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name'), cargoArgs: cargoArgs};
+        final stepValue:StepOverride = new StepOverride(strings(values, "args", '$where: $name'), env(values, '$where: $name'), cargoArgs);
         return stepValue;
     }
 
@@ -291,7 +291,7 @@ class Config {
         checkFields(values, COMMAND_FIELDS, '$where: $name');
         final command = requiredString(values, "command", '$where: $name');
         if (command == "") fail('$where: $name command must not be empty');
-        final result:CommandStep = {command: command, args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name')};
+        final result:CommandStep = new CommandStep(command, strings(values, "args", '$where: $name'), env(values, '$where: $name'));
         return result;
     }
 
@@ -390,7 +390,7 @@ class Config {
             if (has(values, "dependencyPaths")) {
                 final pathsWhere = 'boring.json: bundle "$id": dependencyPaths';
                 for (entry in fieldsOf(field(values, "dependencyPaths"), pathsWhere)) {
-                    dependencyPaths.push({id: entry.name, path: requiredValue(entry.value, pathsWhere + ': "' + entry.name + '" must be a string')});
+                    dependencyPaths.push(new DependencyPath(entry.name, requiredValue(entry.value, pathsWhere + ': "' + entry.name + '" must be a string')));
                 }
                 for (dep in dependsOn) {
                     var found = false;
@@ -415,23 +415,15 @@ class Config {
                 if (!foundSet) fail('boring.json: bundle "$id": unknown source set "$sourceSet"');
             }
             failIf(has(values, "mavenPublication") && target != "kotlin", 'boring.json: bundle "$id": field "mavenPublication" is only valid on the kotlin target');
-            final bundle:BundleSpec = {
-                id: id, target: target, precision: precision == null ? "" : precision + "", hasTests: hasTests,
-                hasComparison: hasComparison,
-                haxeArgs: strings(values, "haxeArgs", 'boring.json: bundle "$id"'),
-                rootsFile: bundleRoots,
-                sourceSet: sourceSet,
-                build: step(values, "build", 'boring.json: bundle "$id"'),
-                run: runOverride,
-                afterGen: command(values, "afterGen", 'boring.json: bundle "$id"'),
-                mavenPublication: command(values, "mavenPublication", 'boring.json: bundle "$id"'),
-                kmpPublication: kmpPublication,
-                packageName: packageName, packageVersion: packageVersion, packageLicense: packageLicense,
-                packageNpmName: packageNpmName, packageCargoName: packageCargoName, packagePubName: packagePubName,
-                packageMavenName: packageMavenName, packageSwiftUrl: packageSwiftUrl, packageSwiftPath: packageSwiftPath,
-                packageMavenGroup: packageMavenGroup, dependencyMode: dependencyMode, dependencyPaths: dependencyPaths,
-                dependsOn: dependsOn
-            };
+            final bundle:BundleSpec = new BundleSpec(id, target, precision == null ? "" : precision + "",
+                strings(values, "haxeArgs", 'boring.json: bundle "$id"'), bundleRoots, sourceSet,
+                step(values, "build", 'boring.json: bundle "$id"'), runOverride,
+                packageName, packageVersion, packageLicense, packageNpmName, packageCargoName, packagePubName,
+                packageMavenName, packageSwiftUrl, packageSwiftPath, packageMavenGroup, dependencyMode,
+                dependencyPaths, hasTests, hasComparison,
+                command(values, "afterGen", 'boring.json: bundle "$id"'),
+                command(values, "mavenPublication", 'boring.json: bundle "$id"'),
+                kmpPublication, dependsOn);
             bundles.push(bundle);
         }
         validateDependsOn(bundles);
