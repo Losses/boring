@@ -1890,10 +1890,6 @@ class RustExpr {
                     final provenText = provenNonNullOwnedText(init);
                     if (provenText != null) {
                         recordDeclInit(v, provenText);
-                        // The declaration owns the unwrapped value, so later
-                        // field reads must not re-apply the as_ref forcing
-                        // read (E0599 on the plain struct).
-                        nullableCollapsedLocals.set(v.id, true);
                         return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
                     }
                 }
