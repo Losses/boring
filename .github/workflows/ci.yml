@@ -933,8 +933,8 @@ jobs:
     timeout-minutes: 240
     env:
       TIQIAN_REPOSITORY: Losses/tiqian
-      # tiqian release/alpha08 as of 2026-11-16; carries tools/compile-bundles.py.
-      TIQIAN_REF: f2c316f24707fb7bef526213213e34aac674af95
+      # tiqian main as of 2026-11-27; carries tools/compile-bundles.py.
+      TIQIAN_REF: d99da03785f40b319c51a68ae1e3bce1924ddce7
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
