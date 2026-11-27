@@ -386,14 +386,7 @@ class Config {
                 }
             }
             final dependsOn = parseDependsOn(values, id);
-            final dependencyModeRaw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
-            final dependencyMode = switch (dependencyModeRaw) {
-                case "registry" | "path" | "workspace": dependencyModeRaw;
-                case _: {
-                    fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
-                    dependencyModeRaw;
-                }
-            };
+            final dependencyMode = parseDependencyMode(values, id);
             final dependencyPaths:Array<{id:String, path:String}> = [];
             if (has(values, "dependencyPaths")) {
                 final pathsWhere = 'boring.json: bundle "$id": dependencyPaths';
@@ -459,6 +452,14 @@ class Config {
             haxeArgs: strings(fields, "haxeArgs", "boring.json"), bundles: bundles
         };
         return project;
+    }
+
+    static function parseDependencyMode(values:Array<JsonField>, id:String):String {
+        final raw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"') ?? "registry";
+        if (raw == "registry" || raw == "path" || raw == "workspace")
+            return raw;
+        fail('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+        return "registry";
     }
 
     static function parseDependsOn(values:Array<JsonField>, bundleId:String):Array<String> {
