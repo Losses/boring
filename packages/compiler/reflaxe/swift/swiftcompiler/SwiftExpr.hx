@@ -797,7 +797,12 @@ class SwiftExpr {
                 if (coalescing != null)
                     coalescingLocals.set(v.id, true);
                 final kw = mutated.exists(v.id) ? "var" : "let";
-                final tryKw = containsThrowingCall(init) ? "try " : "";
+                // A call expression renders its own try marker; adding the
+                // declaration marker again would emit "try try".
+                final tryKw = containsThrowingCall(init) && switch (init.expr) {
+                    case TCall(_, _): false;
+                    case _: true;
+                } ? "try " : "";
                 // Five initializers cannot carry their type to Swift's
                 // inference: an empty array literal, an integer
                 // initializer (a bare literal infers the 64-bit Int), an
@@ -2091,9 +2096,9 @@ class SwiftExpr {
                     for (l in blockLines(batch, depth + 1))
                         out.push(l);
                 case StoreValue(value):
-                    out.push(indent(depth + 1) + arrName + ".append(" + (containsThrowingCall(value) ? "try " : "") + expr(value) + ")");
+                    out.push(indent(depth + 1) + arrName + ".append(" + expr(value) + ")");
                 case PushValue(arg):
-                    out.push(indent(depth + 1) + arrName + ".append(" + (containsThrowingCall(arg) ? "try " : "") + expr(arg) + ")");
+                    out.push(indent(depth + 1) + arrName + ".append(" + expr(arg) + ")");
             }
         }
         out.push(indent(depth) + "}");
