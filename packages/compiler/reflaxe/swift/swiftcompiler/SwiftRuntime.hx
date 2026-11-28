@@ -731,7 +731,7 @@ extension BoringArray where Element: Equatable {
         if let i = items.firstIndex(of: element) { return Int32(items.distance(from: items.startIndex, to: i)) }
         return -1
     }
-    public func lastIndexOf(_ element: Element) -> Int32 {
+    public func lastIndexOf(_ element: Element, from _: Int32? = nil) -> Int32 {
         if let i = items.lastIndex(of: element) { return Int32(items.distance(from: items.startIndex, to: i)) }
         return -1
     }
