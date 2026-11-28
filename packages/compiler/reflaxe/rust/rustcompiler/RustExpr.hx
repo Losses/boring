@@ -6470,13 +6470,28 @@ class RustExpr {
                     case _: nullableBoolOperand(stripWrap(c), expr(stripWrap(c)));
                 };
                 final branchTarget = conditionalNumericTarget(t, f, e.t);
-                return "if "
-                    + condStr
-                    + " { "
-                    + interfaceConditionalBranch(e.t, t, conditionalNumericBranch(t, f, e.t, branchTarget, wrapBranchForNullableResult(t, e.t, f)))
-                    + " } else { "
-                    + interfaceConditionalBranch(e.t, f, conditionalNumericBranch(f, t, e.t, branchTarget, wrapBranchForNullableResult(f, e.t, t)))
-                    + " }";
+                var trueText = interfaceConditionalBranch(e.t, t, conditionalNumericBranch(t, f, e.t, branchTarget, wrapBranchForNullableResult(t, e.t, f)));
+                var falseText = interfaceConditionalBranch(e.t, f, conditionalNumericBranch(f, t, e.t, branchTarget, wrapBranchForNullableResult(f, e.t, t)));
+                // The null test narrows one arm to the subject's payload.
+                // When that arm renders the subject read itself, the payload
+                // is extracted; a non-null result slot receives it.
+                // (ProvenNonNullSlotUnwrap)
+                final guardInfo = nullGuardOf(stripWrap(c));
+                if (guardInfo != null && e.t != null && !isNullType(e.t)) {
+                    // The compared read is the subject itself, so the text
+                    // comparison above cannot see a receiver that renders
+                    // differently from subjectTextOf; compare the typed ASTs.
+                    // subjectTextOf renders an array-element receiver through
+                    // clone() and parentheses, so compare the paths with the
+                    // decoration removed.
+                    final armPath = (guardInfo.noneWhenTrue ? falseText : trueText).split(".clone()").join("").split("(").join("").split(")").join("");
+                    final subjectPath = subjectTextOf(guardInfo.subject).split(".clone()").join("").split("(").join("").split(")").join("");
+                    if (armPath == subjectPath) {
+                        if (guardInfo.noneWhenTrue) falseText = "(" + falseText + ").unwrap()";
+                        else trueText = "(" + trueText + ").unwrap()";
+                    }
+                }
+                return "if " + condStr + " { " + trueText + " } else { " + falseText + " }";
             case TSwitch(_, _, _):
                 return matchExpression(e);
             case TTry(_, catches) if (catches.length != 1):
