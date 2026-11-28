@@ -797,12 +797,6 @@ class SwiftExpr {
                 if (coalescing != null)
                     coalescingLocals.set(v.id, true);
                 final kw = mutated.exists(v.id) ? "var" : "let";
-                // A call expression renders its own try marker; adding the
-                // declaration marker again would emit "try try".
-                final tryKw = containsThrowingCall(init) && switch (init.expr) {
-                    case TCall(_, _): false;
-                    case _: true;
-                } ? "try " : "";
                 // Five initializers cannot carry their type to Swift's
                 // inference: an empty array literal, an integer
                 // initializer (a bare literal infers the 64-bit Int), an
@@ -863,6 +857,11 @@ class SwiftExpr {
                     initText = SwiftCoerce.coerce(
                         { text: initText, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null, pos: init.pos },
                         { type: v.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
+                // The rendered initializer may already carry its own try
+                // marker (the call's inout-temps closure puts one before the
+                // closure invocation); a second one before the same text
+                // would emit "try try".
+                final tryKw = containsThrowingCall(init) && !(initText.substr(0, 4) == "try ") ? "try " : "";
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
                 if (swiftUnusedLocals.exists(v.id)) {
@@ -1035,12 +1034,13 @@ class SwiftExpr {
                 final builderMutation = builderBackedMutationLines(e, depth);
                 if (builderMutation != null)
                     return builderMutation;
-                final tryKw = containsThrowingCall(e) ? "try " : "";
+                final rendered = expr(e);
+                final tryKw = containsThrowingCall(e) && !(rendered.substr(0, 4) == "try ") ? "try " : "";
                 // A call whose result the source discards reads as an
                 // explicit discard; Swift warns on a bare non-Void call
                 // in statement position.
                 final discard = isDiscardedCall(e) ? "_ = " : "";
-                return [indent(depth) + discard + tryKw + expr(e)];
+                return [indent(depth) + discard + tryKw + rendered];
         }
     }
 
@@ -1108,7 +1108,7 @@ class SwiftExpr {
         final rendered = expr(c);
         // Haxe treats a null Bool as false; Swift rejects an optional test,
         // so the condition coalesces it to the same falsy default.
-        final text = isOptionalBool(c) ? "(" + rendered + " ?? false)" : (containsThrowingCall(c) ? "try " + rendered : rendered);
+        final text = isOptionalBool(c) ? "(" + rendered + " ?? false)" : (containsThrowingCall(c) && !(rendered.substr(0, 4) == "try ") ? "try " + rendered : rendered);
         // A condition that opens with a closure literal (the post-increment
         // lowering) would let Swift read the `{` as the statement body, so
         // the whole condition carries its own parentheses.
@@ -2096,9 +2096,16 @@ class SwiftExpr {
                     for (l in blockLines(batch, depth + 1))
                         out.push(l);
                 case StoreValue(value):
-                    out.push(indent(depth + 1) + arrName + ".append(" + expr(value) + ")");
+                    // expr() carries no try marker for a plain call; the
+                    // append statement adds one, unless the rendered value
+                    // already begins with its own marker.
+                    final storeText = expr(value);
+                    final storeTry = containsThrowingCall(value) && !(storeText.substr(0, 4) == "try ") ? "try " : "";
+                    out.push(indent(depth + 1) + arrName + ".append(" + storeTry + storeText + ")");
                 case PushValue(arg):
-                    out.push(indent(depth + 1) + arrName + ".append(" + expr(arg) + ")");
+                    final pushText = expr(arg);
+                    final pushTry = containsThrowingCall(arg) && !(pushText.substr(0, 4) == "try ") ? "try " : "";
+                    out.push(indent(depth + 1) + arrName + ".append(" + pushTry + pushText + ")");
             }
         }
         out.push(indent(depth) + "}");
@@ -4332,7 +4339,10 @@ class SwiftExpr {
             case TFun(_, r): isVoidReturnType(r) ? "Void" : types.of(r);
             case _: "Void";
         };
-        return "try { () throws -> " + ret + " in " + decls + "; return try " + emitted + " }()";
+        // The emitted call may already carry its own try marker; a second
+        // one directly before the closure invocation would read "try try".
+        final closureTry = (emitted.substr(0, 4) == "try ") ? "" : "try ";
+        return closureTry + "{ () throws -> " + ret + " in " + decls + "; return try " + emitted + " }()";
     }
 
     /**
