@@ -327,7 +327,9 @@ class RegistryMetadata {
         for (candidate in project.bundles) {
             if (candidate.packageName != bundle.packageName) continue;
             for (step in [candidate.build, candidate.run]) {
-                final lists:Array<Array<String>> = [step.args, step.cargoArgs == null ? [] : step.cargoArgs];
+                final lists:Array<Array<String>> = [step.args];
+                final configuredCargoArgs:Null<Array<String>> = step.cargoArgs;
+                if (configuredCargoArgs != null) lists.push(configuredCargoArgs);
                 for (list in lists) {
                     var index = 0;
                     while (index < list.length) {

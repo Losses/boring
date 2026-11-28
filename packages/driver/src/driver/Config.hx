@@ -438,11 +438,10 @@ class Config {
 
     static function parseDependencyMode(values:Array<JsonField>, id:String):String {
         final raw = optionalString(values, "dependencyMode", 'boring.json: bundle "$id"');
-        var mode = "registry";
-        if (raw != null) mode = raw;
-        if (mode != "registry" && mode != "path" && mode != "workspace")
-            mode = failAndReturn('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
-        return mode;
+        if (raw == null) return "registry";
+        if (raw != "registry" && raw != "path" && raw != "workspace")
+            return failAndReturn('boring.json: bundle "$id": dependencyMode must be registry, path or workspace');
+        return raw;
     }
 
     static function parseDependsOn(values:Array<JsonField>, bundleId:String):Array<String> {
@@ -452,7 +451,9 @@ class Config {
         for (bundle in out) {
             if (bundle == "") fail('${where}: dependsOn must not name an empty bundle');
             if (bundle == bundleId) fail('${where}: dependsOn may not name the bundle itself');
-            if (out.indexOf(bundle) != out.lastIndexOf(bundle)) fail('${where}: dependsOn lists "${bundle}" twice');
+            var occurrences = 0;
+            for (other in out) if (other == bundle) occurrences += 1;
+            if (occurrences > 1) fail('${where}: dependsOn lists "${bundle}" twice');
         }
         return out;
     }
