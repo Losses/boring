@@ -191,7 +191,9 @@ class Main {
             // Each dependency's registry-side name and version, so the
             // compiler writes them into the manifest it generates.
             for (depId in bundle.dependsOn) {
-                final dep = dependencyBundle(project, depId);
+                final depIndex = dependencyIndex(project, depId);
+                if (depIndex < 0) continue;
+                final dep = project.bundles[depIndex];
                 if (dep.packageName == "" || dep.packageVersion == "") {
                     continue;
                 }
@@ -249,6 +251,37 @@ class Main {
         return "";
     }
 
+    /** Ascending order by string comparison. The comparator form of
+        Array.sort is not in the translated subset, so the permutation is
+        spelled as an insertion sort. **/
+    static function sortStrings(values:Array<String>):Void {
+        var i = 1;
+        while (i < values.length) {
+            final value = values[i];
+            var j = i - 1;
+            while (j >= 0 && compareStrings(values[j], value) > 0) {
+                values[j + 1] = values[j];
+                j -= 1;
+            }
+            values[j + 1] = value;
+            i += 1;
+        }
+    }
+
+    /** Ascending code-unit order. Reflect.compare is not in the translated
+        subset, so the comparison walks the code units directly. **/
+    static function compareStrings(a:String, b:String):Int {
+        var i = 0;
+        while (i < a.length && i < b.length) {
+            final ca = a.charCodeAt(i);
+            final cb = b.charCodeAt(i);
+            if (ca != cb) return ca < cb ? -1 : 1;
+            i += 1;
+        }
+        if (a.length == b.length) return 0;
+        return a.length < b.length ? -1 : 1;
+    }
+
     static function moduleManifestPath(project:Project, bundle:BundleSpec):String {
         return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "modules.txt"));
     }
@@ -257,10 +290,16 @@ class Main {
         return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "dependencies.tsv"));
     }
 
-    static function dependencyBundle(project:Project, id:String):BundleSpec {
-        for (item in project.bundles) if (item.id == id) return item;
-        fail('bundle dependsOn names unknown bundle "$id"');
-        return null;
+    /** The index of the named bundle, or -1 when absent. Config validation
+        rejects unknown names before generation starts, so no fault is raised
+        here; a module that both parses arguments and raises a fault gains a
+        synthetic fault variant, which would make every matching switch over
+        the shared fault enum non-total in the translated code. **/
+    static function dependencyIndex(project:Project, id:String):Int {
+        for (i in 0...project.bundles.length) {
+            if (project.bundles[i].id == id) return i;
+        }
+        return -1;
     }
 
     /** Writes <module> TAB <package name> for every module the dependencies provide. **/
@@ -268,7 +307,9 @@ class Main {
         final path = dependencyFilePath(project, bundle);
         final lines:Array<String> = [];
         for (depId in bundle.dependsOn) {
-            final dep = dependencyBundle(project, depId);
+            final depIndex = dependencyIndex(project, depId);
+            if (depIndex < 0) continue;
+            final dep = project.bundles[depIndex];
             final manifest = moduleManifestPath(project, dep);
             if (!exists(manifest)) {
                 fail('bundle "${bundle.id}": dependsOn "${depId}" has no module manifest; run gen for "${depId}" first');
@@ -279,7 +320,7 @@ class Main {
                 lines.push(module + "\t" + dep.packageName);
             }
         }
-        lines.sort(Reflect.compare);
+        sortStrings(lines);
         Host.writeText(path, lines.length == 0 ? "" : lines.join("\n") + "\n");
         return path;
     }
@@ -288,7 +329,7 @@ class Main {
     static function writeModuleManifest(project:Project, bundle:BundleSpec, root:String):Void {
         final modules:Array<String> = [];
         collectModules(root, "", modules);
-        modules.sort(Reflect.compare);
+        sortStrings(modules);
         Host.writeText(moduleManifestPath(project, bundle), modules.length == 0 ? "" : modules.join("\n") + "\n");
     }
 
